@@ -1830,6 +1830,9 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
         <button class="sm-tab" id="sm-tab-history" onclick="smSwitchTab('history',this)">
           <i class="fas fa-history"></i> ประวัติภารกิจ
         </button>
+        <button class="sm-tab" id="sm-tab-manage" onclick="smSwitchTab('manage',this)" style="display:none">
+          <i class="fas fa-cog"></i> จัดการ
+        </button>
       </div>
 
       <!-- Active missions list -->
@@ -1840,6 +1843,13 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
       <!-- History missions list -->
       <div id="sm-history-list" style="display:none">
         <div class="sm-empty"><i class="fas fa-history"></i>ยังไม่มีประวัติภารกิจ</div>
+      </div>
+
+      <!-- Admin management panel (admin only) -->
+      <div id="sm-manage-panel" style="display:none">
+        <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">
+          <i class="fas fa-spinner fa-spin" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.4"></i>กำลังโหลด...
+        </div>
       </div>
     </div>
 
@@ -1903,7 +1913,6 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
       <button class="admin-tab" onclick="switchAdminTab('vehicles',this)">รถ</button>
       <button class="admin-tab" onclick="switchAdminTab('pumps',this)">เครื่องสูบน้ำ</button>
       <button class="admin-tab" onclick="switchAdminTab('boats',this)">เรือ</button>
-      <button class="admin-tab" onclick="switchAdminTab('search_missions',this)">🔍 ภารกิจค้นหา</button>
     </div>
     <div id="admin-content"></div>
   </div>
@@ -3764,7 +3773,6 @@ function renderAdminContent() {
   else if(S.currentAdminTab==='vehicles') renderAdminVehicles(c);
   else if(S.currentAdminTab==='pumps') renderAdminPumps(c);
   else if(S.currentAdminTab==='boats') renderAdminBoats(c);
-  else if(S.currentAdminTab==='search_missions') renderAdminSearchMissions(c);
 }
 
 function renderAdminUsers(c) {
@@ -4541,8 +4549,10 @@ window.smInitPage = function() {
 window.smSwitchTab = function(tab, el) {
   document.querySelectorAll('.sm-tab').forEach(t => t.classList.remove('active'));
   if(el) el.classList.add('active');
-  document.getElementById('sm-mission-list').style.display = tab === 'active' ? 'block' : 'none';
-  document.getElementById('sm-history-list').style.display = tab === 'history' ? 'block' : 'none';
+  document.getElementById('sm-mission-list').style.display  = tab === 'active'  ? 'block' : 'none';
+  document.getElementById('sm-history-list').style.display  = tab === 'history' ? 'block' : 'none';
+  document.getElementById('sm-manage-panel').style.display  = tab === 'manage'  ? 'block' : 'none';
+  if(tab === 'manage') renderAdminSearchMissions(document.getElementById('sm-manage-panel'));
 };
 
 // ── Load missions from Firebase ────────────────────────────
@@ -4550,6 +4560,11 @@ function smLoadMissions() {
   const listEl = document.getElementById('sm-mission-list');
   const histEl = document.getElementById('sm-history-list');
   if(!listEl) return;
+
+  // แสดง tab จัดการเฉพาะ admin
+  const manageTab = document.getElementById('sm-tab-manage');
+  if(manageTab) manageTab.style.display = S.user?.role === 'admin' ? 'flex' : 'none';
+
   listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.4"></i>กำลังโหลด...</div>';
 
   const smRef = ref(db, 'search_missions');
@@ -5083,8 +5098,9 @@ window.smAdminSaveEdit = async function() {
     await update(ref(db, `search_missions/${id}`), payload);
     closeModal('modal-sm-admin-edit');
     showToast('บันทึกการแก้ไขสำเร็จ ✅', 'success');
-    // Re-render admin tab
-    renderAdminContent();
+    // Re-render manage panel
+    const panel = document.getElementById('sm-manage-panel');
+    if(panel && panel.style.display !== 'none') renderAdminSearchMissions(panel);
   } catch(e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
 };
 
@@ -5093,7 +5109,8 @@ window.smAdminDelete = async function(missionId, title) {
   try {
     await remove(ref(db, `search_missions/${missionId}`));
     showToast('ลบภารกิจสำเร็จ', 'success');
-    renderAdminContent();
+    const panel = document.getElementById('sm-manage-panel');
+    if(panel && panel.style.display !== 'none') renderAdminSearchMissions(panel);
   } catch(e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
 };
 
