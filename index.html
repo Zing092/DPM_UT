@@ -5087,34 +5087,44 @@ window.smJoin = async function(missionId) {
 };
 
 window.smLeave = async function(missionId, silent=false) {
-  // fallback: ดึงจาก localStorage ถ้า missionId ไม่ถูกส่งมา
-  const mid = missionId || localStorage.getItem('sm_active_mission');
+  const mid = missionId || _smActiveMissionId || localStorage.getItem('sm_active_mission');
   if(!S.user?.id || !mid) { if(!silent) showToast('ไม่พบภารกิจ', 'info'); return; }
 
-  // ── ปิดทุกอย่างก่อนเลย ก่อน Firebase จะ async ──
-  window._smGpsActive  = false;
-  _smActiveMissionId   = null;
-  localStorage.removeItem('sm_active_mission');
-  smStopGps();
-  // หยุด listener ทั้งหมดทันที
+  // ══ ปิดทุกอย่างก่อนทันที ก่อน Firebase async ══
+  window._smGpsActive  = false;          // flag: ปิด GPS ห้ามเปิดใหม่
+  _smActiveMissionId   = null;           // ล้างตัวแปรหลัก
+  localStorage.removeItem('sm_active_mission');  // ล้าง storage
+  smStopGps();                           // หยุด watchPosition + SW
+
+  // หยุด listener ทั้งหมดทันที (ป้องกัน listener เซ็ตค่ากลับ)
   if(window._smLocListener)    { window._smLocListener();    window._smLocListener    = null; }
   if(window._smStatusListener) { window._smStatusListener(); window._smStatusListener = null; }
 
+  // UI กลับหน้ารายการทันที ไม่รอ Firebase
+  if(!silent) smBackToList();
+
+  // ลบข้อมูลออกจาก Firebase (ทำ background)
   try {
     await Promise.all([
       remove(ref(db, `search_missions/${mid}/members/${S.user.id}`)),
       remove(ref(db, `search_missions/${mid}/locations/${S.user.id}`))
     ]);
-    if(!silent) { showToast('ออกจากภารกิจแล้ว ✅', 'info'); smBackToList(); }
-    smUpdateMyMissionAlert();
-  } catch(e) { if(!silent) showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
+    if(!silent) showToast('ออกจากภารกิจแล้ว ✅', 'info');
+  } catch(e) {
+    if(!silent) showToast('ออกจากภารกิจแล้ว (sync error)', 'info');
+  }
+
+  // อัปเดต banner หลัง Firebase เสร็จ — _smGpsActive=false แล้วจะซ่อนทันที
+  smUpdateMyMissionAlert();
 };
 
 window.smLeaveConfirm = function() {
-  // fallback: ดึงจาก localStorage ถ้า _smActiveMissionId หลุด
+  // ล็อก missionId ก่อน confirm เพื่อป้องกันค่าหลุดระหว่างรอผู้ใช้กด
   const mid = _smActiveMissionId || localStorage.getItem('sm_active_mission');
   if(!mid) { showToast('ไม่พบภารกิจที่เข้าร่วม', 'info'); return; }
-  if(confirm('ยืนยันออกจากภารกิจ?\nระบบจะหยุดส่งตำแหน่งของคุณ')) smLeave(mid);
+  if(confirm('ยืนยันออกจากภารกิจ?\nระบบจะหยุดส่งตำแหน่งของคุณ')) {
+    smLeave(mid);   // ส่ง mid ที่ล็อกไว้ ไม่อ่าน _smActiveMissionId ใหม่
+  }
 };
 
 // ── Open Tracking Map ──────────────────────────────────────
@@ -6193,23 +6203,34 @@ function smUpdateMyMissionAlert() {
   const alert = document.getElementById('sm-my-mission-alert');
   const nameEl = document.getElementById('sm-my-mission-name');
   if(!alert) return;
-  const saved = localStorage.getItem('sm_active_mission') || _smActiveMissionId;
-  if(saved) {
-    _smActiveMissionId = saved;
-    get(ref(db, `search_missions/${saved}`)).then(snap => {
-      const m = snap.val();
-      if(m && m.status !== 'closed' && m.members?.[S.user?.id]) {
-        alert.style.display = 'block';
-        if(nameEl) nameEl.textContent = m.title || 'ภารกิจค้นหา';
-      } else {
-        alert.style.display = 'none';
-        _smActiveMissionId = null;
-        localStorage.removeItem('sm_active_mission');
-      }
-    });
-  } else {
+
+  // ถ้า _smGpsActive=false แสดงว่าออกภารกิจแล้ว — ซ่อน banner ทันที ไม่ต้องถาม Firebase
+  if(!window._smGpsActive) {
     alert.style.display = 'none';
+    return;
   }
+
+  // ใช้เฉพาะ _smActiveMissionId (ไม่อ่าน localStorage เพื่อป้องกันการเซ็ตกลับ)
+  const mid = _smActiveMissionId;
+  if(!mid) { alert.style.display = 'none'; return; }
+
+  get(ref(db, `search_missions/${mid}`)).then(snap => {
+    // เช็คอีกครั้งหลัง async — อาจออกระหว่างรอ
+    if(!window._smGpsActive || _smActiveMissionId !== mid) {
+      alert.style.display = 'none';
+      return;
+    }
+    const m = snap.val();
+    if(m && m.status !== 'closed' && m.members?.[S.user?.id]) {
+      alert.style.display = 'block';
+      if(nameEl) nameEl.textContent = m.title || 'ภารกิจค้นหา';
+    } else {
+      alert.style.display = 'none';
+      _smActiveMissionId = null;
+      localStorage.removeItem('sm_active_mission');
+      window._smGpsActive = false;
+    }
+  });
 }
 // ── Lightbox for mission photos ───────────────────────────
 
