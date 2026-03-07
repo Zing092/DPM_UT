@@ -5087,22 +5087,34 @@ window.smJoin = async function(missionId) {
 };
 
 window.smLeave = async function(missionId, silent=false) {
-  if(!S.user?.id || !missionId) return;
-  // ── หยุด GPS และล้าง mission ก่อนทุกอย่าง ──
-  window._smGpsActive = false;                         // ปิด flag ทันที
-  _smActiveMissionId  = null;                          // ล้างก่อน interval ทำงาน
-  localStorage.removeItem('sm_active_mission');        // ล้างก่อน beacon อ่าน
+  // fallback: ดึงจาก localStorage ถ้า missionId ไม่ถูกส่งมา
+  const mid = missionId || localStorage.getItem('sm_active_mission');
+  if(!S.user?.id || !mid) { if(!silent) showToast('ไม่พบภารกิจ', 'info'); return; }
+
+  // ── ปิดทุกอย่างก่อนเลย ก่อน Firebase จะ async ──
+  window._smGpsActive  = false;
+  _smActiveMissionId   = null;
+  localStorage.removeItem('sm_active_mission');
   smStopGps();
+  // หยุด listener ทั้งหมดทันที
+  if(window._smLocListener)    { window._smLocListener();    window._smLocListener    = null; }
+  if(window._smStatusListener) { window._smStatusListener(); window._smStatusListener = null; }
+
   try {
-    await remove(ref(db, `search_missions/${missionId}/members/${S.user.id}`));
-    await remove(ref(db, `search_missions/${missionId}/locations/${S.user.id}`));
-    if(!silent) { showToast('ออกจากภารกิจแล้ว', 'info'); smBackToList(); }
+    await Promise.all([
+      remove(ref(db, `search_missions/${mid}/members/${S.user.id}`)),
+      remove(ref(db, `search_missions/${mid}/locations/${S.user.id}`))
+    ]);
+    if(!silent) { showToast('ออกจากภารกิจแล้ว ✅', 'info'); smBackToList(); }
     smUpdateMyMissionAlert();
-  } catch(e) { if(!silent) showToast('เกิดข้อผิดพลาด', 'error'); }
+  } catch(e) { if(!silent) showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
 };
 
 window.smLeaveConfirm = function() {
-  if(confirm('ยืนยันออกจากภารกิจ?\nระบบจะหยุดส่งตำแหน่งของคุณ')) smLeave(_smActiveMissionId);
+  // fallback: ดึงจาก localStorage ถ้า _smActiveMissionId หลุด
+  const mid = _smActiveMissionId || localStorage.getItem('sm_active_mission');
+  if(!mid) { showToast('ไม่พบภารกิจที่เข้าร่วม', 'info'); return; }
+  if(confirm('ยืนยันออกจากภารกิจ?\nระบบจะหยุดส่งตำแหน่งของคุณ')) smLeave(mid);
 };
 
 // ── Open Tracking Map ──────────────────────────────────────
