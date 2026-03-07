@@ -6236,11 +6236,19 @@ function smUpdateMyMissionAlert() {
 
 // ══════════════════════════════════════════════════════════
 // ── Page Lifecycle: คงสถานะออนไลน์แม้เปลี่ยนหน้า/ปิดเบราว์เซอร์
+// ══ แก้: ทุก handler เช็ค _smGpsActive + _smActiveMissionId เท่านั้น
 // ══════════════════════════════════════════════════════════
 (function smSetupLifecycleHandlers() {
 
+  // ── helper: เช็คว่ากำลัง active จริง ──
+  function isTracking() {
+    return window._smGpsActive === true && !!_smActiveMissionId;
+  }
+
+  // ── beacon ส่ง lastSeen ผ่าน Firebase REST (ทำงานแม้ปิดหน้า) ──
   function smBeaconLocation() {
-    const missionId = _smActiveMissionId || localStorage.getItem('sm_active_mission');
+    if(!isTracking()) return;   // ← ออกภารกิจแล้ว หยุดทันที
+    const missionId = _smActiveMissionId;
     const userId    = window.S && window.S.user && window.S.user.id;
     if(!missionId || !userId) return;
     try {
@@ -6254,7 +6262,8 @@ function smUpdateMyMissionAlert() {
   }
 
   function smBeaconPosition(lat, lng) {
-    const missionId = _smActiveMissionId || localStorage.getItem('sm_active_mission');
+    if(!isTracking()) return;   // ← ออกภารกิจแล้ว หยุดทันที
+    const missionId = _smActiveMissionId;
     const userId    = window.S && window.S.user && window.S.user.id;
     if(!missionId || !userId || !lat) return;
     try {
@@ -6269,66 +6278,50 @@ function smUpdateMyMissionAlert() {
 
   // 1) visibilitychange — เปลี่ยน tab / ล็อกจอ
   document.addEventListener('visibilitychange', function() {
-    if(!window._smGpsActive) return;                   // ← ออกภารกิจแล้ว ไม่ทำอะไร
-    const missionId = _smActiveMissionId;
-    if(!missionId) return;
     if(document.hidden) {
+      // ซ่อนหน้าจอ: ส่ง beacon ถ้า active เท่านั้น
       smBeaconLocation();
-      if(window._smSwReg && window._smSwReg.active)
-        window._smSwReg.active.postMessage({ type: 'PING' });
     } else {
-      if(window.S && window.S.user && window.S.user.id)
-        smStartGpsFallback(missionId);
+      // กลับมา: restart GPS เฉพาะถ้า _smGpsActive=true เท่านั้น
+      if(!isTracking()) return;
+      smStartGpsFallback(_smActiveMissionId);
     }
   });
 
-  // 2) pagehide — เปลี่ยนหน้า / กดกลับ (เชื่อถือได้กว่า beforeunload บน mobile)
+  // 2) pagehide — เปลี่ยนหน้า / กดกลับ
   window.addEventListener('pagehide', function(e) {
-    if(!window._smGpsActive) return;                   // ← ออกภารกิจแล้ว ไม่ส่ง beacon
-    const missionId = _smActiveMissionId;
-    if(!missionId) return;
-    if(e.persisted) {
-      smBeaconLocation();
-    } else {
-      if(navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          function(pos) { smBeaconPosition(pos.coords.latitude, pos.coords.longitude); },
-          function()    { smBeaconLocation(); },
-          { enableHighAccuracy: false, timeout: 2000 }
-        );
-      } else { smBeaconLocation(); }
-    }
+    if(!isTracking()) return;   // ← ออกภารกิจแล้ว ไม่ส่ง
+    if(navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        function(pos) { smBeaconPosition(pos.coords.latitude, pos.coords.longitude); },
+        function()    { smBeaconLocation(); },
+        { enableHighAccuracy: false, timeout: 2000 }
+      );
+    } else { smBeaconLocation(); }
   });
 
   // 3) beforeunload — ปิดแท็บ / ปิดเบราว์เซอร์
   window.addEventListener('beforeunload', function() {
-    if(!window._smGpsActive) return;                   // ← ออกภารกิจแล้ว ไม่ส่ง beacon
-    smBeaconLocation();
+    smBeaconLocation();   // isTracking() เช็คข้างในแล้ว
   });
 
-  // 4) freeze — Chrome บน Android (background kill)
+  // 4) freeze — Chrome Android background kill
   window.addEventListener('freeze', function() {
-    const missionId = _smActiveMissionId || localStorage.getItem('sm_active_mission');
-    if(!missionId) return;
-    smBeaconLocation();
+    smBeaconLocation();   // isTracking() เช็คข้างในแล้ว
   });
 
   // 5) resume — กลับมาจาก freeze
   window.addEventListener('resume', function() {
-    const missionId = _smActiveMissionId || localStorage.getItem('sm_active_mission');
-    if(!missionId || !(window.S && window.S.user && window.S.user.id)) return;
+    if(!isTracking()) return;   // ← ออกภารกิจแล้ว ไม่ restart
     smStopGps();
-    smStartGps(missionId);
+    smStartGps(_smActiveMissionId);
   });
 
-  // 6) Heartbeat ทุก 25 วิ — ป้องกัน Firebase ขึ้น offline
+  // 6) Heartbeat ทุก 25 วิ
   setInterval(function() {
-    if(!window._smGpsActive) return;                   // ← หยุดถ้าออกภารกิจแล้ว
-    const missionId = _smActiveMissionId;              // ไม่อ่าน localStorage อีก
-    const userId    = window.S && window.S.user && window.S.user.id;
-    if(!missionId || !userId) return;
+    if(!isTracking()) return;   // ← ออกภารกิจแล้ว หยุดทันที
     try {
-      update(ref(db, 'search_missions/' + missionId + '/members/' + userId),
+      update(ref(db, 'search_missions/' + _smActiveMissionId + '/members/' + S.user.id),
              { lastSeen: Date.now(), status: 'online' }).catch(function(){});
     } catch(e) {}
   }, 25000);
