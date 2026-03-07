@@ -5088,14 +5088,14 @@ window.smJoin = async function(missionId) {
 
 window.smLeave = async function(missionId, silent=false) {
   if(!S.user?.id || !missionId) return;
-  // Stop GPS
+  // ── หยุด GPS และล้าง mission ก่อนทุกอย่าง ──
+  window._smGpsActive = false;                         // ปิด flag ทันที
+  _smActiveMissionId  = null;                          // ล้างก่อน interval ทำงาน
+  localStorage.removeItem('sm_active_mission');        // ล้างก่อน beacon อ่าน
   smStopGps();
   try {
-    // Remove member + location
     await remove(ref(db, `search_missions/${missionId}/members/${S.user.id}`));
     await remove(ref(db, `search_missions/${missionId}/locations/${S.user.id}`));
-    _smActiveMissionId = null;
-    localStorage.removeItem('sm_active_mission');
     if(!silent) { showToast('ออกจากภารกิจแล้ว', 'info'); smBackToList(); }
     smUpdateMyMissionAlert();
   } catch(e) { if(!silent) showToast('เกิดข้อผิดพลาด', 'error'); }
@@ -5319,6 +5319,7 @@ function smStartGps(missionId) {
 }
 
 function smStartGpsFallback(missionId) {
+  window._smGpsActive = true;           // ← flag เปิด GPS
   const locRef    = ref(db, `search_missions/${missionId}/locations/${S.user.id}`);
   const memberRef = ref(db, `search_missions/${missionId}/members/${S.user.id}`);
 
@@ -5341,10 +5342,10 @@ function smStartGpsFallback(missionId) {
 }
 
 function smStopGps() {
+  window._smGpsActive = false;          // ← flag ปิด GPS ชัดเจน
   // Stop foreground watch
   if(_smWatchId !== null) { navigator.geolocation.clearWatch(_smWatchId); _smWatchId = null; }
   window._smHasCentered = false;
-
   // Stop Service Worker background tracking
   if(window._smSwReg) {
     const sw = window._smSwReg.active;
@@ -6199,6 +6200,108 @@ function smUpdateMyMissionAlert() {
   }
 }
 // ── Lightbox for mission photos ───────────────────────────
+
+// ══════════════════════════════════════════════════════════
+// ── Page Lifecycle: คงสถานะออนไลน์แม้เปลี่ยนหน้า/ปิดเบราว์เซอร์
+// ══════════════════════════════════════════════════════════
+(function smSetupLifecycleHandlers() {
+
+  function smBeaconLocation() {
+    const missionId = _smActiveMissionId || localStorage.getItem('sm_active_mission');
+    const userId    = window.S && window.S.user && window.S.user.id;
+    if(!missionId || !userId) return;
+    try {
+      const fbApp   = db.app;
+      const baseUrl = fbApp.options.databaseURL ||
+                      ('https://' + fbApp.options.projectId + '-default-rtdb.firebaseio.com');
+      const url = baseUrl + '/search_missions/' + missionId + '/members/' + userId + '.json';
+      const payload = JSON.stringify({ status: 'online', lastSeen: Date.now(), bgActive: true });
+      navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
+    } catch(e) {}
+  }
+
+  function smBeaconPosition(lat, lng) {
+    const missionId = _smActiveMissionId || localStorage.getItem('sm_active_mission');
+    const userId    = window.S && window.S.user && window.S.user.id;
+    if(!missionId || !userId || !lat) return;
+    try {
+      const fbApp   = db.app;
+      const baseUrl = fbApp.options.databaseURL ||
+                      ('https://' + fbApp.options.projectId + '-default-rtdb.firebaseio.com');
+      const url = baseUrl + '/search_missions/' + missionId + '/locations/' + userId + '.json';
+      const payload = JSON.stringify({ lat, lng, status:'online', ts: Date.now(), bgActive: true });
+      navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
+    } catch(e) {}
+  }
+
+  // 1) visibilitychange — เปลี่ยน tab / ล็อกจอ
+  document.addEventListener('visibilitychange', function() {
+    if(!window._smGpsActive) return;                   // ← ออกภารกิจแล้ว ไม่ทำอะไร
+    const missionId = _smActiveMissionId;
+    if(!missionId) return;
+    if(document.hidden) {
+      smBeaconLocation();
+      if(window._smSwReg && window._smSwReg.active)
+        window._smSwReg.active.postMessage({ type: 'PING' });
+    } else {
+      if(window.S && window.S.user && window.S.user.id)
+        smStartGpsFallback(missionId);
+    }
+  });
+
+  // 2) pagehide — เปลี่ยนหน้า / กดกลับ (เชื่อถือได้กว่า beforeunload บน mobile)
+  window.addEventListener('pagehide', function(e) {
+    if(!window._smGpsActive) return;                   // ← ออกภารกิจแล้ว ไม่ส่ง beacon
+    const missionId = _smActiveMissionId;
+    if(!missionId) return;
+    if(e.persisted) {
+      smBeaconLocation();
+    } else {
+      if(navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(pos) { smBeaconPosition(pos.coords.latitude, pos.coords.longitude); },
+          function()    { smBeaconLocation(); },
+          { enableHighAccuracy: false, timeout: 2000 }
+        );
+      } else { smBeaconLocation(); }
+    }
+  });
+
+  // 3) beforeunload — ปิดแท็บ / ปิดเบราว์เซอร์
+  window.addEventListener('beforeunload', function() {
+    if(!window._smGpsActive) return;                   // ← ออกภารกิจแล้ว ไม่ส่ง beacon
+    smBeaconLocation();
+  });
+
+  // 4) freeze — Chrome บน Android (background kill)
+  window.addEventListener('freeze', function() {
+    const missionId = _smActiveMissionId || localStorage.getItem('sm_active_mission');
+    if(!missionId) return;
+    smBeaconLocation();
+  });
+
+  // 5) resume — กลับมาจาก freeze
+  window.addEventListener('resume', function() {
+    const missionId = _smActiveMissionId || localStorage.getItem('sm_active_mission');
+    if(!missionId || !(window.S && window.S.user && window.S.user.id)) return;
+    smStopGps();
+    smStartGps(missionId);
+  });
+
+  // 6) Heartbeat ทุก 25 วิ — ป้องกัน Firebase ขึ้น offline
+  setInterval(function() {
+    if(!window._smGpsActive) return;                   // ← หยุดถ้าออกภารกิจแล้ว
+    const missionId = _smActiveMissionId;              // ไม่อ่าน localStorage อีก
+    const userId    = window.S && window.S.user && window.S.user.id;
+    if(!missionId || !userId) return;
+    try {
+      update(ref(db, 'search_missions/' + missionId + '/members/' + userId),
+             { lastSeen: Date.now(), status: 'online' }).catch(function(){});
+    } catch(e) {}
+  }, 25000);
+
+})();
+
 window.smOpenLightbox = function(url) {
   const lb = document.getElementById('sm-lightbox');
   const img = document.getElementById('sm-lightbox-img');
