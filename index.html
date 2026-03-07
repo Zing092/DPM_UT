@@ -9,6 +9,9 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -94,6 +97,55 @@ body {
   display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary);
 }
 .map-legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+/* ===== QUICK REPORT BUTTONS ===== */
+.quick-report-bar {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.quick-report-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  font-family: 'Kanit', sans-serif; cursor: pointer; transition: all 0.2s;
+  border: 1.5px solid var(--border); background: #fff; color: var(--text-secondary);
+  white-space: nowrap;
+}
+.quick-report-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.quick-report-btn.week  { border-color: #06b6d4; color: #06b6d4; }
+.quick-report-btn.week:hover  { background: #06b6d4; color: #fff; }
+.quick-report-btn.month { border-color: var(--primary-light); color: var(--primary-light); }
+.quick-report-btn.month:hover { background: var(--primary-light); color: #fff; }
+.quick-report-btn.year  { border-color: #8b5cf6; color: #8b5cf6; }
+.quick-report-btn.year:hover  { background: #8b5cf6; color: #fff; }
+
+/* ===== EXPORT MODAL ENHANCED ===== */
+.export-format-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px;
+}
+.export-format-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 14px 8px; border-radius: 12px; cursor: pointer;
+  border: 2px solid var(--border-light); background: #fff; transition: all 0.2s;
+  font-family: 'Kanit', sans-serif; font-size: 12px; font-weight: 600;
+  color: var(--text-secondary);
+}
+.export-format-card i { font-size: 22px; }
+.export-format-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.export-format-card.pdf   { border-color: #ef4444; color: #ef4444; }
+.export-format-card.pdf:hover   { background: #fef2f2; }
+.export-format-card.excel { border-color: #10b981; color: #10b981; }
+.export-format-card.excel:hover { background: #ecfdf5; }
+.export-format-card.csv   { border-color: #f59e0b; color: #f59e0b; }
+.export-format-card.csv:hover   { background: #fffbeb; }
+.export-stat-summary {
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 1px solid #bae6fd; border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 16px;
+}
+.export-stat-summary .stat-row {
+  display: flex; justify-content: space-between; font-size: 12px;
+  color: #0369a1; padding: 3px 0;
+}
+.export-stat-summary .stat-row strong { font-family: 'Kanit', sans-serif; color: #0c4a6e; }
 .map-stats-row {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px;
   margin-bottom: 12px;
@@ -1670,6 +1722,9 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
         <i class="fas fa-download"></i> Export
       </button>
     </div>
+
+    <!-- Quick Report Bar (Admin only) -->
+    <div class="quick-report-bar" id="quick-report-bar" style="display:none"></div>
     <div class="filter-bar">
       <select id="filter-type" onchange="filterHistory()">
         <option value="">ทุกประเภท</option>
@@ -2098,9 +2153,9 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 
 <!-- Export Modal -->
 <div class="modal-overlay" id="modal-export">
-  <div class="modal" style="max-width:420px">
+  <div class="modal" style="max-width:460px">
     <div class="modal-header">
-      <div class="modal-title"><i class="fas fa-download" style="color:#f59e0b;margin-right:6px"></i>Export ข้อมูล</div>
+      <div class="modal-title"><i class="fas fa-file-export" style="color:#f59e0b;margin-right:6px"></i>ส่งออกรายงาน</div>
       <button class="btn-close" onclick="closeModal('modal-export')"><i class="fas fa-times"></i></button>
     </div>
     <div style="padding:4px 0 16px">
@@ -2119,6 +2174,10 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
           style="flex:1;padding:9px;font-size:13px;font-family:Kanit,sans-serif;border:none;cursor:pointer;background:#f8fafc;color:var(--text-secondary)">
           เดือน
         </button>
+        <button id="exp-tab-week" onclick="setExportTab('week')"
+          style="flex:1;padding:9px;font-size:13px;font-family:Kanit,sans-serif;border:none;cursor:pointer;background:#f8fafc;color:var(--text-secondary)">
+          สัปดาห์
+        </button>
         <button id="exp-tab-range" onclick="setExportTab('range')"
           style="flex:1;padding:9px;font-size:13px;font-family:Kanit,sans-serif;border:none;cursor:pointer;background:#f8fafc;color:var(--text-secondary)">
           ช่วงวัน
@@ -2128,14 +2187,14 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
       <!-- Year picker -->
       <div id="exp-panel-year" style="display:none;margin-bottom:14px">
         <label style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;display:block">เลือกปี (พ.ศ.)</label>
-        <select class="form-control" id="exp-year" style="font-family:Kanit,sans-serif"></select>
+        <select class="form-control" id="exp-year" style="font-family:Kanit,sans-serif" onchange="updateExportPreview()"></select>
       </div>
 
       <!-- Month picker -->
       <div id="exp-panel-month" style="display:none;margin-bottom:14px">
         <label style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;display:block">เลือกเดือนและปี (พ.ศ.)</label>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <select class="form-control" id="exp-month-m" style="font-family:Kanit,sans-serif">
+          <select class="form-control" id="exp-month-m" style="font-family:Kanit,sans-serif" onchange="updateExportPreview()">
             <option value="01">มกราคม</option><option value="02">กุมภาพันธ์</option>
             <option value="03">มีนาคม</option><option value="04">เมษายน</option>
             <option value="05">พฤษภาคม</option><option value="06">มิถุนายน</option>
@@ -2143,8 +2202,14 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
             <option value="09">กันยายน</option><option value="10">ตุลาคม</option>
             <option value="11">พฤศจิกายน</option><option value="12">ธันวาคม</option>
           </select>
-          <select class="form-control" id="exp-month-y" style="font-family:Kanit,sans-serif"></select>
+          <select class="form-control" id="exp-month-y" style="font-family:Kanit,sans-serif" onchange="updateExportPreview()"></select>
         </div>
+      </div>
+
+      <!-- Week picker -->
+      <div id="exp-panel-week" style="display:none;margin-bottom:14px">
+        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;display:block">เลือกสัปดาห์</label>
+        <input type="week" class="form-control" id="exp-week" style="font-family:Kanit,sans-serif" oninput="updateExportPreview()">
       </div>
 
       <!-- Date range picker -->
@@ -2162,20 +2227,54 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
         </div>
       </div>
 
-      <!-- Count preview -->
-      <div id="exp-preview" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 14px;font-size:13px;color:#0369a1;margin-bottom:16px;display:flex;align-items:center;gap:8px">
-        <i class="fas fa-database"></i>
-        <span id="exp-preview-text">พบข้อมูล <strong>0</strong> รายการ</span>
+      <!-- Stats Summary Preview -->
+      <div class="export-stat-summary" id="exp-stat-summary">
+        <div class="stat-row">
+          <span>จำนวนภารกิจทั้งหมด</span>
+          <strong id="exp-stat-total">0 รายการ</strong>
+        </div>
+        <div class="stat-row">
+          <span>🔥 อัคคีภัย</span>
+          <strong id="exp-stat-fire">0</strong>
+        </div>
+        <div class="stat-row">
+          <span>🌊 กู้ภัยทางน้ำ</span>
+          <strong id="exp-stat-water">0</strong>
+        </div>
+        <div class="stat-row">
+          <span>🚨 อุบัติเหตุ</span>
+          <strong id="exp-stat-accident">0</strong>
+        </div>
+        <div class="stat-row">
+          <span>🔍 ค้นหาผู้สูญหาย</span>
+          <strong id="exp-stat-search">0</strong>
+        </div>
+        <div class="stat-row">
+          <span>📋 อื่นๆ</span>
+          <strong id="exp-stat-other">0</strong>
+        </div>
+        <div class="stat-row" style="border-top:1px solid #bae6fd;margin-top:4px;padding-top:6px">
+          <span>✅ เสร็จสิ้น / 🔄 กำลังดำเนิน</span>
+          <strong id="exp-stat-status">0 / 0</strong>
+        </div>
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <button class="btn btn-success btn-block" onclick="exportCSV()">
-          <i class="fas fa-file-csv"></i> Export เป็น CSV
-        </button>
-        <button class="btn btn-primary btn-block" onclick="exportJSON()">
-          <i class="fas fa-file-code"></i> Export เป็น JSON
-        </button>
+      <!-- Format chooser -->
+      <div style="margin-bottom:10px">
+        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;display:block"><i class="fas fa-file-alt" style="margin-right:4px"></i>เลือกรูปแบบไฟล์</label>
+        <div class="export-format-grid">
+          <button class="export-format-card pdf" onclick="exportPDF()">
+            <i class="fas fa-file-pdf"></i> PDF
+          </button>
+          <button class="export-format-card excel" onclick="exportExcel()">
+            <i class="fas fa-file-excel"></i> Excel
+          </button>
+          <button class="export-format-card csv" onclick="exportCSV()">
+            <i class="fas fa-file-csv"></i> CSV
+          </button>
+        </div>
       </div>
+
     </div>
   </div>
 </div>
@@ -2581,6 +2680,8 @@ function showApp() {
   if(S.user.role==='admin') {
     document.getElementById('admin-nav-btn').style.display='flex';
     document.getElementById('export-btn').style.display='flex';
+    const qbar = document.getElementById('quick-report-bar');
+    if(qbar) qbar.style.display='flex';
   }
   // Greet
   const h = new Date().getHours();
@@ -4009,6 +4110,15 @@ window.showExportModal = function() {
   const now = new Date();
   const mSel = document.getElementById('exp-month-m');
   if(mSel) mSel.value = String(now.getMonth()+1).padStart(2,'0');
+  // Set current week
+  const wSel = document.getElementById('exp-week');
+  if(wSel) {
+    const isoWeek = now.toISOString().slice(0,10);
+    // Compute ISO week string yyyy-Www
+    const jan4 = new Date(now.getFullYear(), 0, 4);
+    const weekNum = Math.ceil(((now - jan4) / 86400000 + jan4.getDay() + 1) / 7);
+    wSel.value = `${now.getFullYear()}-W${String(weekNum).padStart(2,'0')}`;
+  }
   // Default date range: first of current month to today
   const todayStr = now.toISOString().split('T')[0];
   const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
@@ -4023,7 +4133,7 @@ window.showExportModal = function() {
 window._exportTab = 'all';
 window.setExportTab = function(tab) {
   window._exportTab = tab;
-  ['all','year','month','range'].forEach(t => {
+  ['all','year','month','week','range'].forEach(t => {
     const btn = document.getElementById('exp-tab-'+t);
     const panel = document.getElementById('exp-panel-'+t);
     if(btn) { btn.style.background = t===tab ? '#1e3a5f' : '#f8fafc'; btn.style.color = t===tab ? '#fff' : 'var(--text-secondary)'; btn.style.fontWeight = t===tab ? '600' : '400'; }
@@ -4034,8 +4144,22 @@ window.setExportTab = function(tab) {
 
 window.updateExportPreview = function() {
   const filtered = getExportMissions();
-  const el = document.getElementById('exp-preview-text');
-  if(el) el.innerHTML = `พบข้อมูล <strong style="font-size:15px">${filtered.length}</strong> รายการ`;
+  // Update stat summary
+  const typeCount = {fire:0,water:0,accident:0,search:0,other:0};
+  let done=0, ongoing=0;
+  filtered.forEach(m => {
+    const t = m.type || 'other';
+    if(typeCount[t] !== undefined) typeCount[t]++; else typeCount.other++;
+    if(m.status === 'done') done++; else ongoing++;
+  });
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  set('exp-stat-total', filtered.length + ' รายการ');
+  set('exp-stat-fire', typeCount.fire);
+  set('exp-stat-water', typeCount.water);
+  set('exp-stat-accident', typeCount.accident);
+  set('exp-stat-search', typeCount.search);
+  set('exp-stat-other', typeCount.other);
+  set('exp-stat-status', `${done} / ${ongoing}`);
 };
 
 window.getExportMissions = function() {
@@ -4048,6 +4172,17 @@ window.getExportMissions = function() {
     const y = document.getElementById('exp-month-y')?.value;
     const mo = document.getElementById('exp-month-m')?.value;
     if(y && mo) missions = missions.filter(m => m.date && m.date.startsWith(`${y}-${mo}`));
+  } else if(tab === 'week') {
+    const wVal = document.getElementById('exp-week')?.value; // yyyy-Www
+    if(wVal) {
+      const [wy, ww] = wVal.split('-W');
+      const jan4 = new Date(parseInt(wy), 0, 4);
+      const weekStart = new Date(jan4.getTime() + ((parseInt(ww)-1)*7 - jan4.getDay() + 1) * 86400000);
+      const weekEnd = new Date(weekStart.getTime() + 6*86400000);
+      const ws = weekStart.toISOString().split('T')[0];
+      const we = weekEnd.toISOString().split('T')[0];
+      missions = missions.filter(m => m.date && m.date >= ws && m.date <= we);
+    }
   } else if(tab === 'range') {
     const from = document.getElementById('exp-date-from')?.value;
     const to = document.getElementById('exp-date-to')?.value;
@@ -4057,49 +4192,53 @@ window.getExportMissions = function() {
   return missions.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
 };
 
-window.exportCSV = function() {
-  const missions = getExportMissions();
-  if(!missions.length) { showToast('ไม่มีข้อมูลในช่วงที่เลือก','error'); return; }
+// ── Quick Report shortcut ─────────────────────────────────────
+window.quickReport = function(period) {
+  // Open modal and set the correct tab + period
+  showExportModal();
+  const now = new Date();
+  if(period === 'week') {
+    setExportTab('week');
+  } else if(period === 'month') {
+    setExportTab('month');
+    const mSel = document.getElementById('exp-month-m');
+    const ySel = document.getElementById('exp-month-y');
+    if(mSel) mSel.value = String(now.getMonth()+1).padStart(2,'0');
+    if(ySel) ySel.value = String(now.getFullYear());
+    updateExportPreview();
+  } else if(period === 'year') {
+    setExportTab('year');
+    const ySel = document.getElementById('exp-year');
+    if(ySel) ySel.value = String(now.getFullYear());
+    updateExportPreview();
+  }
+};
 
+// ── Helper: build rows data ───────────────────────────────────
+function buildExportRows(missions) {
   const typeNames = {fire:'อัคคีภัย',water:'กู้ภัยทางน้ำ',accident:'อุบัติเหตุ',search:'ค้นหาผู้สูญหาย',other:'อื่นๆ'};
   const statusNames = {ongoing:'กำลังดำเนิน',done:'เสร็จสิ้น',new:'ใหม่'};
   const thFullMonths = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-
-  const thaiHeaders = ['รหัสพนักงาน','ประเภทภารกิจ','สถานที่','รายละเอียด','ปัญหาที่พบ','การแก้ไข/ข้อเสนอแนะ','ผู้รายงาน','ทีมปฏิบัติการ','ทะเบียนรถ','รหัสเครื่องสูบน้ำ','รหัส/ชื่อเรือ','สถานะ','วันที่เริ่มภารกิจ','วันที่เสร็จสิ้นภารกิจ','เวลาเริ่มภารกิจ','เวลาจบภารกิจ','เวลารวม','วันเวลาที่บันทึก','พิกัด GPS (ละติจูด,ลองจิจูด)'];
-
   const toThaiDate = (dateStr) => {
     if(!dateStr) return '';
     const [y,mo,d] = dateStr.split('-');
     return `${parseInt(d)} ${thFullMonths[parseInt(mo)]} พ.ศ.${parseInt(y)+543}`;
   };
-
-  const toThaiDateTime = (isoStr) => {
-    if(!isoStr) return '';
+  const toThaiTime = (isoStr) => {
+    if(!isoStr) return '-';
     try {
       const dt = new Date(isoStr);
-      return `${dt.getDate()} ${thFullMonths[dt.getMonth()+1]} พ.ศ.${dt.getFullYear()+543} เวลา ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')} น.`;
-    } catch(e) { return isoStr; }
+      return `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')} น.`;
+    } catch(e) { return '-'; }
   };
-
-  const rows = missions.map(m => {
-    // Extract GPS coords — merge into single field
+  return missions.map((m, idx) => {
     let gpsCoord = '-';
-    if(m.gps && m.gps.lat) { gpsCoord = `${m.gps.lat}, ${m.gps.lng||''}`; }
-    else if(m.gpsLat) { gpsCoord = `${m.gpsLat}, ${m.gpsLng||''}`; }
-
-    // Start time = form value (m.time) — the actual recorded mission start
+    if(m.gps && m.gps.lat) gpsCoord = `${m.gps.lat}, ${m.gps.lng||''}`;
+    else if(m.gpsLat) gpsCoord = `${m.gpsLat}, ${m.gpsLng||''}`;
     const startTimeStr = m.time ? m.time + ' น.' : '-';
-    // End time
     let endTimeStr = '-';
-    if(m.endTime) {
-      try {
-        const et = new Date(m.endTime);
-        endTimeStr = `${String(et.getHours()).padStart(2,'0')}:${String(et.getMinutes()).padStart(2,'0')} น.`;
-      } catch(e) {}
-    } else if(m.endTimeDisplay) {
-      endTimeStr = m.endTimeDisplay;
-    }
-    // Total duration — recalculate from mission start (m.date+m.time) to endTime
+    if(m.endTime) endTimeStr = toThaiTime(m.endTime);
+    else if(m.endTimeDisplay) endTimeStr = m.endTimeDisplay;
     let totalDuration = m.status==='ongoing' ? 'กำลังดำเนิน' : '-';
     if(m.status==='done' && m.date && m.time && m.endTime) {
       try {
@@ -4109,19 +4248,11 @@ window.exportCSV = function() {
         if(diffMs >= 0) {
           const h = Math.floor(diffMs/3600000);
           const mi = Math.floor((diffMs%3600000)/60000);
-          const s = Math.floor((diffMs%60000)/1000);
-          totalDuration = h>0 ? `${h} ชั่วโมง ${mi} นาที` : `${mi} นาที ${s} วินาที`;
-        } else {
-          totalDuration = m.duration || '-';
-        }
+          totalDuration = h>0 ? `${h} ชั่วโมง ${mi} นาที` : `${mi} นาที`;
+        } else totalDuration = m.duration || '-';
       } catch(e) { totalDuration = m.duration || '-'; }
-    } else if(m.status==='done' && m.duration) {
-      totalDuration = m.duration;
-    }
-
+    } else if(m.status==='done' && m.duration) totalDuration = m.duration;
     const teamStr = (m.team||[]).map(t=>t.name||t.id).filter(Boolean).join(', ') || '-';
-
-    // End date from endTime
     let endDateStr = '-';
     if(m.endTime) {
       try {
@@ -4129,32 +4260,288 @@ window.exportCSV = function() {
         endDateStr = toThaiDate(`${et.getFullYear()}-${String(et.getMonth()+1).padStart(2,'0')}-${String(et.getDate()).padStart(2,'0')}`);
       } catch(e) {}
     }
-
-    const vals = [
+    return [
+      idx+1,
       m.userId || '-',
-      typeNames[m.type] || m.type || '',
-      m.location || '',
-      m.detail || '',
-      m.problem || '',
-      m.suggest || '',
-      m.userName || '',
+      typeNames[m.type] || m.type || '-',
+      m.location || '-',
+      m.detail || '-',
+      m.problem || '-',
+      m.suggest || '-',
+      m.userName || '-',
       teamStr,
       m.vehiclePlate || '-',
       m.pumpCode || '-',
       m.boatCode || '-',
-      statusNames[m.status] || m.status || '',
+      statusNames[m.status] || m.status || '-',
       toThaiDate(m.date),
       endDateStr,
       startTimeStr,
       endTimeStr,
       totalDuration,
-      toThaiDateTime(m.createdAt),
       gpsCoord
     ];
-    return vals.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',');
+  });
+}
+
+const EXPORT_HEADERS = ['ลำดับ','รหัสพนักงาน','ประเภทภารกิจ','สถานที่','รายละเอียด','ปัญหาที่พบ','การแก้ไข/ข้อเสนอแนะ','ผู้รายงาน','ทีมปฏิบัติการ','ทะเบียนรถ','รหัสเครื่องสูบน้ำ','รหัส/ชื่อเรือ','สถานะ','วันที่เริ่ม','วันที่เสร็จ','เวลาเริ่ม','เวลาจบ','เวลารวม','พิกัด GPS'];
+
+// ── Export PDF ────────────────────────────────────────────────
+window.exportPDF = function() {
+  const missions = getExportMissions();
+  if(!missions.length) { showToast('ไม่มีข้อมูลในช่วงที่เลือก','error'); return; }
+
+  const now = new Date();
+  const thaiYear = now.getFullYear()+543;
+  const thaiMonths = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  const printDate = `${now.getDate()} ${thaiMonths[now.getMonth()]} พ.ศ.${thaiYear}`;
+  const tabLabel = {'all':'ทั้งหมด','year':'รายปี','month':'รายเดือน','week':'รายสัปดาห์','range':'ช่วงวันที่'}[window._exportTab] || 'ทั้งหมด';
+
+  // Stat summary
+  const typeNames = {fire:'อัคคีภัย',water:'กู้ภัยทางน้ำ',accident:'อุบัติเหตุ',search:'ค้นหาผู้สูญหาย',other:'อื่นๆ'};
+  const statusNames = {ongoing:'กำลังดำเนิน',done:'เสร็จสิ้น',new:'ใหม่'};
+  const typeCount = {fire:0,water:0,accident:0,search:0,other:0};
+  let doneCount=0, ongoingCount=0;
+  missions.forEach(m => {
+    const t = m.type||'other';
+    if(typeCount[t]!==undefined) typeCount[t]++; else typeCount.other++;
+    if(m.status==='done') doneCount++; else ongoingCount++;
   });
 
-  const csv = [thaiHeaders.map(h=>'"'+h+'"').join(','), ...rows].join('\n');
+  // Build table rows HTML
+  const thFullMonths = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  const toThaiDate = (dateStr) => {
+    if(!dateStr) return '-';
+    const [y,mo,d] = dateStr.split('-');
+    return `${parseInt(d)} ${thaiMonths[parseInt(mo)-1]} ${parseInt(y)+543}`;
+  };
+  const toThaiTime = (isoStr) => {
+    if(!isoStr) return '-';
+    try { const dt=new Date(isoStr); return `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`; }
+    catch(e){ return '-'; }
+  };
+  const typeBadgeColor = {fire:'#ef4444',water:'#3b82f6',accident:'#f59e0b',search:'#8b5cf6',other:'#6b7280'};
+  const typeIcon = {fire:'🔥',water:'🌊',accident:'🚨',search:'🔍',other:'📋'};
+
+  const rowsHtml = missions.map((m, idx) => {
+    const teamStr = (m.team||[]).map(t=>t.name||t.id).filter(Boolean).join(', ') || '-';
+    let duration = '-';
+    if(m.status==='done' && m.date && m.time && m.endTime) {
+      try {
+        const diffMs = new Date(m.endTime) - new Date(`${m.date}T${m.time}`);
+        if(diffMs>=0){ const h=Math.floor(diffMs/3600000), mi=Math.floor((diffMs%3600000)/60000); duration=h>0?`${h} ชม. ${mi} นาที`:`${mi} นาที`; }
+      } catch(e){}
+    } else if(m.status==='ongoing') duration='กำลังดำเนิน';
+    const endDate = m.endTime ? toThaiDate(new Date(m.endTime).toISOString().split('T')[0]) : '-';
+    const statusColor = m.status==='done' ? '#10b981' : '#f59e0b';
+    const statusText = statusNames[m.status]||m.status||'-';
+    const tc = typeBadgeColor[m.type]||'#6b7280';
+    const ti = typeIcon[m.type]||'📋';
+    return `<tr>
+      <td style="text-align:center;font-weight:700;color:#64748b">${idx+1}</td>
+      <td style="font-weight:600">${m.userId||'-'}</td>
+      <td><span style="background:${tc}18;color:${tc};padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;white-space:nowrap">${ti} ${typeNames[m.type]||'-'}</span></td>
+      <td>${m.location||'-'}</td>
+      <td style="font-size:10px;color:#475569">${m.detail||'-'}</td>
+      <td style="font-size:10px;color:#475569">${m.userName||'-'}</td>
+      <td style="font-size:10px">${teamStr}</td>
+      <td style="font-size:10px">${m.vehiclePlate||'-'}</td>
+      <td><span style="background:${statusColor}18;color:${statusColor};padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700">${statusText}</span></td>
+      <td style="font-size:10px;white-space:nowrap">${toThaiDate(m.date)}</td>
+      <td style="font-size:10px;white-space:nowrap">${endDate}</td>
+      <td style="font-size:10px;text-align:center">${m.time||'-'}</td>
+      <td style="font-size:10px;text-align:center">${m.endTime?toThaiTime(m.endTime):'-'}</td>
+      <td style="font-size:10px;text-align:center;color:#0369a1;font-weight:600">${duration}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Kanit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>รายงานการปฏิบัติงาน</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Sarabun',sans-serif; font-size:11px; color:#1e293b; background:#fff; padding:16px; }
+  @page { size:A4 landscape; margin:12mm 10mm; }
+  @media print { body{padding:0} .no-print{display:none} }
+
+  /* Header */
+  .report-header { text-align:center; margin-bottom:18px; border-bottom:3px solid #0a2463; padding-bottom:12px; }
+  .report-header .emblem { font-size:36px; display:block; margin-bottom:6px; }
+  .report-header h1 { font-family:'Kanit',sans-serif; font-size:16px; font-weight:700; color:#0a2463; line-height:1.4; }
+  .report-header h2 { font-family:'Kanit',sans-serif; font-size:13px; font-weight:600; color:#1b3d8f; margin-top:4px; }
+  .report-header .meta { margin-top:8px; font-size:11px; color:#64748b; display:flex; justify-content:center; gap:24px; }
+  .report-header .meta span { display:flex; align-items:center; gap:4px; }
+
+  /* Stat Cards */
+  .stat-section { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:16px; }
+  .stat-card { border-radius:8px; padding:8px 6px; text-align:center; border:1px solid #e2e8f0; }
+  .stat-card .num { font-family:'Kanit',sans-serif; font-size:18px; font-weight:700; }
+  .stat-card .lbl { font-size:9px; color:#64748b; margin-top:2px; }
+  .stat-card.total { background:linear-gradient(135deg,#0a2463,#2563eb); color:#fff; border:none; }
+  .stat-card.total .lbl { color:rgba(255,255,255,0.7); }
+  .stat-card.fire   { background:#fef2f2; } .stat-card.fire .num   { color:#ef4444; }
+  .stat-card.water  { background:#eff6ff; } .stat-card.water .num  { color:#3b82f6; }
+  .stat-card.acc    { background:#fffbeb; } .stat-card.acc .num    { color:#f59e0b; }
+  .stat-card.search { background:#f5f3ff; } .stat-card.search .num { color:#8b5cf6; }
+  .stat-card.other  { background:#f8fafc; } .stat-card.other .num  { color:#6b7280; }
+  .stat-card.done   { background:#ecfdf5; } .stat-card.done .num   { color:#10b981; }
+
+  /* Table */
+  table { width:100%; border-collapse:collapse; font-size:10px; }
+  thead tr { background:linear-gradient(135deg,#0a2463,#1b3d8f); }
+  thead th { color:#fff; font-family:'Kanit',sans-serif; font-weight:600; font-size:9px; padding:7px 5px; text-align:left; white-space:nowrap; border:1px solid #1b3d8f; }
+  tbody tr:nth-child(even) { background:#f0f4ff; }
+  tbody tr:hover { background:#dbeafe; }
+  td { padding:6px 5px; border:1px solid #e2e8f0; vertical-align:top; line-height:1.4; }
+  tr:last-child td { border-bottom:2px solid #0a2463; }
+
+  /* Footer */
+  .report-footer { margin-top:20px; display:grid; grid-template-columns:1fr 1fr; gap:80px; max-width:600px; margin-left:auto; margin-right:auto; }
+  .sign-box { text-align:center; }
+  .sign-box .sign-line { border-top:1px solid #94a3b8; margin-top:40px; padding-top:6px; font-size:10px; color:#475569; }
+  .sign-box .sign-label { font-size:11px; font-weight:600; color:#1e293b; }
+  .print-btn { position:fixed; bottom:20px; right:20px; background:#0a2463; color:#fff; border:none; border-radius:10px; padding:12px 24px; font-family:'Sarabun',sans-serif; font-size:14px; font-weight:600; cursor:pointer; box-shadow:0 4px 16px rgba(10,36,99,0.3); z-index:999; }
+  .print-btn:hover { background:#1b3d8f; }
+</style>
+</head>
+<body>
+
+<div class="report-header">
+  <span class="emblem">🛡️</span>
+  <h1>รายงานการปฏิบัติงาน</h1>
+  <h2>กองป้องกันและบรรเทาสาธารณภัย</h2>
+  <div class="meta">
+    <span>📅 ช่วงข้อมูล: <strong>${tabLabel}</strong></span>
+    <span>📋 จำนวน: <strong>${missions.length} รายการ</strong></span>
+    <span>🖨️ พิมพ์เมื่อ: <strong>${printDate}</strong></span>
+  </div>
+</div>
+
+<div class="stat-section">
+  <div class="stat-card total"><div class="num">${missions.length}</div><div class="lbl">ทั้งหมด</div></div>
+  <div class="stat-card fire"><div class="num">${typeCount.fire}</div><div class="lbl">🔥 อัคคีภัย</div></div>
+  <div class="stat-card water"><div class="num">${typeCount.water}</div><div class="lbl">🌊 กู้ภัยทางน้ำ</div></div>
+  <div class="stat-card acc"><div class="num">${typeCount.accident}</div><div class="lbl">🚨 อุบัติเหตุ</div></div>
+  <div class="stat-card search"><div class="num">${typeCount.search}</div><div class="lbl">🔍 ค้นหาผู้สูญหาย</div></div>
+  <div class="stat-card other"><div class="num">${typeCount.other}</div><div class="lbl">📋 อื่นๆ</div></div>
+  <div class="stat-card done"><div class="num">${doneCount}</div><div class="lbl">✅ เสร็จสิ้น</div></div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width:28px">#</th>
+      <th style="width:50px">รหัสพนักงาน</th>
+      <th style="width:72px">ประเภท</th>
+      <th style="width:80px">สถานที่</th>
+      <th>รายละเอียด</th>
+      <th style="width:60px">ผู้รายงาน</th>
+      <th style="width:70px">ทีม</th>
+      <th style="width:52px">ทะเบียน</th>
+      <th style="width:60px">สถานะ</th>
+      <th style="width:72px">วันที่เริ่ม</th>
+      <th style="width:72px">วันที่จบ</th>
+      <th style="width:40px">เริ่ม</th>
+      <th style="width:40px">จบ</th>
+      <th style="width:55px">ระยะเวลา</th>
+    </tr>
+  </thead>
+  <tbody>${rowsHtml}</tbody>
+</table>
+
+<div class="report-footer" style="margin-top:28px">
+  <div class="sign-box">
+    <div class="sign-label">ผู้จัดทำรายงาน</div>
+    <div class="sign-line">(...................................)<br>วันที่ ........../........../............</div>
+  </div>
+  <div class="sign-box">
+    <div class="sign-label">ผู้บังคับบัญชา</div>
+    <div class="sign-line">(...................................)<br>วันที่ ........../........../............</div>
+  </div>
+</div>
+
+<button class="print-btn no-print" onclick="window.print()">🖨️ พิมพ์ / บันทึก PDF</button>
+</body>
+</html>`;
+
+  const printWin = window.open('', '_blank', 'width=1200,height=800');
+  printWin.document.write(html);
+  printWin.document.close();
+  closeModal('modal-export');
+  showToast(`เปิดหน้ารายงาน PDF (${missions.length} รายการ) — กด "พิมพ์ / บันทึก PDF"`, 'success');
+};
+
+// ── Export Excel ──────────────────────────────────────────────
+window.exportExcel = function() {
+  const missions = getExportMissions();
+  if(!missions.length) { showToast('ไม่มีข้อมูลในช่วงที่เลือก','error'); return; }
+
+  const now = new Date();
+  const thaiYear = now.getFullYear()+543;
+  const tabLabel = {'all':'ทั้งหมด','year':'รายปี','month':'รายเดือน','week':'รายสัปดาห์','range':'ช่วงวันที่'}[window._exportTab] || '';
+
+  // Stats summary sheet data
+  const typeNames = {fire:'อัคคีภัย',water:'กู้ภัยทางน้ำ',accident:'อุบัติเหตุ',search:'ค้นหาผู้สูญหาย',other:'อื่นๆ'};
+  const typeCount = {};
+  let done=0, ongoing=0;
+  missions.forEach(m => {
+    const t = typeNames[m.type]||'อื่นๆ';
+    typeCount[t]=(typeCount[t]||0)+1;
+    if(m.status==='done') done++; else ongoing++;
+  });
+
+  // Sheet 1 — Data
+  const rows = buildExportRows(missions);
+  const wsData = [EXPORT_HEADERS, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Column widths
+  ws['!cols'] = [8,14,16,22,30,24,24,16,20,12,14,12,12,18,18,12,12,16,20].map(w=>({wch:w}));
+
+  // Header row style (bold background — basic)
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for(let C=range.s.c; C<=range.e.c; C++) {
+    const cell = ws[XLSX.utils.encode_cell({r:0,c:C})];
+    if(cell) { cell.s = { font:{bold:true,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'0A2463'}}, alignment:{horizontal:'center',wrapText:true} }; }
+  }
+
+  // Sheet 2 — Summary
+  const wsSummary = XLSX.utils.aoa_to_sheet([
+    ['สรุปรายงานการปฏิบัติงาน กองป้องกันและบรรเทาสาธารณภัย'],
+    [`ช่วงข้อมูล: ${tabLabel}   |   พิมพ์วันที่: ${now.getDate()}/${now.getMonth()+1}/${thaiYear}`],
+    [],
+    ['สถิติจำแนกตามประเภทภารกิจ',''],
+    ['ประเภท','จำนวน (ครั้ง)'],
+    ...Object.entries(typeCount).map(([k,v])=>[k,v]),
+    [],
+    ['สถิติจำแนกตามสถานะ',''],
+    ['สถานะ','จำนวน'],
+    ['เสร็จสิ้น', done],
+    ['กำลังดำเนิน', ongoing],
+    [],
+    ['รวมทั้งหมด', missions.length]
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'ข้อมูลภารกิจ');
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'สรุปสถิติ');
+
+  const dd = String(now.getDate()).padStart(2,'0');
+  const mm2 = String(now.getMonth()+1).padStart(2,'0');
+  XLSX.writeFile(wb, `รายงานปฏิบัติงาน_${tabLabel}_${dd}-${mm2}-${thaiYear}.xlsx`);
+  closeModal('modal-export');
+  showToast(`Export Excel สำเร็จ (${missions.length} รายการ)`,'success');
+};
+
+window.exportCSV = function() {
+  const missions = getExportMissions();
+  if(!missions.length) { showToast('ไม่มีข้อมูลในช่วงที่เลือก','error'); return; }
+
+  const rows = buildExportRows(missions);
+  const csv = [EXPORT_HEADERS.map(h=>'"'+h+'"').join(','), ...rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','))].join('\n');
   const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const now = new Date();
