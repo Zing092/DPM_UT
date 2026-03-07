@@ -5746,7 +5746,6 @@ async function smTriggerSos() {
 
   addNotification('🆘 SOS: ' + (S.user.name || userId), 'ขอความช่วยเหลือฉุกเฉิน!', 'fire');
   showToast('🆘 ส่ง SOS แล้ว! ทีมจะเห็นตำแหน่งคุณ', 'error');
-  setTimeout(smSosCancel, 5000);
 
   // แสดงปุ่มยกเลิก SOS แทนปุ่ม SOS
   const cancelBtn = document.getElementById('sm-sos-cancel-btn');
