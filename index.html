@@ -4888,6 +4888,11 @@ let _smTrackMap = null;          // Leaflet map instance
 let _smMarkers = {};             // { userId: L.Marker }
 let _smWatchId = null;           // GPS watchPosition id
 let _smActiveMissionId = null;   // mission this user joined
+
+// ── ฟังก์ชันเช็คว่า GPS tracking active จริง (ใช้ทุกที่) ──
+function isTracking() {
+  return window._smGpsActive === true && !!_smActiveMissionId;
+}
 let _smMissionsRef = null;       // Firebase ref listener unsubscribe
 let _smLocRef = null;            // Firebase location ref listener
 let _smSosTimer = null;
@@ -5183,144 +5188,56 @@ function smInitTrackMap() {
 // ══════════════════════════════════════════════════════════
 
 // Register Service Worker inline (blob) for background tracking
-function smRegisterServiceWorker(missionId, userId, firebaseConfig) {
-  if(!('serviceWorker' in navigator)) return;
+// ══════════════════════════════════════════════════════════
+// ── GPS Tracking — รองรับมือถือ iOS/Android + คอม
+// ══ วิธี: watchPosition (foreground) + setInterval beacon (background)
+// ══════════════════════════════════════════════════════════
 
-  // SW script as a string — runs in background even when browser is minimized
-  const swCode = `
-const CACHE = 'sm-bg-gps-v1';
-let watchId = null;
-let missionId = null;
-let userId = null;
-let fbConfig = null;
-let trackingActive = false;
-
-self.addEventListener('message', e => {
-  const { type, data } = e.data || {};
-
-  if(type === 'START_GPS') {
-    missionId = data.missionId;
-    userId    = data.userId;
-    fbConfig  = data.firebaseConfig;
-    trackingActive = true;
-    startWatch();
-    self.registration.showNotification('📍 ติดตามตำแหน่ง', {
-      body: 'ระบบกำลังส่งพิกัดในพื้นหลัง',
-      icon: '/favicon.ico',
-      tag: 'gps-bg',
-      silent: true
-    });
-  }
-
-  if(type === 'STOP_GPS') {
-    trackingActive = false;
-    stopWatch();
-    // Remove notification
-    self.registration.getNotifications({ tag: 'gps-bg' })
-      .then(ns => ns.forEach(n => n.close()));
-  }
-
-  if(type === 'PING') {
-    e.source.postMessage({ type: 'PONG', active: trackingActive });
-  }
-});
-
-function startWatch() {
-  if(!('geolocation' in self)) return;
-  stopWatch();
-  watchId = self.geolocation?.watchPosition
-    ? self.geolocation.watchPosition(pushPos, ()=>{}, { enableHighAccuracy:true, maximumAge:4000 })
-    : null;
-
-  // Fallback: interval getCurrentPosition (works in most browsers)
-  if(watchId === null) {
-    watchId = setInterval(() => {
-      if(!trackingActive) return clearInterval(watchId);
-      // Cannot use geolocation in SW directly — signal main thread
-      self.clients.matchAll().then(clients => {
-        clients.forEach(c => c.postMessage({ type: 'REQUEST_POS' }));
-      });
-    }, 10000);
-  }
-}
-
-function stopWatch() {
-  if(watchId !== null) {
-    try { clearInterval(watchId); self.geolocation?.clearWatch(watchId); } catch(e){}
-    watchId = null;
-  }
-}
-
-async function pushPos(pos) {
-  if(!trackingActive || !missionId || !userId) return;
-  const { latitude: lat, longitude: lng, speed, heading } = pos.coords;
-  const spd = speed || 0;
-  const status = spd > 0.5 ? 'moving' : 'online';
-  const payload = { lat, lng, heading: heading||0, speed: Math.round(spd*3.6), status, ts: Date.now() };
-
-  // Push to Firebase REST API (works from SW without SDK)
-  const base = fbConfig.databaseURL || ('https://' + fbConfig.projectId + '-default-rtdb.firebaseio.com');
-  const locUrl  = base + '/search_missions/' + missionId + '/locations/' + userId + '.json';
-  const memUrl  = base + '/search_missions/' + missionId + '/members/' + userId + '/lastSeen.json';
+// ── ส่งตำแหน่งผ่าน Firebase REST (ใช้ได้แม้ SDK ถูก suspend) ──
+function smPushLocationRest(missionId, userId, lat, lng, speed, heading) {
+  if(!isTracking()) return;
   try {
-    await fetch(locUrl,  { method:'PUT',   body: JSON.stringify(payload) });
-    await fetch(memUrl,  { method:'PUT',   body: JSON.stringify(Date.now()) });
-    // Forward to page for map update
-    self.clients.matchAll().then(clients => {
-      clients.forEach(c => c.postMessage({ type: 'GPS_UPDATE', payload }));
+    const fbApp   = db.app;
+    const baseUrl = fbApp.options.databaseURL ||
+                    ('https://' + fbApp.options.projectId + '-default-rtdb.firebaseio.com');
+    const spd    = speed || 0;
+    const status = spd > 0.5 ? 'moving' : 'online';
+    const payload = JSON.stringify({
+      lat, lng, heading: heading||0,
+      speed: Math.round(spd * 3.6),
+      status, ts: Date.now()
     });
-  } catch(err) { console.warn('[SW GPS]', err); }
+    // fetch ทำงานบน iOS/Android background ได้ดีกว่า Firebase SDK
+    fetch(baseUrl + '/search_missions/' + missionId + '/locations/' + userId + '.json',
+          { method:'PUT', body: payload }).catch(()=>{});
+    fetch(baseUrl + '/search_missions/' + missionId + '/members/' + userId + '/lastSeen.json',
+          { method:'PUT', body: JSON.stringify(Date.now()) }).catch(()=>{});
+  } catch(e) {}
 }
-`;
 
-  const blob = new Blob([swCode], { type: 'application/javascript' });
-  const swUrl = URL.createObjectURL(blob);
+// ── Background interval สำหรับมือถือ (SW Blob ไม่รองรับ iOS) ──
+let _smBgInterval = null;
 
-  navigator.serviceWorker.register(swUrl, { scope: '/' })
-    .then(reg => {
-      window._smSwReg = reg;
-      console.log('[BG GPS] SW registered');
+function smStartBgInterval(missionId, userId) {
+  smStopBgInterval();
+  _smBgInterval = setInterval(function() {
+    if(!isTracking()) { smStopBgInterval(); return; }
+    // ขอตำแหน่งจาก browser (ทำงานได้แม้ minimize บน Android)
+    if(!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        smPushLocationRest(missionId, userId,
+          pos.coords.latitude, pos.coords.longitude,
+          pos.coords.speed, pos.coords.heading);
+      },
+      function() {},
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+    );
+  }, 15000); // ทุก 15 วิ — balance ระหว่าง accuracy กับ battery
+}
 
-      // Get firebase config from the app's firebase instance
-      const fbApp = db.app;
-      const fbConfig = {
-        projectId:   fbApp.options.projectId,
-        databaseURL: fbApp.options.databaseURL || `https://${fbApp.options.projectId}-default-rtdb.firebaseio.com`
-      };
-
-      const sendStart = () => {
-        const sw = reg.active || reg.installing || reg.waiting;
-        if(sw) {
-          sw.postMessage({ type: 'START_GPS', data: { missionId, userId, firebaseConfig: fbConfig } });
-        }
-      };
-
-      if(reg.active) { sendStart(); }
-      else { (reg.installing || reg.waiting).addEventListener('statechange', e => { if(e.target.state === 'activated') sendStart(); }); }
-    })
-    .catch(err => {
-      console.warn('[BG GPS] SW failed, using watchPosition fallback:', err);
-      smStartGpsFallback(missionId);
-    });
-
-  // Listen for messages from SW (GPS_UPDATE, REQUEST_POS)
-  navigator.serviceWorker.addEventListener('message', e => {
-    const { type, payload } = e.data || {};
-    if(type === 'GPS_UPDATE' && _smTrackMap && !window._smHasCentered) {
-      _smTrackMap.setView([payload.lat, payload.lng], 16);
-      window._smHasCentered = true;
-    }
-    // SW requests position (fallback mode)
-    if(type === 'REQUEST_POS') {
-      navigator.geolocation.getCurrentPosition(pos => {
-        const sw = window._smSwReg?.active;
-        if(sw) sw.postMessage({ type: 'POS_RESULT', pos: {
-          coords: { latitude: pos.coords.latitude, longitude: pos.coords.longitude,
-                    speed: pos.coords.speed, heading: pos.coords.heading }
-        }});
-      }, ()=>{}, { enableHighAccuracy: true });
-    }
-  });
+function smStopBgInterval() {
+  if(_smBgInterval !== null) { clearInterval(_smBgInterval); _smBgInterval = null; }
 }
 
 // ── GPS Tracking ───────────────────────────────────────────
@@ -5328,50 +5245,57 @@ function smStartGps(missionId) {
   if(!navigator.geolocation) { showToast('อุปกรณ์ไม่รองรับ GPS', 'error'); return; }
   smStopGps();
   window._smHasCentered = false;
-
-  // Try Service Worker background mode first
-  if('serviceWorker' in navigator && 'Notification' in window) {
-    Notification.requestPermission().then(perm => {
-      smRegisterServiceWorker(missionId, S.user.id, {});
-    });
-  }
-
-  // ALWAYS also run watchPosition in foreground (instant updates when app is open)
   smStartGpsFallback(missionId);
+  // Background interval — รองรับมือถือที่ SW Blob ไม่ได้
+  smStartBgInterval(missionId, S.user.id);
 }
 
 function smStartGpsFallback(missionId) {
-  window._smGpsActive = true;           // ← flag เปิด GPS
+  window._smGpsActive = true;
   const locRef    = ref(db, `search_missions/${missionId}/locations/${S.user.id}`);
   const memberRef = ref(db, `search_missions/${missionId}/members/${S.user.id}`);
 
+  // หยุด watch เดิมก่อน
+  if(_smWatchId !== null) { navigator.geolocation.clearWatch(_smWatchId); _smWatchId = null; }
+
   _smWatchId = navigator.geolocation.watchPosition(
     pos => {
+      if(!isTracking()) return;   // ออกภารกิจแล้ว ไม่ส่ง
       const { latitude: lat, longitude: lng, heading, speed } = pos.coords;
       const spd = speed || 0;
       const status = spd > 0.5 ? 'moving' : 'online';
       const payload = { lat, lng, heading: heading||0, speed: Math.round(spd*3.6), status, ts: Date.now() };
+      // ส่งทั้ง SDK และ REST (redundant เพื่อมือถือ)
       set(locRef, payload).catch(()=>{});
+      smPushLocationRest(missionId, S.user.id, lat, lng, speed, heading);
       update(memberRef, { status, lastSeen: Date.now() }).catch(()=>{});
       if(_smTrackMap && !window._smHasCentered) {
         _smTrackMap.setView([lat, lng], 16);
         window._smHasCentered = true;
       }
     },
-    err => { console.warn('GPS error:', err.message); },
-    { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+    err => {
+      console.warn('GPS error:', err.code, err.message);
+      if(err.code === 1) {  // PERMISSION_DENIED
+        showToast('กรุณาอนุญาต GPS ในการตั้งค่าเบราว์เซอร์', 'error');
+      }
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 20000   // มือถือต้องการเวลามากกว่า
+    }
   );
 }
 
 function smStopGps() {
-  window._smGpsActive = false;          // ← flag ปิด GPS ชัดเจน
-  // Stop foreground watch
+  window._smGpsActive = false;
   if(_smWatchId !== null) { navigator.geolocation.clearWatch(_smWatchId); _smWatchId = null; }
   window._smHasCentered = false;
-  // Stop Service Worker background tracking
+  smStopBgInterval();   // หยุด background interval (มือถือ)
   if(window._smSwReg) {
-    const sw = window._smSwReg.active;
-    if(sw) sw.postMessage({ type: 'STOP_GPS' });
+    const sw = window._smSwReg && window._smSwReg.active;
+    if(sw) try { sw.postMessage({ type: 'STOP_GPS' }); } catch(e) {}
   }
 }
 
@@ -6239,11 +6163,6 @@ function smUpdateMyMissionAlert() {
 // ══ แก้: ทุก handler เช็ค _smGpsActive + _smActiveMissionId เท่านั้น
 // ══════════════════════════════════════════════════════════
 (function smSetupLifecycleHandlers() {
-
-  // ── helper: เช็คว่ากำลัง active จริง ──
-  function isTracking() {
-    return window._smGpsActive === true && !!_smActiveMissionId;
-  }
 
   // ── beacon ส่ง lastSeen ผ่าน Firebase REST (ทำงานแม้ปิดหน้า) ──
   function smBeaconLocation() {
