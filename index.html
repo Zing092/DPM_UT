@@ -1220,6 +1220,20 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
   -webkit-touch-callout: none; /* ป้องกัน iOS long-press menu */
 }
 .sm-sos-btn:active { transform: scale(0.97); }
+.sm-sos-cancel-btn {
+  display: none; /* ซ่อนไว้ก่อน แสดงเฉพาะตอน SOS active */
+  flex: 1; padding: 14px; border: 2px solid #dc2626; border-radius: 12px;
+  background: #fff; color: #dc2626; font-size: 14px; font-weight: 800;
+  font-family: 'Kanit', sans-serif; cursor: pointer;
+  align-items: center; justify-content: center; gap: 8px;
+  transition: all 0.2s; -webkit-user-select: none; user-select: none;
+  animation: sos-active-pulse 1.5s ease-in-out infinite;
+}
+.sm-sos-cancel-btn:active { transform: scale(0.97); background: #fef2f2; }
+@keyframes sos-active-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(220,38,38,0); }
+}
 .sm-center-btn {
   padding: 14px 18px; border: 1px solid var(--border); border-radius: 12px;
   background: #fff; color: var(--primary); font-size: 13px; cursor: pointer;
@@ -1933,6 +1947,9 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
       <div class="sm-sos-bar">
         <button class="sm-sos-btn" id="sm-sos-btn">
           <i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน
+        </button>
+        <button class="sm-sos-cancel-btn" id="sm-sos-cancel-btn" onclick="smCancelSos()">
+          <i class="fas fa-times-circle"></i> ยกเลิก SOS
         </button>
         <button class="sm-center-btn" onclick="smCenterMap()">
           <i class="fas fa-compress-arrows-alt"></i> ดูทีม
@@ -5173,6 +5190,9 @@ window.smBackToList = function() {
   smStopGps();
   if(window._smLocListener) { window._smLocListener(); window._smLocListener = null; }
   if(window._smMemListener) { window._smMemListener(); window._smMemListener = null; }
+  // reset SOS state
+  _smSosActive = false; _smSosExpiry = 0;
+  smRestoreSosBtn();
 };
 
 window.smGoToTrack = function() {
@@ -5621,9 +5641,7 @@ window.smBindSosBtn = function() {
       _smSosTimer = setTimeout(() => smTriggerSos(), 3000);
     }
     function onEnd() {
-      clearTimeout(_smSosTimer);
-      const b = document.getElementById('sm-sos-btn');
-      if(b) { b.style.opacity = '1'; b.innerHTML = '<i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน'; }
+      smSosCancel(); // ใช้ฟังก์ชันกลาง — จะไม่ reset UI ถ้า SOS trigger แล้ว
     }
 
     btn.addEventListener('touchstart',  onStart, { passive: false });
@@ -5640,8 +5658,12 @@ setTimeout(function() { window.smBindSosBtn(); }, 800);
 window.smSosStart = function() {};  // stub (ใช้ listener ด้านบนแทน)
 window.smSosCancel = function() {
   clearTimeout(_smSosTimer);
-  const btn = document.getElementById('sm-sos-btn');
-  if(btn) { btn.style.opacity = '1'; btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน'; }
+  // ถ้า SOS ยังไม่ได้ trigger (กดแล้วปล่อยก่อน 3 วิ) แค่ reset UI ปุ่มปกติ
+  if(!_smSosActive) {
+    const btn = document.getElementById('sm-sos-btn');
+    if(btn) { btn.style.opacity = '1'; btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน'; }
+  }
+  // ถ้า SOS trigger แล้ว ไม่ต้องทำอะไร (ปุ่มยกเลิกแสดงอยู่แล้ว)
 };
 
 async function smTriggerSos() {
@@ -5676,8 +5698,52 @@ async function smTriggerSos() {
   showToast('🆘 ส่ง SOS แล้ว! ทีมจะเห็นตำแหน่งคุณ', 'error');
   setTimeout(smSosCancel, 5000);
 
+  // แสดงปุ่มยกเลิก SOS แทนปุ่ม SOS
+  const cancelBtn = document.getElementById('sm-sos-cancel-btn');
+  const sosBtn    = document.getElementById('sm-sos-btn');
+  if(cancelBtn) cancelBtn.style.display = 'flex';
+  if(sosBtn)    sosBtn.style.display    = 'none';
+
   // ล้าง flag อัตโนมัติหลัง 60 วิ
-  setTimeout(function() { _smSosActive = false; _smSosExpiry = 0; }, 60000);
+  setTimeout(function() {
+    _smSosActive = false;
+    _smSosExpiry = 0;
+    smRestoreSosBtn();
+  }, 60000);
+}
+
+// ── ยกเลิก SOS ────────────────────────────────────────────
+window.smCancelSos = async function() {
+  if(!confirm('ยืนยันการยกเลิก SOS?')) return;
+
+  // ล้าง flag ทันที
+  _smSosActive = false;
+  _smSosExpiry = 0;
+
+  // เขียน status กลับเป็น online ใน Firebase
+  if(_smActiveMissionId && S.user?.id) {
+    const mRef = ref(db, `search_missions/${_smActiveMissionId}/members/${S.user.id}`);
+    const lRef = ref(db, `search_missions/${_smActiveMissionId}/locations/${S.user.id}`);
+    await Promise.all([
+      update(mRef, { status: 'online', sosAt: null }),
+      update(lRef, { status: 'online' })
+    ]).catch(()=>{});
+  }
+
+  showToast('ยกเลิก SOS แล้ว', 'info');
+  smRestoreSosBtn();
+};
+
+function smRestoreSosBtn() {
+  const cancelBtn = document.getElementById('sm-sos-cancel-btn');
+  const sosBtn    = document.getElementById('sm-sos-btn');
+  if(cancelBtn) cancelBtn.style.display = 'none';
+  if(sosBtn) {
+    sosBtn.style.display    = 'flex';
+    sosBtn.style.background = '';
+    sosBtn.style.opacity    = '1';
+    sosBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน';
+  }
 }
 
 // ── Admin: Create Mission ─────────────────────────────────
