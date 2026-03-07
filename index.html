@@ -57,6 +57,12 @@ body {
 ::-webkit-scrollbar-track { background: #f1f5f9; }
 ::-webkit-scrollbar-thumb { background: var(--primary-light); border-radius: 3px; }
 
+/* ===== SKELETON LOADING =====*/
+@keyframes skeleton-pulse {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
 /* ===== MAP PAGE ===== */
 #map-container {
   width: 100%; height: calc(100vh - var(--nav-h) - 90px - 32px);
@@ -4943,6 +4949,29 @@ window.smSwitchTab = function(tab, el) {
 };
 
 // ── Load missions from Firebase ────────────────────────────
+// ── Fast load: show cached data instantly, then update live ─
+const _smMissionCache = { data: null, ts: 0 };
+
+function smRenderMissionSkeleton(listEl) {
+  listEl.innerHTML = [1,2].map(() => `
+    <div style="background:#fff;border-radius:16px;padding:18px 16px;margin-bottom:10px;
+                box-shadow:0 1px 4px rgba(0,0,0,0.06);animation:skeleton-pulse 1.4s ease infinite;">
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+        <div style="width:42px;height:42px;border-radius:12px;background:#f1f5f9;flex-shrink:0"></div>
+        <div style="flex:1">
+          <div style="height:14px;background:#f1f5f9;border-radius:6px;width:60%;margin-bottom:7px"></div>
+          <div style="height:11px;background:#f1f5f9;border-radius:6px;width:40%"></div>
+        </div>
+        <div style="width:60px;height:22px;background:#f1f5f9;border-radius:20px"></div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <div style="height:22px;width:80px;background:#f1f5f9;border-radius:20px"></div>
+        <div style="height:22px;width:70px;background:#f1f5f9;border-radius:20px"></div>
+      </div>
+      <div style="height:38px;background:#f1f5f9;border-radius:10px"></div>
+    </div>`).join('');
+}
+
 function smLoadMissions() {
   const listEl = document.getElementById('sm-mission-list');
   const histEl = document.getElementById('sm-history-list');
@@ -4952,8 +4981,17 @@ function smLoadMissions() {
   const manageTab = document.getElementById('sm-tab-manage');
   if(manageTab) manageTab.style.display = S.user?.role === 'admin' ? 'flex' : 'none';
 
-  listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.4"></i>กำลังโหลด...</div>';
+  // ── 1) Show cached data instantly (0ms) ──
+  if(_smMissionCache.data && (Date.now() - _smMissionCache.ts) < 30000) {
+    const d = _smMissionCache.data;
+    smRenderMissionList(d.active);
+    smRenderHistoryList(d.closed);
+  } else {
+    // Show skeleton while waiting
+    smRenderMissionSkeleton(listEl);
+  }
 
+  // ── 2) Subscribe realtime (updates whenever data changes) ──
   const smRef = ref(db, 'search_missions');
   if(window._smMissionsListener) window._smMissionsListener();
   window._smMissionsListener = onValue(smRef, snap => {
@@ -4961,6 +4999,10 @@ function smLoadMissions() {
     const active = Object.entries(data).filter(([,m]) => m.status !== 'closed');
     const closed = Object.entries(data).filter(([,m]) => m.status === 'closed')
                          .sort((a,b) => (b[1].closedAt||0) - (a[1].closedAt||0));
+
+    // Save to cache
+    _smMissionCache.data = { active, closed };
+    _smMissionCache.ts = Date.now();
 
     // Badge count
     const badge = document.getElementById('search-mission-badge');
@@ -5114,32 +5156,180 @@ function smInitTrackMap() {
   _smTrackMap.setView([15.7, 100.0], 13); // Default center Thailand
 }
 
+// ══════════════════════════════════════════════════════════
+// ── Background GPS via Service Worker ─────────────────────
+// ══════════════════════════════════════════════════════════
+
+// Register Service Worker inline (blob) for background tracking
+function smRegisterServiceWorker(missionId, userId, firebaseConfig) {
+  if(!('serviceWorker' in navigator)) return;
+
+  // SW script as a string — runs in background even when browser is minimized
+  const swCode = `
+const CACHE = 'sm-bg-gps-v1';
+let watchId = null;
+let missionId = null;
+let userId = null;
+let fbConfig = null;
+let trackingActive = false;
+
+self.addEventListener('message', e => {
+  const { type, data } = e.data || {};
+
+  if(type === 'START_GPS') {
+    missionId = data.missionId;
+    userId    = data.userId;
+    fbConfig  = data.firebaseConfig;
+    trackingActive = true;
+    startWatch();
+    self.registration.showNotification('📍 ติดตามตำแหน่ง', {
+      body: 'ระบบกำลังส่งพิกัดในพื้นหลัง',
+      icon: '/favicon.ico',
+      tag: 'gps-bg',
+      silent: true
+    });
+  }
+
+  if(type === 'STOP_GPS') {
+    trackingActive = false;
+    stopWatch();
+    // Remove notification
+    self.registration.getNotifications({ tag: 'gps-bg' })
+      .then(ns => ns.forEach(n => n.close()));
+  }
+
+  if(type === 'PING') {
+    e.source.postMessage({ type: 'PONG', active: trackingActive });
+  }
+});
+
+function startWatch() {
+  if(!('geolocation' in self)) return;
+  stopWatch();
+  watchId = self.geolocation?.watchPosition
+    ? self.geolocation.watchPosition(pushPos, ()=>{}, { enableHighAccuracy:true, maximumAge:4000 })
+    : null;
+
+  // Fallback: interval getCurrentPosition (works in most browsers)
+  if(watchId === null) {
+    watchId = setInterval(() => {
+      if(!trackingActive) return clearInterval(watchId);
+      // Cannot use geolocation in SW directly — signal main thread
+      self.clients.matchAll().then(clients => {
+        clients.forEach(c => c.postMessage({ type: 'REQUEST_POS' }));
+      });
+    }, 10000);
+  }
+}
+
+function stopWatch() {
+  if(watchId !== null) {
+    try { clearInterval(watchId); self.geolocation?.clearWatch(watchId); } catch(e){}
+    watchId = null;
+  }
+}
+
+async function pushPos(pos) {
+  if(!trackingActive || !missionId || !userId) return;
+  const { latitude: lat, longitude: lng, speed, heading } = pos.coords;
+  const spd = speed || 0;
+  const status = spd > 0.5 ? 'moving' : 'online';
+  const payload = { lat, lng, heading: heading||0, speed: Math.round(spd*3.6), status, ts: Date.now() };
+
+  // Push to Firebase REST API (works from SW without SDK)
+  const base = fbConfig.databaseURL || ('https://' + fbConfig.projectId + '-default-rtdb.firebaseio.com');
+  const locUrl  = base + '/search_missions/' + missionId + '/locations/' + userId + '.json';
+  const memUrl  = base + '/search_missions/' + missionId + '/members/' + userId + '/lastSeen.json';
+  try {
+    await fetch(locUrl,  { method:'PUT',   body: JSON.stringify(payload) });
+    await fetch(memUrl,  { method:'PUT',   body: JSON.stringify(Date.now()) });
+    // Forward to page for map update
+    self.clients.matchAll().then(clients => {
+      clients.forEach(c => c.postMessage({ type: 'GPS_UPDATE', payload }));
+    });
+  } catch(err) { console.warn('[SW GPS]', err); }
+}
+`;
+
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+
+  navigator.serviceWorker.register(swUrl, { scope: '/' })
+    .then(reg => {
+      window._smSwReg = reg;
+      console.log('[BG GPS] SW registered');
+
+      // Get firebase config from the app's firebase instance
+      const fbApp = db.app;
+      const fbConfig = {
+        projectId:   fbApp.options.projectId,
+        databaseURL: fbApp.options.databaseURL || `https://${fbApp.options.projectId}-default-rtdb.firebaseio.com`
+      };
+
+      const sendStart = () => {
+        const sw = reg.active || reg.installing || reg.waiting;
+        if(sw) {
+          sw.postMessage({ type: 'START_GPS', data: { missionId, userId, firebaseConfig: fbConfig } });
+        }
+      };
+
+      if(reg.active) { sendStart(); }
+      else { (reg.installing || reg.waiting).addEventListener('statechange', e => { if(e.target.state === 'activated') sendStart(); }); }
+    })
+    .catch(err => {
+      console.warn('[BG GPS] SW failed, using watchPosition fallback:', err);
+      smStartGpsFallback(missionId);
+    });
+
+  // Listen for messages from SW (GPS_UPDATE, REQUEST_POS)
+  navigator.serviceWorker.addEventListener('message', e => {
+    const { type, payload } = e.data || {};
+    if(type === 'GPS_UPDATE' && _smTrackMap && !window._smHasCentered) {
+      _smTrackMap.setView([payload.lat, payload.lng], 16);
+      window._smHasCentered = true;
+    }
+    // SW requests position (fallback mode)
+    if(type === 'REQUEST_POS') {
+      navigator.geolocation.getCurrentPosition(pos => {
+        const sw = window._smSwReg?.active;
+        if(sw) sw.postMessage({ type: 'POS_RESULT', pos: {
+          coords: { latitude: pos.coords.latitude, longitude: pos.coords.longitude,
+                    speed: pos.coords.speed, heading: pos.coords.heading }
+        }});
+      }, ()=>{}, { enableHighAccuracy: true });
+    }
+  });
+}
+
 // ── GPS Tracking ───────────────────────────────────────────
 function smStartGps(missionId) {
   if(!navigator.geolocation) { showToast('อุปกรณ์ไม่รองรับ GPS', 'error'); return; }
   smStopGps();
-  const locRef = ref(db, `search_missions/${missionId}/locations/${S.user.id}`);
+  window._smHasCentered = false;
+
+  // Try Service Worker background mode first
+  if('serviceWorker' in navigator && 'Notification' in window) {
+    Notification.requestPermission().then(perm => {
+      smRegisterServiceWorker(missionId, S.user.id, {});
+    });
+  }
+
+  // ALWAYS also run watchPosition in foreground (instant updates when app is open)
+  smStartGpsFallback(missionId);
+}
+
+function smStartGpsFallback(missionId) {
+  const locRef    = ref(db, `search_missions/${missionId}/locations/${S.user.id}`);
   const memberRef = ref(db, `search_missions/${missionId}/members/${S.user.id}`);
-  let lastPos = null;
 
   _smWatchId = navigator.geolocation.watchPosition(
     pos => {
       const { latitude: lat, longitude: lng, heading, speed } = pos.coords;
       const spd = speed || 0;
       const status = spd > 0.5 ? 'moving' : 'online';
-      const payload = {
-        lat, lng,
-        heading: heading || 0,
-        speed: Math.round(spd * 3.6), // m/s → km/h
-        status,
-        battery: navigator.getBattery ? null : null,
-        ts: Date.now()
-      };
+      const payload = { lat, lng, heading: heading||0, speed: Math.round(spd*3.6), status, ts: Date.now() };
       set(locRef, payload).catch(()=>{});
       update(memberRef, { status, lastSeen: Date.now() }).catch(()=>{});
-      lastPos = { lat, lng };
-
-      // Center map on self if first fix
       if(_smTrackMap && !window._smHasCentered) {
         _smTrackMap.setView([lat, lng], 16);
         window._smHasCentered = true;
@@ -5151,8 +5341,15 @@ function smStartGps(missionId) {
 }
 
 function smStopGps() {
+  // Stop foreground watch
   if(_smWatchId !== null) { navigator.geolocation.clearWatch(_smWatchId); _smWatchId = null; }
   window._smHasCentered = false;
+
+  // Stop Service Worker background tracking
+  if(window._smSwReg) {
+    const sw = window._smSwReg.active;
+    if(sw) sw.postMessage({ type: 'STOP_GPS' });
+  }
 }
 
 // ── Listen to all locations in realtime ───────────────────
@@ -5266,6 +5463,86 @@ function smTimeAgo(ts) {
   return `${Math.floor(sec/3600)} ชม.ที่แล้ว`;
 }
 
+// ── Haversine distance (meters) ──────────────────────────
+function smCalcDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+            Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+            Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function smFormatDistance(m) {
+  if(m < 1000) return `${Math.round(m)} ม.`;
+  return `${(m/1000).toFixed(1)} กม.`;
+}
+
+// ── Show navigation options modal ────────────────────────
+window.smShowNavOptions = function(lat, lng, name) {
+  const existing = document.getElementById('sm-nav-modal');
+  if(existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'sm-nav-modal';
+  modal.style.cssText = `
+    position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-end;justify-content:center;
+    background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);`;
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:24px 24px 0 0;padding:24px 20px 36px;width:100%;max-width:480px;
+                box-shadow:0 -8px 40px rgba(0,0,0,0.2);font-family:'Sarabun',sans-serif;">
+      <div style="width:40px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 20px;"></div>
+      <div style="font-family:'Kanit',sans-serif;font-size:16px;font-weight:700;color:#0a2463;margin-bottom:4px;">
+        <i class="fas fa-navigation" style="margin-right:8px;color:#2563eb;"></i>นำทางไปหา
+      </div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:6px;">${name || 'สมาชิก'}</div>
+      <div style="display:inline-flex;align-items:center;gap:6px;background:#f0f9ff;border:1px solid #bae6fd;
+                  border-radius:8px;padding:6px 12px;margin-bottom:20px;font-size:12px;color:#0369a1;">
+        <i class="fas fa-map-pin"></i>
+        <span style="font-family:monospace;font-weight:600;">${lat.toFixed(6)}, ${lng.toFixed(6)}</span>
+        <button onclick="navigator.clipboard.writeText('${lat.toFixed(6)},${lng.toFixed(6)}').then(()=>showToast('คัดลอกพิกัดแล้ว','success'))"
+          style="background:none;border:none;cursor:pointer;color:#0369a1;padding:0 2px;" title="คัดลอก">
+          <i class="fas fa-copy"></i>
+        </button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank"
+           style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 10px;
+                  border-radius:14px;background:#fff;border:2px solid #4285f4;text-decoration:none;
+                  color:#4285f4;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600;
+                  transition:all 0.2s;" onmouseover="this.style.background='#f0f4ff'"
+                  onmouseout="this.style.background='#fff'">
+          <img src="https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png"
+               style="height:18px;object-fit:contain;" onerror="this.style.display='none'">
+          <span><i class="fas fa-map-marked-alt" style="margin-right:4px;"></i>Google Maps</span>
+        </a>
+        <a href="https://waze.com/ul?ll=${lat},${lng}&navigate=yes" target="_blank"
+           style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 10px;
+                  border-radius:14px;background:#fff;border:2px solid #33ccff;text-decoration:none;
+                  color:#00b5e6;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600;
+                  transition:all 0.2s;" onmouseover="this.style.background='#f0fbff'"
+                  onmouseout="this.style.background='#fff'">
+          <i class="fas fa-route" style="font-size:20px;"></i>
+          <span>Waze</span>
+        </a>
+      </div>
+      <a href="geo:${lat},${lng}?q=${lat},${lng}(${encodeURIComponent(name||'สมาชิก')})" 
+         style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;
+                border-radius:12px;background:#f8fafc;border:1.5px solid #e2e8f0;text-decoration:none;
+                color:#475569;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600;margin-bottom:10px;">
+        <i class="fas fa-mobile-alt"></i>เปิดในแอปแผนที่เริ่มต้น
+      </a>
+      <button onclick="document.getElementById('sm-nav-modal').remove()"
+        style="width:100%;padding:13px;border-radius:12px;background:#f1f5f9;border:none;
+               font-family:'Kanit',sans-serif;font-size:14px;font-weight:600;color:#64748b;cursor:pointer;">
+        ยกเลิก
+      </button>
+    </div>`;
+  modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+};
+
 // ── Render member list panel ──────────────────────────────
 function smRenderMemberPanel(locs, members) {
   const listEl = document.getElementById('sm-member-list');
@@ -5273,6 +5550,8 @@ function smRenderMemberPanel(locs, members) {
   if(!listEl) return;
 
   const now = Date.now();
+  const myLoc = locs[S.user?.id];
+
   const rows = Object.entries(members).map(([uid, mem], idx) => {
     const loc = locs[uid];
     const color = smGetColor(idx);
@@ -5286,18 +5565,48 @@ function smRenderMemberPanel(locs, members) {
     const lastSeen = loc?.ts ? smTimeAgo(loc.ts) : 'ออฟไลน์';
     const spd = loc?.speed !== undefined ? ` · ${loc.speed} กม./ชม.` : '';
 
+    // ── Distance from self ──
+    let distBadge = '';
+    if(!isSelf && myLoc && loc && myLoc.lat && loc.lat) {
+      const dist = smCalcDistance(myLoc.lat, myLoc.lng, loc.lat, loc.lng);
+      const distColor = dist < 100 ? '#10b981' : dist < 500 ? '#f59e0b' : '#ef4444';
+      distBadge = `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;
+                    color:${distColor};background:${distColor}18;border-radius:6px;padding:2px 6px;margin-left:4px;">
+                    <i class="fas fa-ruler-horizontal" style="font-size:9px;"></i>${smFormatDistance(dist)}
+                  </span>`;
+    }
+
+    // ── GPS coords ──
+    const coordsLine = (loc && loc.lat) ? `
+      <div style="font-size:10px;color:#94a3b8;margin-top:1px;font-family:monospace;">
+        📍 ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}
+      </div>` : '';
+
     return `
       <div class="sm-member-row">
         <div class="sm-member-dot ${status}"></div>
         <div class="sm-member-avatar" style="background:linear-gradient(135deg,${color},${color}99)">
           ${(mem.name||'?').charAt(0)}
         </div>
-        <div class="sm-member-info">
-          <div class="sm-member-name">${isSelf ? '👤 คุณ' : ''} ${mem.name || mem.empId || uid.slice(-6)}</div>
+        <div class="sm-member-info" style="min-width:0;flex:1;">
+          <div class="sm-member-name" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;">
+            ${isSelf ? '👤 คุณ' : ''} ${mem.name || mem.empId || uid.slice(-6)}${distBadge}
+          </div>
           <div class="sm-member-status">${smStatusLabel(status)}${spd} · ${lastSeen}</div>
+          ${coordsLine}
         </div>
-        <div class="sm-member-actions">
-          ${loc ? `<button class="sm-locate-btn" onclick="smFlyTo(${loc.lat},${loc.lng})"><i class="fas fa-crosshairs"></i></button>` : ''}
+        <div class="sm-member-actions" style="display:flex;flex-direction:column;gap:4px;align-items:center;">
+          ${loc ? `<button class="sm-locate-btn" onclick="smFlyTo(${loc.lat},${loc.lng})" title="โฟกัสบนแผนที่" style="width:30px;height:30px;"><i class="fas fa-crosshairs"></i></button>` : ''}
+          ${(!isSelf && loc && loc.lat) ? `
+            <button onclick="smShowNavOptions(${loc.lat},${loc.lng},'${(mem.name||'สมาชิก').replace(/'/g,'')}')"
+              title="นำทางไปหา"
+              style="width:30px;height:30px;border-radius:8px;border:1.5px solid #10b981;background:#fff;
+                     color:#10b981;cursor:pointer;font-size:11px;display:flex;align-items:center;
+                     justify-content:center;transition:all 0.2s;"
+              onmouseover="this.style.background='#10b981';this.style.color='#fff'"
+              onmouseout="this.style.background='#fff';this.style.color='#10b981'">
+              <i class="fas fa-directions"></i>
+            </button>` : ''}
         </div>
       </div>`;
   });
