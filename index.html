@@ -1249,19 +1249,12 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 }
 .sm-sos-btn:active { transform: scale(0.97); }
 .sm-sos-cancel-btn {
-  /* ซ่อนโดยบีบ width เป็น 0 — ใช้ได้แน่นอนทุก browser รวม iOS Safari */
-  flex: 0; width: 0; overflow: hidden; padding: 0; border: none; opacity: 0;
-  border-radius: 12px; background: #fff; color: #dc2626;
-  font-size: 14px; font-weight: 800; font-family: 'Kanit', sans-serif;
-  cursor: pointer; white-space: nowrap;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: flex 0.2s, width 0.2s, padding 0.2s, opacity 0.2s, border 0.2s;
+  flex: 1; padding: 14px; border: 2.5px solid #dc2626; border-radius: 12px;
+  background: #fff; color: #dc2626; font-size: 14px; font-weight: 800;
+  font-family: 'Kanit', sans-serif; cursor: pointer;
+  align-items: center; justify-content: center; gap: 8px;
   -webkit-user-select: none; user-select: none;
   touch-action: manipulation;
-}
-.sm-sos-cancel-btn.visible {
-  flex: 1; width: auto; overflow: visible; padding: 14px;
-  border: 2.5px solid #dc2626; opacity: 1;
   box-shadow: 0 0 0 3px rgba(220,38,38,0.2);
 }
 .sm-sos-cancel-btn:active { background: #fef2f2; }
@@ -1979,7 +1972,7 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
         <button class="sm-sos-btn" id="sm-sos-btn">
           <i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน
         </button>
-        <button class="sm-sos-cancel-btn" id="sm-sos-cancel-btn" onclick="smCancelSos()">
+        <button class="sm-sos-cancel-btn" id="sm-sos-cancel-btn" style="display:none" onclick="smCancelSos()">
           <i class="fas fa-times-circle"></i> ยกเลิก SOS
         </button>
         <button class="sm-center-btn" onclick="smCenterMap()">
@@ -5758,7 +5751,7 @@ async function smTriggerSos() {
   // แสดงปุ่มยกเลิก SOS แทนปุ่ม SOS
   const cancelBtn = document.getElementById('sm-sos-cancel-btn');
   const sosBtn    = document.getElementById('sm-sos-btn');
-  if(cancelBtn) cancelBtn.classList.add('visible');
+  if(cancelBtn) { cancelBtn.style.display = 'flex'; cancelBtn.style.setProperty('display','flex','important'); }
   if(sosBtn)    sosBtn.style.display = 'none';
 
   // ล้าง flag อัตโนมัติหลัง 60 วิ
@@ -5794,7 +5787,7 @@ window.smCancelSos = async function() {
 function smRestoreSosBtn() {
   const cancelBtn = document.getElementById('sm-sos-cancel-btn');
   const sosBtn    = document.getElementById('sm-sos-btn');
-  if(cancelBtn) cancelBtn.classList.remove('visible');
+  if(cancelBtn) cancelBtn.style.display = 'none';
   if(sosBtn) {
     sosBtn.style.display    = 'flex';
     sosBtn.style.background = '';
