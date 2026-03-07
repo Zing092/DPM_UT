@@ -612,18 +612,36 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 .modal-overlay.open { display:flex; }
 .modal {
   background:#fff; border-radius:24px 24px 16px 16px; width:100%; max-width:600px;
-  max-height:90vh; overflow-y:auto; padding:24px;
+  max-height:92vh; overflow-y:auto; padding:24px;
   animation: modal-up 0.3s cubic-bezier(0.16,1,0.3,1);
+}
+.modal-header {
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;
 }
 @keyframes modal-up {
   from { opacity:0; transform:translateY(40px); }
   to   { opacity:1; transform:translateY(0); }
 }
-.modal-header {
-  display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;
-}
 .modal-title { font-family:'Kanit',sans-serif; font-size:18px; font-weight:700; color:var(--primary); }
-.btn-close {
+/* modal-sm-end: flex layout so footer/buttons always visible */
+#modal-sm-end .modal {
+  display:flex; flex-direction:column; padding:0; overflow:hidden;
+}
+#modal-sm-end .modal-header {
+  padding:18px 20px 14px; border-bottom:1px solid var(--border-light); margin-bottom:0; flex-shrink:0;
+}
+#modal-sm-end .modal-body {
+  flex:1; overflow-y:auto; padding:16px 20px; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+}
+#modal-sm-end .modal-footer {
+  flex-shrink:0; padding:10px 20px 14px; border-top:1px solid var(--border-light);
+  background:#fff; border-radius:0 0 16px 16px;
+}
+#modal-sm-end .modal-footer .btn-group { margin:0; }
+/* Uploading state */
+#sm-end-confirm-btn:disabled {
+  opacity:0.65; cursor:not-allowed; pointer-events:none;
+}
   width:32px; height:32px; border-radius:8px; background:var(--surface-2);
   border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;
   color:var(--text-muted); font-size:16px; transition:all 0.2s;
@@ -1177,6 +1195,112 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
   margin-bottom: 16px;
 }
 .sm-admin-create-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+
+/* SM Tab bar */
+.sm-tab-bar {
+  display: flex; gap: 4px; background: var(--surface-2); padding: 4px;
+  border-radius: 12px; margin-bottom: 14px;
+}
+.sm-tab {
+  flex: 1; text-align: center; padding: 8px; border-radius: 9px;
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  color: var(--text-muted); border: none; background: none;
+  font-family: 'Sarabun', sans-serif;
+}
+.sm-tab.active { background: #fff; color: var(--primary-light); box-shadow: var(--shadow-sm); }
+
+/* History mission card */
+.sm-hist-card {
+  background: #fff; border-radius: 14px; border: 1px solid var(--border-light);
+  padding: 14px 16px; margin-bottom: 10px; cursor: pointer;
+  transition: all 0.2s; box-shadow: var(--shadow-sm);
+}
+.sm-hist-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.sm-hist-status-closed { background: #f1f5f9; color: #64748b; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; }
+
+/* End mission button */
+.sm-end-btn {
+  width: 100%; padding: 13px; border: none; border-radius: 12px;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: #fff; font-size: 14px; font-weight: 700;
+  font-family: 'Sarabun', sans-serif; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 4px 14px rgba(124,58,237,0.35); transition: all 0.2s;
+  margin-top: 8px;
+}
+.sm-end-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,58,237,0.45); }
+
+/* Detail modal rows */
+.sm-detail-block {
+  background: var(--surface-2); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
+}
+.sm-detail-label { font-size: 12px; color: var(--text-muted); margin-bottom: 3px; }
+.sm-detail-value { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.sm-summary-box {
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  border: 1.5px solid #86efac; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
+}
+.sm-summary-box .label { font-size: 12px; color: #166534; font-weight: 600; margin-bottom: 6px; display:flex; align-items:center; gap:6px; }
+.sm-summary-box .value { font-size: 14px; color: #14532d; line-height: 1.6; }
+
+/* ===== PHOTO UPLOAD (END MISSION) ===== */
+.photo-upload-area {
+  border: 2px dashed var(--border); border-radius: 12px; padding: 16px;
+  text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa;
+  position: relative; margin-top: 4px;
+}
+.photo-upload-area:hover { border-color: var(--primary-light); background: #eff6ff; }
+.photo-upload-area.dragover { border-color: var(--primary-light); background: #eff6ff; transform: scale(1.01); }
+.photo-upload-area input[type="file"] { display:none; }
+.photo-upload-icon { font-size: 28px; color: var(--text-muted); margin-bottom: 6px; }
+.photo-upload-text { font-size: 13px; color: var(--text-secondary); }
+.photo-upload-hint { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.photo-preview-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px;
+}
+.photo-preview-item {
+  position: relative; border-radius: 10px; overflow: hidden;
+  aspect-ratio: 1; background: #f1f5f9;
+}
+.photo-preview-item img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.photo-preview-remove {
+  position: absolute; top: 4px; right: 4px; width: 20px; height: 20px;
+  border-radius: 50%; background: rgba(239,68,68,0.9); color: #fff;
+  border: none; cursor: pointer; font-size: 10px; display: flex;
+  align-items: center; justify-content: center; line-height: 1;
+}
+.photo-preview-remove:hover { background: #dc2626; }
+.photo-upload-progress {
+  margin-top: 8px; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden; display: none;
+}
+.photo-upload-progress-bar {
+  height: 100%; background: linear-gradient(90deg, var(--primary-light), var(--accent-cyan));
+  border-radius: 2px; transition: width 0.3s ease; width: 0%;
+}
+/* Photos in detail modal */
+.sm-photos-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px;
+}
+.sm-photo-thumb {
+  border-radius: 10px; overflow: hidden; aspect-ratio: 1;
+  cursor: pointer; border: 2px solid var(--border-light); transition: transform 0.2s;
+}
+.sm-photo-thumb:hover { transform: scale(1.03); border-color: var(--primary-light); }
+.sm-photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Lightbox */
+#sm-lightbox {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 99999;
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+#sm-lightbox.open { display: flex; }
+#sm-lightbox img { max-width: 100%; max-height: 90vh; border-radius: 12px; object-fit: contain; }
+#sm-lightbox-close {
+  position: absolute; top: 16px; right: 16px; width: 38px; height: 38px;
+  border-radius: 50%; background: rgba(255,255,255,0.15); color: #fff; font-size: 18px;
+  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
 </style>
 </head>
 <body>
@@ -1672,7 +1796,7 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
   <!-- ===== SEARCH MISSION PAGE ===== -->
   <div class="page" id="page-search-mission">
 
-    <!-- Sub-view: Mission List -->
+    <!-- Sub-view: Mission List + History -->
     <div id="sm-view-list">
       <div class="page-header">
         <div>
@@ -1682,37 +1806,51 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
         <span class="sm-status-live" id="sm-live-badge" style="display:none">LIVE</span>
       </div>
 
-      <!-- Admin: Create mission button (only shown to admin) -->
-      <div id="sm-admin-create-wrap" style="display:none">
-        <button class="sm-admin-create-btn" onclick="smShowCreateModal()">
-          <i class="fas fa-plus-circle"></i> สร้างภารกิจค้นหาใหม่
-        </button>
-      </div>
+      <!-- Create button — ทุกคนสร้างได้ -->
+      <button class="sm-admin-create-btn" onclick="smShowCreateModal()">
+        <i class="fas fa-plus-circle"></i> สร้างภารกิจค้นหาใหม่
+      </button>
 
       <!-- My active mission alert -->
-      <div id="sm-my-mission-alert" style="display:none; background:linear-gradient(135deg,#064e3b,#065f46); color:#fff; border-radius:14px; padding:14px 16px; margin-bottom:14px; display:none;">
-        <div style="font-family:'Kanit',sans-serif; font-size:14px; font-weight:700; margin-bottom:6px;">
+      <div id="sm-my-mission-alert" style="display:none;background:linear-gradient(135deg,#064e3b,#065f46);color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:14px;">
+        <div style="font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px;">
           <i class="fas fa-satellite-dish" style="margin-right:6px"></i>คุณกำลังติดตามภารกิจอยู่
         </div>
-        <div id="sm-my-mission-name" style="font-size:13px; opacity:0.85; margin-bottom:10px"></div>
-        <button onclick="smGoToTrack()" style="background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3); color:#fff; padding:8px 16px; border-radius:8px; font-size:13px; font-family:'Sarabun',sans-serif; font-weight:700; cursor:pointer;">
+        <div id="sm-my-mission-name" style="font-size:13px;opacity:0.85;margin-bottom:10px"></div>
+        <button onclick="smGoToTrack()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-family:'Sarabun',sans-serif;font-weight:700;cursor:pointer;">
           <i class="fas fa-map-marked-alt"></i> ดูแผนที่ทีม
         </button>
       </div>
 
+      <!-- Tab: ดำเนินการอยู่ / ประวัติ -->
+      <div class="sm-tab-bar">
+        <button class="sm-tab active" id="sm-tab-active" onclick="smSwitchTab('active',this)">
+          <i class="fas fa-satellite-dish"></i> กำลังดำเนินการ
+        </button>
+        <button class="sm-tab" id="sm-tab-history" onclick="smSwitchTab('history',this)">
+          <i class="fas fa-history"></i> ประวัติภารกิจ
+        </button>
+      </div>
+
+      <!-- Active missions list -->
       <div id="sm-mission-list">
         <div class="sm-empty"><i class="fas fa-search"></i>ยังไม่มีภารกิจค้นหาที่เปิดรับ</div>
+      </div>
+
+      <!-- History missions list -->
+      <div id="sm-history-list" style="display:none">
+        <div class="sm-empty"><i class="fas fa-history"></i>ยังไม่มีประวัติภารกิจ</div>
       </div>
     </div>
 
     <!-- Sub-view: Tracking Map -->
     <div id="sm-view-track" style="display:none">
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
         <button onclick="smBackToList()" style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:'Sarabun',sans-serif;font-weight:600;display:flex;align-items:center;gap:6px;color:var(--text-primary);">
           <i class="fas fa-arrow-left"></i> กลับ
         </button>
-        <div style="flex:1">
-          <div style="font-family:'Kanit',sans-serif;font-size:16px;font-weight:700;color:var(--primary)" id="sm-track-title">ภารกิจ</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Kanit',sans-serif;font-size:16px;font-weight:700;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="sm-track-title">ภารกิจ</div>
           <div style="font-size:12px;color:var(--text-muted)" id="sm-track-area"></div>
         </div>
         <span class="sm-status-live">LIVE</span>
@@ -1740,8 +1878,13 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
       <!-- Map -->
       <div id="sm-track-map"></div>
 
-      <!-- Leave button -->
-      <button class="sm-btn-join leave" onclick="smLeaveConfirm()" style="margin-top:12px">
+      <!-- End mission button (creator only) + Leave button -->
+      <div id="sm-creator-actions" style="display:none;margin-top:12px">
+        <button class="sm-end-btn" onclick="smShowEndModal()">
+          <i class="fas fa-flag-checkered"></i> จบภารกิจ
+        </button>
+      </div>
+      <button class="sm-btn-join leave" onclick="smLeaveConfirm()" style="margin-top:8px">
         <i class="fas fa-sign-out-alt"></i> ออกจากภารกิจ
       </button>
     </div>
@@ -1760,6 +1903,7 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
       <button class="admin-tab" onclick="switchAdminTab('vehicles',this)">รถ</button>
       <button class="admin-tab" onclick="switchAdminTab('pumps',this)">เครื่องสูบน้ำ</button>
       <button class="admin-tab" onclick="switchAdminTab('boats',this)">เรือ</button>
+      <button class="admin-tab" onclick="switchAdminTab('search_missions',this)">🔍 ภารกิจค้นหา</button>
     </div>
     <div id="admin-content"></div>
   </div>
@@ -1811,7 +1955,6 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
       <select class="form-control" id="sm-create-status">
         <option value="open">เปิดรับสมาชิก</option>
         <option value="ongoing">กำลังดำเนินการ</option>
-        <option value="closed">ปิดภารกิจ</option>
       </select>
     </div>
     <div class="btn-group" style="margin-top:4px">
@@ -1819,6 +1962,100 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
         <i class="fas fa-plus-circle"></i> สร้างภารกิจ
       </button>
       <button class="btn btn-secondary" onclick="closeModal('modal-sm-create')" style="min-width:90px">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<!-- End Mission Modal -->
+<div class="modal-overlay" id="modal-sm-end">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fas fa-flag-checkered" style="color:#7c3aed;margin-right:6px"></i>จบภารกิจ</div>
+      <button class="btn-close" onclick="closeModal('modal-sm-end')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="background:#faf5ff;border:1.5px solid #d8b4fe;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#6b21a8;">
+        <i class="fas fa-info-circle" style="margin-right:6px"></i>
+        เมื่อจบภารกิจแล้ว ระบบจะหยุดติดตาม GPS ของทุกคน และบันทึกไว้ในประวัติภารกิจ
+      </div>
+      <div class="form-group">
+        <label style="font-weight:700;font-size:14px">สรุปผลภารกิจ<span class="req">*</span></label>
+        <textarea class="form-control" id="sm-end-summary"
+          placeholder="สรุปผลการปฏิบัติงาน เช่น พบผู้สูญหายแล้ว / ไม่พบผู้สูญหาย / ยกเลิกเนื่องจาก..."
+          style="min-height:100px;font-size:14px"></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label style="font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px">
+          <i class="fas fa-camera" style="color:var(--primary-light)"></i>รูปภาพประกอบ
+          <span style="font-weight:400;font-size:12px;color:var(--text-muted)">(ไม่บังคับ, สูงสุด 5 รูป)</span>
+        </label>
+        <div class="photo-upload-area" id="sm-photo-drop" onclick="document.getElementById('sm-photo-input').click()">
+          <input type="file" id="sm-photo-input" accept="image/*" multiple onchange="smHandlePhotoSelect(event)">
+          <div class="photo-upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+          <div class="photo-upload-text">แตะเพื่อเลือกรูปภาพ หรือลากมาวาง</div>
+          <div class="photo-upload-hint">รองรับ JPG, PNG, HEIC • ขนาดสูงสุด 10 MB ต่อรูป</div>
+        </div>
+        <div class="photo-preview-grid" id="sm-photo-preview"></div>
+        <div class="photo-upload-progress" id="sm-upload-progress">
+          <div class="photo-upload-progress-bar" id="sm-upload-progress-bar"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div class="btn-group" style="margin:0">
+        <button class="btn btn-block" id="sm-end-confirm-btn" onclick="smEndMission()" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;box-shadow:0 4px 14px rgba(124,58,237,0.35)">
+          <i class="fas fa-flag-checkered"></i> ยืนยันจบภารกิจ
+        </button>
+        <button class="btn btn-secondary" onclick="closeModal('modal-sm-end')" style="min-width:90px">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- History Detail Modal -->
+<div class="modal-overlay" id="modal-sm-detail">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fas fa-clipboard-list" style="color:var(--primary);margin-right:6px"></i>รายละเอียดภารกิจ</div>
+      <button class="btn-close" onclick="closeModal('modal-sm-detail')"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="sm-detail-content"></div>
+  </div>
+</div>
+
+<!-- Admin Edit Search Mission Modal -->
+<div class="modal-overlay" id="modal-sm-admin-edit">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fas fa-edit" style="color:var(--primary-light);margin-right:6px"></i>แก้ไขภารกิจค้นหา</div>
+      <button class="btn-close" onclick="closeModal('modal-sm-admin-edit')"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="sm-edit-id">
+    <div class="form-group">
+      <label>ชื่อภารกิจ<span class="req">*</span></label>
+      <input type="text" class="form-control" id="sm-edit-title" placeholder="ชื่อภารกิจ">
+    </div>
+    <div class="form-group">
+      <label>พื้นที่ / รายละเอียด</label>
+      <textarea class="form-control" id="sm-edit-area" style="min-height:70px" placeholder="ระบุพื้นที่ปฏิบัติการ..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>สถานะ</label>
+      <select class="form-control" id="sm-edit-status">
+        <option value="open">เปิดรับสมาชิก</option>
+        <option value="ongoing">กำลังดำเนินการ</option>
+        <option value="closed">ปิดภารกิจ (จบแล้ว)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>สรุปผลภารกิจ (ถ้ามี)</label>
+      <textarea class="form-control" id="sm-edit-summary" style="min-height:80px" placeholder="สรุปผลการปฏิบัติงาน..."></textarea>
+    </div>
+    <div class="btn-group" style="margin-top:4px">
+      <button class="btn btn-primary btn-block" onclick="smAdminSaveEdit()">
+        <i class="fas fa-save"></i> บันทึกการแก้ไข
+      </button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-sm-admin-edit')" style="min-width:90px">ยกเลิก</button>
     </div>
   </div>
 </div>
@@ -2163,6 +2400,7 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, get, push, update, remove, onValue, query, orderByChild } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD4i4tIdswvYaRLP3EpEHHg_miOJIu-k7o",
@@ -2177,6 +2415,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const storage = getStorage(app);
 
 // ===== GLOBAL STATE =====
 window._state = {
@@ -3525,6 +3764,7 @@ function renderAdminContent() {
   else if(S.currentAdminTab==='vehicles') renderAdminVehicles(c);
   else if(S.currentAdminTab==='pumps') renderAdminPumps(c);
   else if(S.currentAdminTab==='boats') renderAdminBoats(c);
+  else if(S.currentAdminTab==='search_missions') renderAdminSearchMissions(c);
 }
 
 function renderAdminUsers(c) {
@@ -4293,52 +4533,57 @@ function smArrowIcon(color) {
 
 // ── Page Init ──────────────────────────────────────────────
 window.smInitPage = function() {
-  // Show admin create button
-  const adminWrap = document.getElementById('sm-admin-create-wrap');
-  if(adminWrap) adminWrap.style.display = S.user?.role === 'admin' ? 'block' : 'none';
-
-  // Show/hide nav badge
   smUpdateMyMissionAlert();
-
-  // Load missions list
   smLoadMissions();
+};
+
+// ── Tab switch ─────────────────────────────────────────────
+window.smSwitchTab = function(tab, el) {
+  document.querySelectorAll('.sm-tab').forEach(t => t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('sm-mission-list').style.display = tab === 'active' ? 'block' : 'none';
+  document.getElementById('sm-history-list').style.display = tab === 'history' ? 'block' : 'none';
 };
 
 // ── Load missions from Firebase ────────────────────────────
 function smLoadMissions() {
   const listEl = document.getElementById('sm-mission-list');
+  const histEl = document.getElementById('sm-history-list');
   if(!listEl) return;
   listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.4"></i>กำลังโหลด...</div>';
 
   const smRef = ref(db, 'search_missions');
-  // Use onValue for realtime update of mission list
   if(window._smMissionsListener) window._smMissionsListener();
   window._smMissionsListener = onValue(smRef, snap => {
     const data = snap.val() || {};
-    // Update badge count
-    const openCount = Object.values(data).filter(m => m.status === 'open' || m.status === 'ongoing').length;
-    const badge = document.getElementById('search-mission-badge');
-    if(badge) { badge.textContent = openCount; badge.style.display = openCount > 0 ? 'flex' : 'none'; }
+    const active = Object.entries(data).filter(([,m]) => m.status !== 'closed');
+    const closed = Object.entries(data).filter(([,m]) => m.status === 'closed')
+                         .sort((a,b) => (b[1].closedAt||0) - (a[1].closedAt||0));
 
-    smRenderMissionList(data);
+    // Badge count
+    const badge = document.getElementById('search-mission-badge');
+    if(badge) { badge.textContent = active.length; badge.style.display = active.length > 0 ? 'flex' : 'none'; }
+
+    smRenderMissionList(active);
+    smRenderHistoryList(closed);
     smUpdateMyMissionAlert();
   });
 }
 
-function smRenderMissionList(data) {
+function smRenderMissionList(missions) {
   const listEl = document.getElementById('sm-mission-list');
   if(!listEl) return;
-  const missions = Object.entries(data).filter(([,m]) => m.status !== 'closed');
   if(!missions.length) {
-    listEl.innerHTML = '<div class="sm-empty"><i class="fas fa-search-location"></i>ยังไม่มีภารกิจค้นหาที่เปิดรับ<br><span style="font-size:12px;margin-top:4px;display:block">ผู้ดูแลระบบสามารถสร้างภารกิจใหม่ได้</span></div>';
+    listEl.innerHTML = '<div class="sm-empty"><i class="fas fa-search-location"></i>ยังไม่มีภารกิจค้นหาที่เปิดรับ<br><span style="font-size:12px;margin-top:4px;display:block">กดปุ่มด้านบนเพื่อสร้างภารกิจใหม่</span></div>';
     return;
   }
-  listEl.innerHTML = missions.map(([id, m], idx) => {
+  listEl.innerHTML = missions.map(([id, m]) => {
     const memberCount = m.members ? Object.keys(m.members).length : 0;
     const isJoined = m.members && m.members[S.user?.id];
+    const isCreator = m.createdBy === S.user?.id;
     const statusLabel = m.status === 'open' ? '🟢 เปิดรับ' : '🟡 กำลังดำเนิน';
     const statusColor = m.status === 'open' ? '#dcfce7' : '#fef3c7';
-    const statusText = m.status === 'open' ? '#166534' : '#92400e';
+    const statusText  = m.status === 'open' ? '#166534' : '#92400e';
     return `
       <div class="sm-mission-card ${isJoined ? 'active-mission' : ''}">
         <div class="sm-mission-header">
@@ -4352,15 +4597,15 @@ function smRenderMissionList(data) {
         <div class="sm-mission-stats">
           <div class="sm-stat-chip"><i class="fas fa-users"></i>${memberCount} คนเข้าร่วม</div>
           <div class="sm-stat-chip"><i class="fas fa-calendar-alt"></i>${smFormatDate(m.createdAt)}</div>
-          ${isJoined ? '<div class="sm-stat-chip" style="background:#dcfce7;color:#166534"><i class="fas fa-check-circle" style="color:#16a34a"></i>คุณเข้าร่วมแล้ว</div>' : ''}
+          ${isCreator ? '<div class="sm-stat-chip" style="background:#f5f3ff;color:#6d28d9"><i class="fas fa-crown" style="color:#7c3aed"></i>คุณเป็นผู้สร้าง</div>' : ''}
+          ${isJoined && !isCreator ? '<div class="sm-stat-chip" style="background:#dcfce7;color:#166534"><i class="fas fa-check-circle" style="color:#16a34a"></i>เข้าร่วมแล้ว</div>' : ''}
         </div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${isJoined
-            ? `<button class="sm-btn-join track" onclick="smOpenTrack('${id}')" style="flex:1"><i class="fas fa-map-marked-alt"></i> ดูแผนที่ทีม</button>
-               <button class="sm-btn-join leave" onclick="smLeave('${id}')" style="flex:0.4;background:var(--surface-2);color:var(--accent-red);box-shadow:none;border:1.5px solid #fecaca"><i class="fas fa-sign-out-alt"></i></button>`
+            ? `<button class="sm-btn-join track" onclick="smOpenTrack('${id}')" style="flex:1;min-width:140px"><i class="fas fa-map-marked-alt"></i> ดูแผนที่ทีม</button>
+               <button class="sm-btn-join leave" onclick="smLeave('${id}')" style="flex:0;padding:11px 16px;background:var(--surface-2);color:var(--accent-red);box-shadow:none;border:1.5px solid #fecaca"><i class="fas fa-sign-out-alt"></i></button>`
             : `<button class="sm-btn-join join" onclick="smJoin('${id}')"><i class="fas fa-plus-circle"></i> เข้าร่วมภารกิจ</button>`
           }
-          ${S.user?.role === 'admin' ? `<button onclick="smCloseMission('${id}')" style="padding:8px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;font-size:12px;cursor:pointer;color:var(--text-secondary);font-family:'Sarabun',sans-serif"><i class="fas fa-times"></i> ปิด</button>` : ''}
         </div>
       </div>`;
   }).join('');
@@ -4420,18 +4665,22 @@ window.smLeaveConfirm = function() {
 window.smOpenTrack = async function(missionId) {
   _smActiveMissionId = missionId;
   localStorage.setItem('sm_active_mission', missionId);
-  // Get mission info
   const snap = await get(ref(db, `search_missions/${missionId}`));
   const mission = snap.val();
   if(!mission) { showToast('ไม่พบภารกิจ', 'error'); return; }
 
-  // Switch subview
   document.getElementById('sm-view-list').style.display = 'none';
   document.getElementById('sm-view-track').style.display = 'block';
   document.getElementById('sm-track-title').textContent = mission.title || 'ภารกิจค้นหา';
   document.getElementById('sm-track-area').textContent = mission.area || '';
 
-  // Init map
+  // Show "จบภารกิจ" button for creator or admin
+  const creatorDiv = document.getElementById('sm-creator-actions');
+  if (creatorDiv) {
+    const canEnd = mission.createdBy === S.user?.id || S.user?.role === 'admin';
+    creatorDiv.style.display = canEnd ? 'block' : 'none';
+  }
+
   setTimeout(() => {
     smInitTrackMap();
     smStartGps(missionId);
@@ -4703,11 +4952,485 @@ window.smCreateMission = async function() {
   } catch(e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
 };
 
+// ===== ADMIN — SEARCH MISSIONS MANAGEMENT =====
+
+function renderAdminSearchMissions(c) {
+  c.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.4"></i>กำลังโหลด...</div>';
+  get(ref(db, 'search_missions')).then(snap => {
+    const data = snap.val() || {};
+    const entries = Object.entries(data).sort((a,b) => (b[1].createdAt||0) - (a[1].createdAt||0));
+    if(!entries.length) {
+      c.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 16px;font-size:14px"><i class="fas fa-search-location" style="font-size:36px;display:block;margin-bottom:10px;opacity:0.3"></i>ยังไม่มีภารกิจค้นหา</div>';
+      return;
+    }
+
+    const statusLabel = { open:'🟢 เปิดรับ', ongoing:'🟡 กำลังดำเนิน', closed:'⚫ จบแล้ว' };
+    const statusBg    = { open:'#dcfce7', ongoing:'#fef3c7', closed:'#f1f5f9' };
+    const statusColor = { open:'#166534', ongoing:'#92400e', closed:'#64748b' };
+
+    const rows = entries.map(([id, m]) => {
+      const memberCount = m.memberSnapshot
+        ? Object.keys(m.memberSnapshot).length
+        : m.members ? Object.keys(m.members).length : 0;
+      const sl = statusLabel[m.status] || m.status;
+      const sb = statusBg[m.status]    || '#f1f5f9';
+      const sc = statusColor[m.status] || '#64748b';
+      return `
+        <div class="admin-card-item" style="flex-wrap:wrap;gap:10px;align-items:flex-start">
+          <div class="admin-card-avatar" style="background:#f0fdf4;color:#16a34a;font-size:18px">🔍</div>
+          <div class="admin-card-body" style="min-width:0">
+            <div class="admin-card-title">${m.title || 'ไม่มีชื่อ'}</div>
+            <div class="admin-card-sub">${m.area || 'ไม่ระบุพื้นที่'}</div>
+            <div class="admin-card-id" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+              <span style="background:${sb};color:${sc};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px">${sl}</span>
+              <span style="color:var(--text-muted);font-size:11px"><i class="fas fa-users"></i> ${memberCount} คน</span>
+              <span style="color:var(--text-muted);font-size:11px"><i class="fas fa-calendar-alt"></i> ${smFormatDate(m.createdAt)}</span>
+              <span style="color:var(--text-muted);font-size:11px"><i class="fas fa-user-shield"></i> ${m.createdByName || m.createdBy || '-'}</span>
+            </div>
+            ${m.summary ? `<div style="margin-top:6px;font-size:11px;color:var(--text-secondary);background:#f8fafc;border-radius:6px;padding:5px 8px;border-left:3px solid #22c55e;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${m.summary}</div>` : ''}
+          </div>
+          <div class="admin-card-actions" style="flex-shrink:0">
+            <button class="btn btn-sm btn-secondary" onclick="smAdminEdit('${id}')" title="แก้ไข">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="smAdminDelete('${id}','${(m.title||'').replace(/'/g,'')}')" title="ลบ">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Summary pills
+    const total   = entries.length;
+    const active  = entries.filter(([,m]) => m.status !== 'closed').length;
+    const closed  = entries.filter(([,m]) => m.status === 'closed').length;
+
+    c.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+        <div style="background:#fff;border-radius:10px;padding:12px;text-align:center;box-shadow:var(--shadow-sm);border:1px solid var(--border-light)">
+          <div style="font-family:'Kanit',sans-serif;font-size:22px;font-weight:700;color:var(--primary)">${total}</div>
+          <div style="font-size:11px;color:var(--text-muted)">ทั้งหมด</div>
+        </div>
+        <div style="background:#fff;border-radius:10px;padding:12px;text-align:center;box-shadow:var(--shadow-sm);border:1px solid var(--border-light)">
+          <div style="font-family:'Kanit',sans-serif;font-size:22px;font-weight:700;color:#16a34a">${active}</div>
+          <div style="font-size:11px;color:var(--text-muted)">กำลังดำเนิน</div>
+        </div>
+        <div style="background:#fff;border-radius:10px;padding:12px;text-align:center;box-shadow:var(--shadow-sm);border:1px solid var(--border-light)">
+          <div style="font-family:'Kanit',sans-serif;font-size:22px;font-weight:700;color:#64748b">${closed}</div>
+          <div style="font-size:11px;color:var(--text-muted)">จบแล้ว</div>
+        </div>
+      </div>
+      <div class="admin-card-list">${rows}</div>`;
+  }).catch(e => {
+    c.innerHTML = `<div style="text-align:center;color:var(--accent-red);padding:32px;font-size:13px"><i class="fas fa-exclamation-circle"></i> โหลดข้อมูลไม่สำเร็จ: ${e.message}</div>`;
+  });
+}
+
+window.smAdminEdit = async function(missionId) {
+  const snap = await get(ref(db, `search_missions/${missionId}`));
+  const m = snap.val();
+  if(!m) { showToast('ไม่พบข้อมูล', 'error'); return; }
+
+  document.getElementById('sm-edit-id').value    = missionId;
+  document.getElementById('sm-edit-title').value = m.title   || '';
+  document.getElementById('sm-edit-area').value  = m.area    || '';
+  document.getElementById('sm-edit-status').value= m.status  || 'open';
+  document.getElementById('sm-edit-summary').value = m.summary || '';
+  openModal('modal-sm-admin-edit');
+};
+
+window.smAdminSaveEdit = async function() {
+  const id      = document.getElementById('sm-edit-id').value;
+  const title   = document.getElementById('sm-edit-title').value.trim();
+  const area    = document.getElementById('sm-edit-area').value.trim();
+  const status  = document.getElementById('sm-edit-status').value;
+  const summary = document.getElementById('sm-edit-summary').value.trim();
+
+  if(!title) { showToast('กรุณาใส่ชื่อภารกิจ', 'error'); return; }
+  if(!id)    { showToast('เกิดข้อผิดพลาด: ไม่พบ ID', 'error'); return; }
+
+  try {
+    const payload = { title, area, status };
+    if(summary) payload.summary = summary;
+    // If admin changes to closed and no closedAt, set it now
+    if(status === 'closed') {
+      const snap = await get(ref(db, `search_missions/${id}/closedAt`));
+      if(!snap.val()) { payload.closedAt = Date.now(); payload.closedBy = S.user?.id || 'admin'; payload.closedByName = S.user?.name || 'Admin'; }
+    }
+    await update(ref(db, `search_missions/${id}`), payload);
+    closeModal('modal-sm-admin-edit');
+    showToast('บันทึกการแก้ไขสำเร็จ ✅', 'success');
+    // Re-render admin tab
+    renderAdminContent();
+  } catch(e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
+};
+
+window.smAdminDelete = async function(missionId, title) {
+  if(!confirm(`ยืนยันลบภารกิจ "${title}" ?\n\nข้อมูลทั้งหมดรวมถึงสมาชิกและพิกัดจะถูกลบถาวร`)) return;
+  try {
+    await remove(ref(db, `search_missions/${missionId}`));
+    showToast('ลบภารกิจสำเร็จ', 'success');
+    renderAdminContent();
+  } catch(e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
+};
+
 window.smCloseMission = async function(missionId) {
   if(!confirm('ปิดภารกิจนี้?')) return;
-  await update(ref(db, `search_missions/${missionId}`), { status: 'closed' });
+  await update(ref(db, `search_missions/${missionId}`), { status: 'closed', closedAt: Date.now() });
   showToast('ปิดภารกิจแล้ว', 'info');
 };
+
+// ── Photo Upload for End Mission ──────────────────────────
+let _smPendingPhotos = []; // { blob, dataUrl, origSize, compSize }
+
+// ── Image Compression via Canvas ──────────────────────────
+// ย่อขนาดรูปสูงสุด 1280px และบีบอัด JPEG 78% — เร็วและประหยัดพื้นที่
+async function smCompressImage(file, maxPx = 1024, quality = 0.65) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = ev => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let { width, height } = img;
+        // คำนวณสัดส่วนใหม่ถ้าใหญ่เกิน maxPx
+        if (width > maxPx || height > maxPx) {
+          if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
+          else                 { width  = Math.round(width  * maxPx / height); height = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width  = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        // พื้นหลังขาวสำหรับภาพ PNG ที่มี alpha
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(blob => {
+          if (!blob) { reject(new Error('canvas toBlob failed')); return; }
+          resolve({ blob, dataUrl: canvas.toDataURL('image/jpeg', quality) });
+        }, 'image/jpeg', quality);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function smFmtSize(bytes) {
+  if (bytes < 1024)       return bytes + ' B';
+  if (bytes < 1024*1024)  return (bytes/1024).toFixed(0) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
+}
+
+window.smHandlePhotoSelect = function(event) {
+  smAddPhotos(Array.from(event.target.files));
+  event.target.value = '';
+};
+
+async function smAddPhotos(files) {
+  const maxPhotos = 5;
+  const remaining = maxPhotos - _smPendingPhotos.length;
+  if (remaining <= 0) { showToast(`อัพโหลดได้สูงสุด ${maxPhotos} รูป`, 'error'); return; }
+  const toAdd = files.filter(f => f.type.startsWith('image/')).slice(0, remaining);
+  const skipped = files.length - toAdd.length;
+  if (skipped > 0) showToast(`ข้ามไฟล์ที่ไม่ใช่รูปภาพหรือเกินโควต้า ${skipped} ไฟล์`, 'info');
+
+  // แสดง placeholder ทันที
+  const startIdx = _smPendingPhotos.length;
+  toAdd.forEach((_, i) => {
+    _smPendingPhotos.push({ blob: null, dataUrl: null, origSize: 0, compSize: 0, loading: true });
+  });
+  smRenderPhotoPreviews();
+
+  // บีบอัดแบบ parallel ทุกรูปพร้อมกัน
+  const results = await Promise.all(toAdd.map(file =>
+    smCompressImage(file).then(({ blob, dataUrl }) => ({
+      blob, dataUrl,
+      origSize: file.size,
+      compSize: blob.size,
+      loading: false
+    })).catch(() => null)
+  ));
+
+  // ใส่ผลลัพธ์กลับในตำแหน่งที่จอง
+  results.forEach((res, i) => {
+    if (res) _smPendingPhotos[startIdx + i] = res;
+    else     _smPendingPhotos.splice(startIdx + i, 1);
+  });
+  smRenderPhotoPreviews();
+}
+
+function smRenderPhotoPreviews() {
+  const grid = document.getElementById('sm-photo-preview');
+  if (!grid) return;
+  if (_smPendingPhotos.length === 0) { grid.innerHTML = ''; return; }
+  grid.innerHTML = _smPendingPhotos.map((p, i) => {
+    if (p.loading) return `
+      <div class="photo-preview-item" style="display:flex;align-items:center;justify-content:center;background:#f1f5f9">
+        <i class="fas fa-spinner fa-spin" style="color:var(--primary-light);font-size:20px"></i>
+      </div>`;
+    const saved = p.origSize > 0 ? Math.round((1 - p.compSize / p.origSize) * 100) : 0;
+    return `
+      <div class="photo-preview-item">
+        <img src="${p.dataUrl}" alt="photo ${i+1}">
+        <button class="photo-preview-remove" onclick="smRemovePhoto(${i})">
+          <i class="fas fa-times"></i>
+        </button>
+        ${saved > 0 ? `<div style="position:absolute;bottom:4px;left:4px;background:rgba(16,185,129,0.9);color:#fff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:6px;line-height:1.4">
+          ${smFmtSize(p.compSize)}<br>-${saved}%
+        </div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+window.smRemovePhoto = function(index) {
+  _smPendingPhotos.splice(index, 1);
+  smRenderPhotoPreviews();
+};
+
+// Drag & Drop support
+document.addEventListener('DOMContentLoaded', () => {
+  const dropArea = document.getElementById('sm-photo-drop');
+  if (dropArea) {
+    dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.classList.add('dragover'); });
+    dropArea.addEventListener('dragleave', () => dropArea.classList.remove('dragover'));
+    dropArea.addEventListener('drop', e => {
+      e.preventDefault();
+      dropArea.classList.remove('dragover');
+      smAddPhotos(Array.from(e.dataTransfer.files));
+    });
+  }
+});
+
+async function smUploadPhotos(missionId) {
+  // เก็บรูปเป็น base64 ใน Realtime Database โดยตรง
+  // ไม่ใช้ Firebase Storage → ไม่มี handshake แยก → เร็วกว่ามาก
+  const readyPhotos = _smPendingPhotos.filter(p => !p.loading && p.dataUrl);
+  if (readyPhotos.length === 0) return [];
+
+  // แปลง dataUrl → base64 string พร้อม metadata น้อยที่สุด
+  return readyPhotos.map((p, i) => ({
+    data: p.dataUrl,          // "data:image/jpeg;base64,..."
+    size: p.compSize || 0,
+    idx: i
+  }));
+}
+
+// ── End Mission (creator with summary) ────────────────────
+function smSetEndBtnLoading(on) {
+  const btn = document.getElementById('sm-end-confirm-btn');
+  if (!btn) return;
+  btn.disabled = on;
+  btn.innerHTML = on
+    ? '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...'
+    : '<i class="fas fa-flag-checkered"></i> ยืนยันจบภารกิจ';
+}
+
+window.smShowEndModal = function() {
+  _smPendingPhotos = [];
+  smRenderPhotoPreviews();
+  smSetEndBtnLoading(false);   // reset ปุ่มทุกครั้งที่เปิด modal
+  openModal('modal-sm-end');
+};
+
+// Promise wrapper พร้อม timeout
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timeout (${ms/1000}s)`)), ms)
+    )
+  ]);
+}
+
+window.smEndMission = async function() {
+  const summary = document.getElementById('sm-end-summary')?.value?.trim();
+  if (!summary) { showToast('กรุณากรอกสรุปผลภารกิจ', 'error'); return; }
+  if (!_smActiveMissionId) return;
+
+  smSetEndBtnLoading(true);
+
+  try {
+    // 1. เตรียม photos (base64 — ไม่ต้อง upload แยก)
+    let photos = [];
+    const readyPhotos = _smPendingPhotos.filter(p => !p.loading && p.dataUrl);
+    if (readyPhotos.length > 0) {
+      photos = readyPhotos.map((p, i) => ({ data: p.dataUrl, size: p.compSize || 0 }));
+    }
+
+    // 2. Snapshot members + ตรวจสิทธิ์จาก Firebase
+    const snap = await withTimeout(
+      get(ref(db, `search_missions/${_smActiveMissionId}`)), 15000, 'โหลดข้อมูล'
+    );
+    const mission = snap.val() || {};
+    const memberSnapshot = mission.members ? JSON.parse(JSON.stringify(mission.members)) : {};
+
+    // ตรวจสิทธิ์: เฉพาะผู้สร้าง หรือ admin
+    const isCreator = mission.createdBy === S.user?.id;
+    const isAdmin   = S.user?.role === 'admin';
+    if (!isCreator && !isAdmin) {
+      showToast('ไม่มีสิทธิ์จบภารกิจ เฉพาะผู้สร้างหรือแอดมิน', 'error');
+      smSetEndBtnLoading(false);
+      closeModal('modal-sm-end');
+      return;
+    }
+
+    // 3. Save ทุกอย่างใน request เดียว (รูป + ข้อมูลภารกิจ)
+    await withTimeout(
+      update(ref(db, `search_missions/${_smActiveMissionId}`), {
+        status: 'closed',
+        closedAt: Date.now(),
+        closedBy: S.user?.id || 'unknown',
+        closedByName: S.user?.name || S.user?.id || 'ไม่ระบุ',
+        summary,
+        memberSnapshot,
+        ...(photos.length > 0 && { photos })
+      }),
+      15000, 'บันทึกข้อมูล'
+    );
+
+    // 4. Success cleanup
+    closeModal('modal-sm-end');
+    document.getElementById('sm-end-summary').value = '';
+    _smPendingPhotos = [];
+    smRenderPhotoPreviews();
+    showToast('จบภารกิจสำเร็จ ✅', 'success');
+    smStopGps();
+    if (window._smLocListener) { window._smLocListener(); window._smLocListener = null; }
+    _smActiveMissionId = null;
+    localStorage.removeItem('sm_active_mission');
+    smBackToList();
+    setTimeout(() => {
+      const histTab = document.getElementById('sm-tab-history');
+      smSwitchTab('history', histTab);
+    }, 600);
+
+  } catch(e) {
+    showToast('เกิดข้อผิดพลาด: ' + e.message, 'error');
+    smSetEndBtnLoading(false);   // คืนปุ่มให้กดได้ใหม่
+  }
+};
+
+// ── Render History List ────────────────────────────────────
+function smRenderHistoryList(closedMissions) {
+  const histEl = document.getElementById('sm-history-list');
+  if(!histEl) return;
+  if(!closedMissions.length) {
+    histEl.innerHTML = '<div class="sm-empty"><i class="fas fa-history"></i>ยังไม่มีประวัติภารกิจ</div>';
+    return;
+  }
+  histEl.innerHTML = closedMissions.map(([id, m]) => {
+    const memberCount = m.memberSnapshot ? Object.keys(m.memberSnapshot).length
+                      : m.members ? Object.keys(m.members).length : 0;
+    const duration = smCalcDuration(m.createdAt, m.closedAt);
+    return `
+      <div class="sm-hist-card" onclick="smShowDetail('${id}')">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+          <div style="width:40px;height:40px;border-radius:12px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📋</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.title || 'ภารกิจค้นหา'}</div>
+            <div style="font-size:12px;color:var(--text-muted)">${m.area || 'ไม่ระบุพื้นที่'}</div>
+          </div>
+          <span class="sm-hist-status-closed">จบแล้ว</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="sm-stat-chip"><i class="fas fa-users"></i>${memberCount} คน</div>
+          <div class="sm-stat-chip"><i class="fas fa-calendar-check"></i>${smFormatDate(m.closedAt || m.createdAt)}</div>
+          ${duration ? `<div class="sm-stat-chip"><i class="fas fa-clock"></i>${duration}</div>` : ''}
+        </div>
+        ${m.summary ? `<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);background:#f8fafc;border-radius:8px;padding:8px 10px;border-left:3px solid #22c55e;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${m.summary}</div>` : ''}
+        <div style="text-align:right;margin-top:6px;font-size:11px;color:var(--text-muted)"><i class="fas fa-chevron-right"></i> ดูรายละเอียด</div>
+      </div>`;
+  }).join('');
+}
+
+function smCalcDuration(start, end) {
+  if(!start || !end) return '';
+  const diff = Math.floor((end - start) / 60000);
+  if(diff < 60) return `${diff} นาที`;
+  return `${Math.floor(diff/60)} ชม. ${diff%60} นาที`;
+}
+
+// ── Show Mission Detail Modal ──────────────────────────────
+window.smShowDetail = async function(missionId) {
+  const snap = await get(ref(db, `search_missions/${missionId}`));
+  const m = snap.val();
+  if(!m) { showToast('ไม่พบข้อมูล', 'error'); return; }
+
+  const members = m.memberSnapshot || m.members || {};
+  const memberNames = Object.values(members).map(mem =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border-light)">
+      <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#3b82f6,#06b6d4);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">${(mem.name||'?').charAt(0)}</div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary)">${mem.name || mem.empId || mem.userId || '-'}</div>
+        <div style="font-size:11px;color:var(--text-muted)">รหัส: ${mem.empId || mem.userId || '-'}</div>
+      </div>
+    </div>`
+  ).join('') || '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">ไม่มีข้อมูลสมาชิก</div>';
+
+  const duration = smCalcDuration(m.createdAt, m.closedAt);
+
+  document.getElementById('sm-detail-content').innerHTML = `
+    <div class="sm-detail-block">
+      <div class="sm-detail-label"><i class="fas fa-search-location" style="margin-right:4px;color:var(--primary-light)"></i>ชื่อภารกิจ</div>
+      <div class="sm-detail-value">${m.title || '-'}</div>
+    </div>
+    <div class="sm-detail-block">
+      <div class="sm-detail-label"><i class="fas fa-map-marker-alt" style="margin-right:4px;color:var(--accent-red)"></i>พื้นที่ปฏิบัติการ</div>
+      <div class="sm-detail-value">${m.area || 'ไม่ระบุ'}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="sm-detail-block" style="margin-bottom:0">
+        <div class="sm-detail-label"><i class="fas fa-calendar-plus" style="margin-right:4px"></i>เริ่มต้น</div>
+        <div class="sm-detail-value" style="font-size:13px">${smFormatDateTime(m.createdAt)}</div>
+      </div>
+      <div class="sm-detail-block" style="margin-bottom:0">
+        <div class="sm-detail-label"><i class="fas fa-calendar-check" style="margin-right:4px"></i>จบภารกิจ</div>
+        <div class="sm-detail-value" style="font-size:13px">${smFormatDateTime(m.closedAt)}</div>
+      </div>
+    </div>
+    ${duration ? `<div class="sm-detail-block"><div class="sm-detail-label"><i class="fas fa-clock" style="margin-right:4px;color:#f59e0b"></i>ระยะเวลาปฏิบัติการ</div><div class="sm-detail-value" style="color:#d97706">${duration}</div></div>` : ''}
+    <div class="sm-detail-block">
+      <div class="sm-detail-label"><i class="fas fa-user-shield" style="margin-right:4px;color:#7c3aed"></i>ผู้สร้างภารกิจ</div>
+      <div class="sm-detail-value">${m.createdByName || m.createdBy || '-'}</div>
+    </div>
+    ${m.summary ? `
+    <div class="sm-summary-box">
+      <div class="label"><i class="fas fa-clipboard-check"></i>สรุปผลภารกิจ</div>
+      <div class="value">${m.summary}</div>
+    </div>` : ''}
+    ${m.photos && m.photos.length > 0 ? `
+    <div class="sm-detail-block">
+      <div class="sm-detail-label" style="margin-bottom:8px"><i class="fas fa-images" style="margin-right:4px;color:#0ea5e9"></i>รูปภาพประกอบ (${m.photos.length} รูป)</div>
+      <div class="sm-photos-grid">
+        ${m.photos.map((photo, idx) => {
+          const src = typeof photo === 'string' ? photo : photo.data;
+          return `<div class="sm-photo-thumb" onclick="smOpenLightbox('${src}')">
+            <img src="${src}" alt="photo ${idx+1}" loading="lazy">
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : ''}
+    <div class="sm-detail-block">
+      <div class="sm-detail-label" style="margin-bottom:10px"><i class="fas fa-users" style="margin-right:4px;color:var(--primary-light)"></i>สมาชิกร่วมภารกิจ (${Object.keys(members).length} คน)</div>
+      ${memberNames}
+    </div>
+  `;
+  openModal('modal-sm-detail');
+};
+
+function smFormatDateTime(ts) {
+  if(!ts) return '-';
+  const d = new Date(ts);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yy = d.getFullYear()+543;
+  const hh = String(d.getHours()).padStart(2,'0');
+  const min= String(d.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm}/${yy} ${hh}:${min}`;
+}
 
 // ── My mission alert banner ────────────────────────────────
 function smUpdateMyMissionAlert() {
@@ -4732,9 +5455,25 @@ function smUpdateMyMissionAlert() {
     alert.style.display = 'none';
   }
 }
+// ── Lightbox for mission photos ───────────────────────────
+window.smOpenLightbox = function(url) {
+  const lb = document.getElementById('sm-lightbox');
+  const img = document.getElementById('sm-lightbox-img');
+  if (!lb || !img) return;
+  img.src = url;
+  lb.classList.add('open');
+};
 
 
 
 </script>
+<!-- Lightbox for mission photos -->
+<div id="sm-lightbox" onclick="document.getElementById('sm-lightbox').classList.remove('open')">
+  <button id="sm-lightbox-close" onclick="document.getElementById('sm-lightbox').classList.remove('open')">
+    <i class="fas fa-times"></i>
+  </button>
+  <img id="sm-lightbox-img" src="" alt="photo">
+</div>
+
 </body>
 </html>
