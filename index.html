@@ -4769,6 +4769,29 @@ function smListenLocations(missionId) {
       smRenderMemberPanel(locs, members);
     });
   });
+
+  // ── Listen mission status — ถ้าผู้สร้างจบภารกิจ ออกอัตโนมัติทุกคน
+  if(window._smStatusListener) { window._smStatusListener(); window._smStatusListener = null; }
+  const statusRef = ref(db, `search_missions/${missionId}/status`);
+  window._smStatusListener = onValue(statusRef, snap => {
+    if(snap.val() === 'closed' && _smActiveMissionId === missionId) {
+      // หยุด listener
+      if(window._smStatusListener) { window._smStatusListener(); window._smStatusListener = null; }
+      if(window._smLocListener)    { window._smLocListener();    window._smLocListener    = null; }
+      // หยุด GPS และล้าง state
+      smStopGps();
+      _smActiveMissionId = null;
+      localStorage.removeItem('sm_active_mission');
+      smBackToList();
+      smUpdateMyMissionAlert();
+      // แจ้งสมาชิก (ยกเว้นผู้จบภารกิจเองซึ่ง handle ใน smEndMission)
+      showToast('ภารกิจสิ้นสุดแล้ว — ระบบหยุดติดตาม GPS', 'info');
+      setTimeout(() => {
+        const histTab = document.getElementById('sm-tab-history');
+        if(histTab) smSwitchTab('history', histTab);
+      }, 800);
+    }
+  });
 }
 
 // ── Render markers on map ──────────────────────────────────
@@ -5291,14 +5314,21 @@ window.smEndMission = async function() {
       15000, 'บันทึกข้อมูล'
     );
 
-    // 4. Success cleanup
+    // 4. ลบ locations ทุกคนออก (หยุด GPS ทุกอุปกรณ์) — members เก็บไว้ใน memberSnapshot แล้ว
+    await withTimeout(
+      remove(ref(db, `search_missions/${_smActiveMissionId}/locations`)),
+      10000, 'ลบ locations'
+    ).catch(() => {}); // ไม่ block ถ้าลบไม่ได้
+
+    // 5. Success cleanup (ฝั่งผู้จบภารกิจ)
     closeModal('modal-sm-end');
     document.getElementById('sm-end-summary').value = '';
     _smPendingPhotos = [];
     smRenderPhotoPreviews();
     showToast('จบภารกิจสำเร็จ ✅', 'success');
     smStopGps();
-    if (window._smLocListener) { window._smLocListener(); window._smLocListener = null; }
+    if (window._smStatusListener) { window._smStatusListener(); window._smStatusListener = null; }
+    if (window._smLocListener)    { window._smLocListener();    window._smLocListener    = null; }
     _smActiveMissionId = null;
     localStorage.removeItem('sm_active_mission');
     smBackToList();
