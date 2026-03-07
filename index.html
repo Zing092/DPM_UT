@@ -1172,9 +1172,20 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 .sm-track-panel-header {
   background: linear-gradient(135deg, #064e3b, #065f46);
   padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; user-select: none; -webkit-user-select: none;
 }
+.sm-panel-toggle {
+  background: none; border: none; color: rgba(255,255,255,0.8);
+  font-size: 13px; cursor: pointer; padding: 0; line-height: 1;
+  transition: transform 0.25s; flex-shrink: 0;
+}
+.sm-panel-toggle.collapsed { transform: rotate(-90deg); }
 .sm-track-panel-title { font-family: 'Kanit', sans-serif; font-size: 14px; color: #fff; font-weight: 700; }
-.sm-member-list { max-height: 200px; overflow-y: auto; }
+.sm-member-list {
+  max-height: 200px; overflow-y: auto;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
+}
+.sm-member-list.collapsed { max-height: 0 !important; overflow: hidden; opacity: 0; }
 .sm-member-row {
   display: flex; align-items: center; gap: 10px; padding: 10px 14px;
   border-bottom: 1px solid var(--border-light); transition: background 0.15s;
@@ -1222,18 +1233,19 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 .sm-sos-btn:active { transform: scale(0.97); }
 .sm-sos-cancel-btn {
   display: none; /* ซ่อนไว้ก่อน แสดงเฉพาะตอน SOS active */
-  flex: 1; padding: 14px; border: 2px solid #dc2626; border-radius: 12px;
+  flex: 1; padding: 14px; border: 2.5px solid #dc2626; border-radius: 12px;
   background: #fff; color: #dc2626; font-size: 14px; font-weight: 800;
   font-family: 'Kanit', sans-serif; cursor: pointer;
   align-items: center; justify-content: center; gap: 8px;
-  transition: all 0.2s; -webkit-user-select: none; user-select: none;
-  animation: sos-active-pulse 1.5s ease-in-out infinite;
+  transition: background 0.2s;
+  -webkit-user-select: none; user-select: none;
+  touch-action: manipulation;
 }
-.sm-sos-cancel-btn:active { transform: scale(0.97); background: #fef2f2; }
-@keyframes sos-active-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); }
-  50%       { box-shadow: 0 0 0 8px rgba(220,38,38,0); }
+.sm-sos-cancel-btn.visible {
+  display: flex;
+  box-shadow: 0 0 0 3px rgba(220,38,38,0.25);
 }
+.sm-sos-cancel-btn:active { background: #fef2f2; }
 .sm-center-btn {
   padding: 14px 18px; border: 1px solid var(--border); border-radius: 12px;
   background: #fff; color: var(--primary); font-size: 13px; cursor: pointer;
@@ -1958,9 +1970,12 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 
       <!-- Member panel -->
       <div class="sm-track-panel">
-        <div class="sm-track-panel-header">
+        <div class="sm-track-panel-header" onclick="smToggleMemberPanel()">
           <div class="sm-track-panel-title"><i class="fas fa-users" style="margin-right:6px"></i>สมาชิกในทีม</div>
-          <div id="sm-online-count" style="font-size:12px;color:rgba(255,255,255,0.7)">0 ออนไลน์</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div id="sm-online-count" style="font-size:12px;color:rgba(255,255,255,0.7)">0 ออนไลน์</div>
+            <button class="sm-panel-toggle" id="sm-panel-toggle-btn"><i class="fas fa-chevron-down"></i></button>
+          </div>
         </div>
         <div class="sm-member-list" id="sm-member-list"></div>
       </div>
@@ -5701,8 +5716,8 @@ async function smTriggerSos() {
   // แสดงปุ่มยกเลิก SOS แทนปุ่ม SOS
   const cancelBtn = document.getElementById('sm-sos-cancel-btn');
   const sosBtn    = document.getElementById('sm-sos-btn');
-  if(cancelBtn) cancelBtn.style.display = 'flex';
-  if(sosBtn)    sosBtn.style.display    = 'none';
+  if(cancelBtn) cancelBtn.classList.add('visible');
+  if(sosBtn)    sosBtn.style.display = 'none';
 
   // ล้าง flag อัตโนมัติหลัง 60 วิ
   setTimeout(function() {
@@ -5737,7 +5752,7 @@ window.smCancelSos = async function() {
 function smRestoreSosBtn() {
   const cancelBtn = document.getElementById('sm-sos-cancel-btn');
   const sosBtn    = document.getElementById('sm-sos-btn');
-  if(cancelBtn) cancelBtn.style.display = 'none';
+  if(cancelBtn) cancelBtn.classList.remove('visible');
   if(sosBtn) {
     sosBtn.style.display    = 'flex';
     sosBtn.style.background = '';
@@ -5745,6 +5760,15 @@ function smRestoreSosBtn() {
     sosBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน';
   }
 }
+
+// ── Toggle รายชื่อทีม ──────────────────────────────────────
+window.smToggleMemberPanel = function() {
+  const list   = document.getElementById('sm-member-list');
+  const toggle = document.getElementById('sm-panel-toggle-btn');
+  if(!list) return;
+  const isCollapsed = list.classList.toggle('collapsed');
+  if(toggle) toggle.classList.toggle('collapsed', isCollapsed);
+};
 
 // ── Admin: Create Mission ─────────────────────────────────
 window.smShowCreateModal = function() { openModal('modal-sm-create'); };
