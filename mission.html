@@ -22,6 +22,21 @@
 /* simpleheat — dependency of leaflet-heat */
 function simpleheat(canvas){if(!(this instanceof simpleheat)){return new simpleheat(canvas)}this._canvas=canvas=typeof canvas==="string"?document.getElementById(canvas):canvas;this._ctx=canvas.getContext("2d");this._width=canvas.width;this._height=canvas.height;this._max=1;this._data=[]}simpleheat.prototype={defaultRadius:25,defaultGradient:{0.4:"blue",0.6:"cyan",0.7:"lime",0.8:"yellow",1:"red"},data:function(data){this._data=data;return this},max:function(max){this._max=max;return this},add:function(point){this._data.push(point);return this},clear:function(){this._data=[];return this},radius:function(r,blur){blur=blur===undefined?15:blur;var circle=this._circle=this._createCanvas(),ctx=circle.getContext("2d"),r2=this._r=r+blur;circle.width=circle.height=r2*2;ctx.shadowOffsetX=ctx.shadowOffsetY=r2*2;ctx.shadowBlur=blur;ctx.shadowColor="black";ctx.beginPath();ctx.arc(-r2,0,r,0,Math.PI*2,true);ctx.closePath();ctx.fill();return this},resize:function(){this._width=this._canvas.width;this._height=this._canvas.height},gradient:function(grad){var canvas=this._createCanvas(),ctx=canvas.getContext("2d"),gradient=ctx.createLinearGradient(0,0,0,256);canvas.width=1;canvas.height=256;for(var i in grad){gradient.addColorStop(+i,grad[i])}ctx.fillStyle=gradient;ctx.fillRect(0,0,1,256);this._grad=ctx.getImageData(0,0,1,256).data;return this},draw:function(minOpacity){if(!this._circle){this.radius(this.defaultRadius)}if(!this._grad){this.gradient(this.defaultGradient)}var ctx=this._ctx;ctx.clearRect(0,0,this._width,this._height);for(var i=0,len=this._data.length,p;i<len;i++){p=this._data[i];ctx.globalAlpha=Math.min(Math.max(p[2]/this._max,minOpacity===undefined?.05:minOpacity),1);ctx.drawImage(this._circle,p[0]-this._r,p[1]-this._r)}var colored=ctx.getImageData(0,0,this._width,this._height);this._colorize(colored.data,this._grad);ctx.putImageData(colored,0,0);return this},_colorize:function(pixels,gradient){for(var i=3,len=pixels.length,j;i<len;i+=4){j=pixels[i]*4;if(j){pixels[i-3]=gradient[j];pixels[i-2]=gradient[j+1];pixels[i-1]=gradient[j+2]}}},_createCanvas:function(){if(typeof document!=="undefined"){return document.createElement("canvas")}else{return new this._canvas.constructor}}};
 },window));
+
+// Patch: guard HeatLayer._redraw against uninitialized _r
+document.addEventListener('DOMContentLoaded', function() {
+  if(window.L && L.HeatLayer) {
+    const _orig = L.HeatLayer.prototype._redraw;
+    L.HeatLayer.prototype._redraw = function() {
+      try {
+        if(this._heat && !this._heat._r) {
+          this._heat.radius(this._heat.defaultRadius||25, 15);
+        }
+        _orig.call(this);
+      } catch(e) { console.warn('HeatLayer._redraw guard:', e.message); }
+    };
+  }
+});
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -3003,35 +3018,8 @@ function updateReportPreview() {
 // BUG-009 FIX: Load Sarabun Thai font for jsPDF
 let _sarabunFontB64 = null;
 async function loadSarabunFont() {
-  if (_sarabunFontB64) return _sarabunFontB64;
-  // jsPDF requires TTF (not woff/woff2) — use only .ttf sources
-  const ttfUrls = [
-    'https://fonts.gstatic.com/s/sarabun/v15/DtVmJx26TKEr37c9YH5oulwm6gDXvwE.ttf',
-    'https://fonts.gstatic.com/s/sarabun/v14/DtVmJx26TKEr37c9YH5oulwm6gDXvwE.ttf',
-    'https://fonts.gstatic.com/s/sarabun/v13/DtVmJx26TKEr37c9YH5oulwm6gDXvwE.ttf',
-  ];
-  for (const url of ttfUrls) {
-    try {
-      const r = await fetch(url);
-      if (!r.ok) continue;
-      const buf = await r.arrayBuffer();
-      // Validate: TTF starts with 0x00010000 or 'true' or 'OTTO'
-      const magic = new Uint8Array(buf, 0, 4);
-      const isTTF = (magic[0]===0 && magic[1]===1) || (magic[0]===116); // 0x0001 or 't'
-      if (!isTTF) { console.warn('Not a TTF:', url); continue; }
-      const bytes = new Uint8Array(buf);
-      let binary = '';
-      // Use chunk approach to avoid stack overflow on large fonts
-      const chunkSize = 8192;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-      }
-      _sarabunFontB64 = btoa(binary);
-      console.log('Sarabun TTF loaded from', url);
-      return _sarabunFontB64;
-    } catch(e) { console.warn('Font fetch failed:', url, e.message); }
-  }
-  console.warn('Sarabun font unavailable — using helvetica');
+  // PDF now uses html2canvas (screenshot) — no TTF embedding needed
+  // This function is kept as no-op to avoid breaking any callers
   return null;
 }
 
@@ -3052,183 +3040,267 @@ function setupThaiFont(doc) {
   return 'helvetica';
 }
 
-// ██████  PHASE 2B — ENHANCED PDF (Thai Unicode workaround)
+// ██████  PDF EXPORT — html2canvas screenshot (Thai font support)
 // ═══════════════════════════════════════════════════
-// exportPDF — single consolidated version (Thai font + fallback)
 window.exportPDF = async function() {
   showToast('กำลังสร้าง PDF...', 'info');
   try {
-    if (!_sarabunFontB64) await loadSarabunFont();
     const { jsPDF } = window.jspdf;
-    if (!jsPDF) { showToast('jsPDF ยังโหลดไม่เสร็จ ลองอีกครั้ง', 'error'); return; }
-    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-    const thaiFont = setupThaiFont(doc);
-    const W = 210, margin = 15;
-    let y = margin;
+    if(!jsPDF) { showToast('jsPDF ยังโหลดไม่เสร็จ', 'error'); return; }
 
-    // Always set font before text to avoid 'widths' undefined crash
-    let _curFont = thaiFont, _curStyle = 'normal';
-    function sf(style) {
-      _curStyle = style;
-      doc.setFont(_curFont, style);
-    }
-    function txt(str, x, yy, opts) {
-      // Ensure font is set; if Thai font unavailable, transliterate
-      doc.setFont(_curFont, _curStyle);
-      const s = String(str || '-');
-      try { doc.text(s, x, yy, opts); }
-      catch(e) {
-        // Font crash — strip to ASCII and retry
-        const ascii = s.replace(/[^\u0000-\u007f]/g, '?');
-        try { doc.text(ascii, x, yy, opts); } catch(e2) {}
+    // Build full Thai report HTML in a hidden div
+    const wrap = document.createElement('div');
+    wrap.id = '_pdf_render_wrap';
+    wrap.style.cssText = `
+      position:fixed; left:-9999px; top:0;
+      width:794px; background:#fff; color:#0f172a;
+      font-family:'Sarabun',sans-serif; font-size:13px;
+      padding:0; z-index:-1;
+    `;
+
+    const now = new Date();
+    const thDate = now.toLocaleDateString('th-TH', {
+      year:'numeric', month:'long', day:'numeric',
+      hour:'2-digit', minute:'2-digit'
+    });
+
+    const members = Object.values(STATE.members);
+    const clues   = Object.values(STATE.clues).sort((a,b)=>(b.ts||0)-(a.ts||0));
+    const zones   = Object.values(STATE.zones);
+    const bases   = Object.values(STATE.bases || {});
+
+    const memberRows = members.map((m,i) => `
+      <tr style="background:${i%2?'#f8fafc':'#fff'}">
+        <td style="padding:6px 8px;border:1px solid #e2e8f0">${m.name||'-'}</td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center">
+          <span style="background:${m.status==='online'?'#dcfce7':'#fee2e2'};color:${m.status==='online'?'#166534':'#991b1b'};padding:2px 8px;border-radius:999px;font-size:11px">
+            ${m.status==='online'?'Online':'Offline'}
+          </span>
+        </td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0;font-size:11px;color:#64748b">
+          ${m.lat ? `${(+m.lat).toFixed(5)}, ${(+m.lng).toFixed(5)}` : '-'}
+        </td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0;font-size:11px;color:#64748b">
+          ${m.lastSeen ? new Date(m.lastSeen).toLocaleTimeString('th-TH') : '-'}
+        </td>
+      </tr>`).join('');
+
+    const clueRows = clues.map((cl,i) => `
+      <tr style="background:${i%2?'#f8fafc':'#fff'}">
+        <td style="padding:6px 8px;border:1px solid #e2e8f0">
+          <span style="background:${CLUE_COLORS?.[cl.type]||'#94a3b8'};color:#fff;padding:2px 8px;border-radius:999px;font-size:11px">
+            ${CLUE_LABELS?.[cl.type]||cl.type||'-'}
+          </span>
+        </td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0">${cl.desc||'-'}</td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0;font-size:11px;color:#64748b">
+          ${cl.lat ? `${(+cl.lat).toFixed(5)}, ${(+cl.lng).toFixed(5)}` : '-'}
+        </td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0;font-size:11px;color:#64748b">${cl.byName||'-'}</td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0;font-size:11px;color:#64748b">
+          ${cl.ts ? new Date(cl.ts).toLocaleTimeString('th-TH') : '-'}
+        </td>
+      </tr>`).join('');
+
+    const zoneRows = zones.map((z,i) => `
+      <tr style="background:${i%2?'#f8fafc':'#fff'}">
+        <td style="padding:6px 8px;border:1px solid #e2e8f0">${z.name||'-'}</td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0">${
+          z.type==='search'?'ค้นหา':z.type==='danger'?'อันตราย':z.type==='cleared'?'ค้นแล้ว':z.type||'-'
+        }</td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0">${
+          z.shapeType==='polygon'?'รูปหลายเหลี่ยม':
+          z.shapeType==='rectangle'?'สี่เหลี่ยม':
+          z.shapeType==='circle'?'วงกลม':
+          z.shapeType==='freehand'?'ลากอิสระ':z.shapeType||'-'
+        }</td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0;font-size:11px;color:#64748b">${z.createdByName||'-'}</td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center">
+          <span style="background:${z.progress>=100?'#dcfce7':z.progress>0?'#fef9c3':'#f1f5f9'};
+                       color:${z.progress>=100?'#166534':z.progress>0?'#854d0e':'#475569'};
+                       padding:2px 8px;border-radius:999px;font-size:11px">
+            ${z.progress||0}%
+          </span>
+        </td>
+      </tr>`).join('');
+
+    // Calculate mission duration
+    const startTs = STATE.mission?.startedAt || STATE.mission?.createdAt || 0;
+    const durMs   = startTs ? (Date.now() - startTs) : 0;
+    const durH    = Math.floor(durMs/3600000);
+    const durM    = Math.floor((durMs%3600000)/60000);
+    const durStr  = startTs ? `${durH} ชั่วโมง ${durM} นาที` : 'ไม่ทราบ';
+
+    const thSection = (title, icon, content) => `
+      <div style="margin-bottom:24px">
+        <div style="font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;
+                    color:#0a2463;border-bottom:2px solid #0a2463;padding-bottom:6px;margin-bottom:12px">
+          ${icon} ${title}
+        </div>
+        ${content}
+      </div>`;
+
+    const thTable = (headers, rows, emptyMsg) => `
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:#0a2463;color:#fff">
+            ${headers.map(h=>`<th style="padding:8px;text-align:left;font-family:'Kanit',sans-serif;font-weight:600;border:1px solid #1e3a8a">${h}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows || `<tr><td colspan="${headers.length}" style="padding:16px;text-align:center;color:#94a3b8">${emptyMsg}</td></tr>`}
+        </tbody>
+      </table>`;
+
+    wrap.innerHTML = `
+    <div style="font-family:'Sarabun',sans-serif">
+
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#0a2463,#1b3d8f);color:#fff;padding:28px 32px 24px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-family:'Kanit',sans-serif;font-size:22px;font-weight:800;letter-spacing:1px">
+              🔍 รายงานภารกิจค้นหาผู้สูญหาย
+            </div>
+            <div style="font-size:13px;opacity:0.8;margin-top:4px">กองป้องกันและบรรเทาสาธารณภัย</div>
+          </div>
+          <div style="text-align:right;font-size:12px;opacity:0.8">
+            <div>วันที่พิมพ์</div>
+            <div style="font-weight:600">${thDate}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:28px 32px">
+
+        <!-- Mission Info -->
+        <div style="background:#f1f5f9;border-radius:12px;padding:20px;margin-bottom:24px;
+                    border-left:4px solid #0a2463">
+          <div style="font-family:'Kanit',sans-serif;font-size:17px;font-weight:700;
+                      color:#0a2463;margin-bottom:12px">
+            📋 ข้อมูลภารกิจ
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+            <div><span style="color:#64748b">ชื่อภารกิจ:</span> <b>${STATE.mission?.title||'-'}</b></div>
+            <div><span style="color:#64748b">สถานะ:</span>
+              <b style="color:${STATE.mission?.status==='active'?'#16a34a':'#dc2626'}">
+                ${STATE.mission?.status==='active'?'🟢 กำลังดำเนินการ':'🔴 สิ้นสุด'}
+              </b>
+            </div>
+            <div><span style="color:#64748b">พื้นที่:</span> <b>${STATE.mission?.area||'-'}</b></div>
+            <div><span style="color:#64748b">Mission ID:</span> <b style="font-size:11px;color:#64748b">${STATE.missionId||'-'}</b></div>
+            <div><span style="color:#64748b">ระยะเวลา:</span> <b>${durStr}</b></div>
+            <div><span style="color:#64748b">รายงานโดย:</span> <b>${STATE.user?.name||'-'}</b></div>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
+          ${[
+            { n: members.length, l: 'สมาชิกทีม', i: '👥', c: '#dbeafe', t: '#1e40af' },
+            { n: zones.length,   l: 'โซนค้นหา',  i: '🗺️', c: '#dcfce7', t: '#166534' },
+            { n: clues.length,   l: 'หลักฐาน',   i: '📍', c: '#fef9c3', t: '#854d0e' },
+            { n: bases.length,   l: 'Base Camp',  i: '⛺', c: '#fce7f3', t: '#9d174d' },
+          ].map(s=>`
+            <div style="background:${s.c};border-radius:12px;padding:16px;text-align:center">
+              <div style="font-size:24px">${s.i}</div>
+              <div style="font-family:'Kanit',sans-serif;font-size:28px;font-weight:800;color:${s.t}">${s.n}</div>
+              <div style="font-size:12px;color:${s.t};font-weight:600">${s.l}</div>
+            </div>`).join('')}
+        </div>
+
+        <!-- Members -->
+        ${thSection('สมาชิกทีม','👥',
+          thTable(
+            ['ชื่อ-สกุล','สถานะ','พิกัด GPS ล่าสุด','เห็นล่าสุด'],
+            memberRows,
+            'ไม่มีข้อมูลสมาชิก'
+          )
+        )}
+
+        <!-- Clues -->
+        ${thSection('หลักฐานที่พบ','📍',
+          clues.length ? thTable(
+            ['ประเภท','รายละเอียด','พิกัด','โดย','เวลา'],
+            clueRows,''
+          ) : '<div style="color:#94a3b8;text-align:center;padding:16px">ยังไม่มีหลักฐาน</div>'
+        )}
+
+        <!-- Zones -->
+        ${thSection('โซนค้นหา','🗺️',
+          zones.length ? thTable(
+            ['ชื่อโซน','ประเภท','รูปแบบ','สร้างโดย','ความคืบหน้า'],
+            zoneRows,''
+          ) : '<div style="color:#94a3b8;text-align:center;padding:16px">ยังไม่มีโซน</div>'
+        )}
+
+        <!-- Footer -->
+        <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e2e8f0;
+                    display:flex;justify-content:space-between;font-size:11px;color:#94a3b8">
+          <div>ระบบภารกิจค้นหาผู้สูญหาย · กองป้องกันและบรรเทาสาธารณภัย</div>
+          <div>สร้างเมื่อ ${thDate}</div>
+        </div>
+
+      </div>
+    </div>`;
+
+    document.body.appendChild(wrap);
+
+    // Wait for fonts to render
+    await document.fonts.ready;
+    await new Promise(r => setTimeout(r, 400));
+
+    // Screenshot with html2canvas
+    const canvas = await html2canvas(wrap, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      width: 794,
+      windowWidth: 794,
+    });
+
+    document.body.removeChild(wrap);
+
+    // Create PDF A4 pages from canvas
+    const doc   = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+    const pageW = 210, pageH = 297;
+    const imgW  = pageW;
+    const imgH  = (canvas.height / canvas.width) * imgW;
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+
+    if(imgH <= pageH) {
+      doc.addImage(imgData, 'JPEG', 0, 0, imgW, imgH);
+    } else {
+      // Multi-page: slice canvas per page
+      const pxPerPage = Math.floor(canvas.width * (pageH / pageW));
+      let offsetPx = 0;
+      let pageNum  = 0;
+      while(offsetPx < canvas.height) {
+        if(pageNum > 0) doc.addPage();
+        const sliceH = Math.min(pxPerPage, canvas.height - offsetPx);
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width  = canvas.width;
+        sliceCanvas.height = sliceH;
+        sliceCanvas.getContext('2d').drawImage(canvas, 0, -offsetPx);
+        const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+        const sliceMmH  = (sliceH / canvas.width) * imgW;
+        doc.addImage(sliceData, 'JPEG', 0, 0, imgW, sliceMmH);
+        offsetPx += pxPerPage;
+        pageNum++;
       }
     }
-    const t = (str) => String(str || '-'); // value passthrough
 
-    // ── Header bar ──────────────────────────────────────
-    doc.setFillColor(10, 36, 99);
-    doc.rect(0, 0, W, 30, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16); sf('bold');
-    txt('SEARCH MISSION REPORT', margin, 12);
-    doc.setFontSize(10); sf('normal');
-    txt('กองป้องกันและบรรเทาสาธารณภัย', margin, 20);
-    txt(new Date().toLocaleDateString('th-TH', {
-      year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'
-    }), W - margin, 20, { align:'right' });
-    y = 38;
-
-    // ── Mission info box ─────────────────────────────────
-    doc.setFillColor(241, 245, 249);
-    doc.roundedRect(margin, y, W - margin * 2, 28, 3, 3, 'F');
-    doc.setTextColor(15, 23, 42);
-    doc.setFontSize(13); sf('bold');
-    txt(t(STATE.mission?.title), margin + 4, y + 8);
-    doc.setFontSize(9); sf('normal');
-    const mInfo = [
-      `พื้นที่: ${t(STATE.mission?.area)}`,
-      `สถานะ: ${STATE.mission?.status === 'active' ? 'ดำเนินการอยู่' : 'สิ้นสุด'}`,
-      `สมาชิก: ${Object.keys(STATE.members).length} คน`,
-      `หลักฐาน: ${Object.keys(STATE.clues).length} รายการ`,
-    ];
-    mInfo.forEach((mi, i) => txt(mi, margin + 4 + (i % 2) * 90, y + 16 + Math.floor(i / 2) * 7));
-    y += 34;
-
-    // ── Stats row ────────────────────────────────────────
-    const stats = [
-      { label:'สมาชิก', val: Object.keys(STATE.members).length },
-      { label:'โซนค้นหา', val: Object.keys(STATE.zones).length },
-      { label:'หลักฐาน', val: Object.keys(STATE.clues).length },
-      { label:'Base Camp', val: Object.keys(STATE.bases || {}).length },
-    ];
-    const boxW = (W - margin * 2) / stats.length;
-    stats.forEach((s, i) => {
-      const x = margin + i * boxW;
-      doc.setFillColor(i % 2 === 0 ? 248 : 241, 250, 255);
-      doc.roundedRect(x, y, boxW - 1, 18, 2, 2, 'F');
-      doc.setFontSize(14); sf('bold'); doc.setTextColor(10, 36, 99);
-      txt(String(s.val), x + boxW / 2, y + 9, { align:'center' });
-      doc.setFontSize(7); sf('normal'); doc.setTextColor(71, 85, 105);
-      txt(s.label, x + boxW / 2, y + 14, { align:'center' });
-    });
-    y += 24;
-
-    // ── Members table ────────────────────────────────────
-    const members = Object.values(STATE.members);
-    if (members.length) {
-      doc.setFontSize(11); sf('bold'); doc.setTextColor(15, 23, 42);
-      txt('สมาชิกทีม', margin, y); y += 5;
-      doc.setFillColor(10, 36, 99);
-      doc.rect(margin, y, W - margin * 2, 8, 'F');
-      doc.setTextColor(255, 255, 255); doc.setFontSize(8);
-      ['ชื่อ-สกุล', 'สถานะ', 'ตำแหน่ง GPS', 'เห็นล่าสุด'].forEach((h, i) =>
-        txt(h, margin + 3 + i * 45, y + 5));
-      y += 8;
-      doc.setTextColor(15, 23, 42); sf('normal');
-      members.forEach((m, ri) => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        if (ri % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(margin, y, W - margin * 2, 8, 'F'); }
-        const vals = [
-          t(m.name),
-          m.status === 'online' ? 'Online' : 'Offline',
-          m.lat ? `${(+m.lat).toFixed(4)}, ${(+m.lng).toFixed(4)}` : '-',
-          m.lastSeen ? new Date(m.lastSeen).toLocaleTimeString('th-TH') : '-',
-        ];
-        vals.forEach((v, i) => txt(String(v).slice(0, 20), margin + 3 + i * 45, y + 5));
-        y += 8;
-      });
-      y += 4;
-    }
-
-    // ── Clues table ───────────────────────────────────────
-    const clues = Object.values(STATE.clues);
-    if (clues.length) {
-      if (y > 240) { doc.addPage(); y = 20; }
-      doc.setFontSize(11); sf('bold'); doc.setTextColor(15, 23, 42);
-      txt('หลักฐานที่พบ', margin, y); y += 5;
-      doc.setFillColor(10, 36, 99);
-      doc.rect(margin, y, W - margin * 2, 8, 'F');
-      doc.setTextColor(255, 255, 255); doc.setFontSize(8);
-      ['ประเภท', 'รายละเอียด', 'พิกัด', 'โดย', 'เวลา'].forEach((h, i) =>
-        txt(h, margin + 3 + i * 36, y + 5));
-      y += 8;
-      doc.setTextColor(15, 23, 42); sf('normal');
-      clues.sort((a, b) => (b.ts || 0) - (a.ts || 0)).forEach((cl, ri) => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        if (ri % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(margin, y, W - margin * 2, 8, 'F'); }
-        const vals = [
-          t(CLUE_LABELS?.[cl.type] || cl.type),
-          t(cl.desc),
-          cl.lat ? `${(+cl.lat).toFixed(4)},${(+cl.lng).toFixed(4)}` : '-',
-          t(cl.byName),
-          cl.ts ? new Date(cl.ts).toLocaleTimeString('th-TH') : '-',
-        ];
-        vals.forEach((v, i) => txt(String(v).slice(0, 18), margin + 3 + i * 36, y + 5));
-        y += 8;
-      });
-      y += 4;
-    }
-
-    // ── Zones table ───────────────────────────────────────
-    const zones = Object.values(STATE.zones);
-    if (zones.length) {
-      if (y > 240) { doc.addPage(); y = 20; }
-      doc.setFontSize(11); sf('bold'); doc.setTextColor(15, 23, 42);
-      txt('โซนค้นหา', margin, y); y += 5;
-      doc.setFillColor(10, 36, 99);
-      doc.rect(margin, y, W - margin * 2, 8, 'F');
-      doc.setTextColor(255, 255, 255); doc.setFontSize(8);
-      ['ชื่อโซน', 'ประเภท', 'รูปร่าง', 'สร้างโดย', 'สถานะ'].forEach((h, i) =>
-        txt(h, margin + 3 + i * 38, y + 5));
-      y += 8;
-      doc.setTextColor(15, 23, 42); sf('normal');
-      zones.forEach((z, ri) => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        if (ri % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(margin, y, W - margin * 2, 8, 'F'); }
-        const vals = [t(z.name), t(z.type), t(z.shapeType), t(z.createdByName), `${z.progress || 0}%`];
-        vals.forEach((v, i) => txt(String(v).slice(0, 18), margin + 3 + i * 38, y + 5));
-        y += 8;
-      });
-      y += 4;
-    }
-
-    // ── Footer ────────────────────────────────────────────
-    const pageCount = doc.getNumberOfPages();
-    for (let p = 1; p <= pageCount; p++) {
-      doc.setPage(p);
-      doc.setFontSize(8); sf('normal'); doc.setTextColor(71, 85, 105);
-      txt(`ภารกิจ: ${t(STATE.mission?.title)} · พิมพ์: ${new Date().toLocaleDateString('th-TH')} · หน้า ${p}/${pageCount}`,
-        margin, 295);
-    }
-
-    doc.save(`mission_report_${STATE.missionId}_${Date.now()}.pdf`);
+    doc.save(`รายงานภารกิจ_${STATE.mission?.title||STATE.missionId}_${Date.now()}.pdf`);
     showToast('บันทึก PDF สำเร็จ ✅', 'success');
-  } catch (e) {
+
+  } catch(e) {
     console.error('PDF error:', e);
     showToast('PDF Error: ' + e.message, 'error');
   }
 };
 
+// Safe text:
 // Safe text: strip unprintable chars for jsPDF
 function safeText(str) {
   if(!str) return '-';
@@ -3368,8 +3440,7 @@ const _loadWatchdog = setTimeout(() => {
   }
 }, 18000);
 
-// BUG-009 FIX: Preload Sarabun Thai font in background for faster PDF export
-setTimeout(loadSarabunFont, 3000);
+// Font loading is now done on-demand inside exportPDF (html2canvas approach — no TTF needed)
 
 // BUG-010 FIX: Hide voice command button on iOS Safari (no SpeechRecognition support)
 (function() {
