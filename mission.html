@@ -3466,16 +3466,16 @@ function _renderNotifList() {
   const list = document.getElementById('notif-list');
   if(!list) return;
   if(!_notifItems.length) {
-    list.innerHTML = '<div style="padding:16px;text-align:center;color:rgba(255,255,255,0.4);font-size:13px">ยังไม่มีการแจ้งเตือน</div>';
+    list.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">ยังไม่มีการแจ้งเตือน</div>';
     return;
   }
-  list.innerHTML = _notifItems.map(n => `
-    <div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;gap:10px;align-items:flex-start">
-      <div style="font-size:20px;flex-shrink:0">${n.icon}</div>
-      <div>
-        <div style="font-weight:600;font-size:13px;color:#fff">${n.title}</div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">${n.body}</div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:3px">${new Date(n.ts).toLocaleTimeString('th-TH')}</div>
+  list.innerHTML = _notifItems.map((n,i) => `
+    <div class="notif-item ${i===0?'unread':''}">
+      <div class="notif-icon">${n.icon}</div>
+      <div class="notif-body">
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-desc">${n.body}</div>
+        <div class="notif-time">${new Date(n.ts).toLocaleTimeString('th-TH')}</div>
       </div>
     </div>`).join('');
 }
