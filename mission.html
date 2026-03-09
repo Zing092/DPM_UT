@@ -1926,7 +1926,9 @@ function renderClues() {
       if(newest) pushNotif(`📍 พบหลักฐานใหม่`,`${CLUE_LABELS[newest.type]||newest.type}: ${newest.desc||''} โดย ${newest.byName||'-'}`,'📍');
     }
   }
-} {
+}
+
+function renderClueMarkers() {
   Object.values(STATE.clueMarkers).forEach(m => map.removeLayer(m));
   STATE.clueMarkers = {};
   Object.entries(STATE.clues).forEach(([id, c]) => {
@@ -2819,27 +2821,26 @@ function updateReportPreview() {
 let _sarabunFontB64 = null;
 async function loadSarabunFont() {
   if (_sarabunFontB64) return _sarabunFontB64;
-  try {
-    const res = await fetch('https://fonts.gstatic.com/s/sarabun/v13/DtVmJx26TKEr37c9YNpoulwm6gDXvwE.woff2');
-    // Use ttf from CDN fallback (base64 via arraybuffer)
-    const ttfRes = await fetch('https://cdn.jsdelivr.net/npm/@fontsource/sarabun@5/files/sarabun-thai-400-normal.woff2');
-    // Fallback: use Google Fonts API to get ttf
-    throw new Error('use_ttf');
-  } catch(e) {
-    // Fetch Sarabun TTF as base64 via a reliable CDN
+  // Try multiple CDN sources for Sarabun TTF
+  const urls = [
+    'https://cdn.jsdelivr.net/npm/@fontsource/sarabun@5/files/sarabun-thai-400-normal.woff2',
+    'https://fonts.gstatic.com/s/sarabun/v15/DtVmJx26TKEr37c9YH5oulwm6gDXvwE.ttf',
+    'https://fonts.gstatic.com/s/sarabun/v14/DtVmJx26TKEr37c9YH5oulwm6gDXvwE.ttf',
+  ];
+  for (const url of urls) {
     try {
-      const r = await fetch('https://fonts.gstatic.com/s/sarabun/v13/DtVmJx26TKEr37c9YH5oulwm6gDXvwE.ttf');
+      const r = await fetch(url);
+      if (!r.ok) continue;
       const buf = await r.arrayBuffer();
       const bytes = new Uint8Array(buf);
       let binary = '';
       bytes.forEach(b => binary += String.fromCharCode(b));
       _sarabunFontB64 = btoa(binary);
       return _sarabunFontB64;
-    } catch(e2) {
-      console.warn('ไม่สามารถโหลด Sarabun font ได้ — ใช้ helvetica แทน');
-      return null;
-    }
+    } catch(e) { /* try next */ }
   }
+  console.warn('ไม่สามารถโหลด Sarabun font ได้ — ใช้ helvetica แทน');
+  return null;
 }
 
 function setupThaiFont(doc) {
