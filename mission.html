@@ -1094,7 +1094,9 @@ html, body { height:100%; overflow:hidden; font-family:'Sarabun',sans-serif; bac
         </div>
         <div id="chat-messages"></div>
         <div class="chat-input-row">
-          <button class="chat-voice-btn" id="voice-record-btn" onclick="toggleVoiceRecord()"><i class="fas fa-microphone"></i></button>
+          <button class="chat-voice-btn" id="voice-record-btn" onclick="toggleVoiceRecord()" title="Voice Note"><i class="fas fa-microphone"></i></button>
+          <button class="chat-voice-btn" onclick="sendGPSLocation()" title="ส่งพิกัด GPS ปัจจุบัน"
+            style="font-size:14px">📍</button>
           <input class="chat-input" id="chat-input" type="text" placeholder="พิมพ์ข้อความ..." onkeydown="if(event.key==='Enter')sendChat()">
           <button class="chat-send-btn" onclick="sendChat()"><i class="fas fa-paper-plane"></i></button>
         </div>
@@ -2243,9 +2245,9 @@ function renderZoneShapes() {
   Object.entries(STATE.zones).forEach(([id, z]) => {
     let shape;
     const opts = { color:z.color||'#3b82f6', fillColor:z.color||'#3b82f6', fillOpacity:0.15, weight:2 };
-    if(z.shapeType === 'polygon' && z.points) {
+    if((z.shapeType === 'polygon' || z.shapeType === 'freehand') && z.points && z.points.length >= 3) {
       shape = L.polygon(z.points, opts);
-    } else if(z.shapeType === 'rectangle' && z.bounds) {
+    } else if(z.shapeType === 'rectangle' && z.bounds && z.bounds.length === 2) {
       shape = L.rectangle(z.bounds, opts);
     } else if(z.shapeType === 'circle' && z.center) {
       shape = L.circle(z.center, { ...opts, radius:z.radius||200 });
@@ -2280,18 +2282,23 @@ function renderClues() {
     list.innerHTML = '<div class="empty-state"><i class="fas fa-binoculars"></i><p>ยังไม่มีหลักฐาน</p></div>';
     return;
   }
-  list.innerHTML = entries.map(([id, c]) => {
-    const color = CLUE_COLORS[c.type] || '#94a3b8';
-    const label = CLUE_LABELS[c.type] || c.type;
+  list.innerHTML = entries.map(([id, cl]) => {
+    const color = CLUE_COLORS[cl.type] || '#94a3b8';
+    const label = CLUE_LABELS[cl.type] || cl.type;
     return `<div class="clue-card">
       <div class="clue-card-header">
         <div class="clue-dot" style="background:${color}"></div>
         <div class="clue-title">${label}</div>
-        <div class="clue-time">${timeStr(c.ts)}</div>
+        <div class="clue-time">${timeStr(cl.ts)}</div>
+        <button onclick="deleteClue('${id}')"
+          style="background:none;border:none;cursor:pointer;padding:2px 4px;font-size:13px;color:#ef4444;opacity:0.7;margin-left:4px;border-radius:4px;line-height:1"
+          title="ลบหลักฐานนี้"
+          onmouseover="this.style.opacity=1;this.style.background='#fee2e2'"
+          onmouseout="this.style.opacity=0.7;this.style.background='none'">🗑️</button>
       </div>
       <div class="clue-body">
-        <div>${c.desc || '-'}</div>
-        <div class="clue-by">โดย: ${c.byName || '-'}</div>
+        <div>${cl.desc || '-'}</div>
+        <div class="clue-by">โดย: ${cl.byName || '-'} · ${cl.lat?`${(+cl.lat).toFixed(4)},${(+cl.lng).toFixed(4)}`:''}</div>
       </div>
     </div>`;
   }).join('');
@@ -2335,8 +2342,11 @@ function renderChat() {
     return `<div class="chat-bubble-wrap ${me?'me':'other'}">
       <div>
         ${!me ? `<div class="chat-name">${c.name||c.uid}</div>` : ''}
-        <div class="chat-bubble" ${c.broadcast?'style="border-left:3px solid #ef4444"':''}>
-          ${broadcast}${c.text}
+        <div class="chat-bubble" ${c.broadcast?'style="border-left:3px solid #ef4444"':c.gps?'style="border-left:3px solid #10b981;background:#f0fdf4"':''}>
+          ${broadcast}${c.gps
+            ? c.text.replace(/(https:\/\/maps\.google[^\s]+)/g, '<a href="$1" target="_blank" style="color:#10b981;font-size:11px;display:block;margin-top:4px">🗺️ เปิดใน Google Maps</a>').replace(/📍 พิกัดของฉัน: ([^
+]+)/, '<span style="font-weight:700;color:#166534">📍 พิกัด: $1</span>')
+            : c.text}
           ${c.voice ? '<div style="margin-top:4px"><i class="fas fa-volume-up"></i> Voice Note</div>' : ''}
           <span class="chat-time">${timeStr(c.ts)}</span>
         </div>
@@ -2483,7 +2493,7 @@ function finishDraw() {
     return;
   }
 
-  if(mode === 'polygon' && pts.length < 3) { showToast('ต้องการอย่างน้อย 3 จุด', 'error'); return; }
+  if((mode === 'polygon' || mode === 'freehand') && pts.length < 3) { showToast('ต้องการอย่างน้อย 3 จุด', 'error'); return; }
   if(mode === 'rectangle' && pts.length < 2) { showToast('ต้องการ 2 จุด', 'error'); return; }
   if(mode === 'circle' && pts.length < 2) { showToast('ต้องการ 2 จุด', 'error'); return; }
 
@@ -2510,7 +2520,7 @@ window.closeZoneDialog = async function(save) {
     createdBy: STATE.user?.id, createdByName: STATE.user?.name || STATE.user?.id,
     createdAt: Date.now(), progress: 0
   };
-  if(mode === 'polygon') payload.points = pts;
+  if(mode === 'polygon' || mode === 'freehand') payload.points = pts;
   else if(mode === 'rectangle') payload.bounds = [pts[0], pts[1]];
   else if(mode === 'circle') {
     payload.center = pts[0];
@@ -2545,6 +2555,19 @@ window.selectClueType = function(type, btn) {
   btn.classList.add('selected');
 };
 
+window.deleteClue = async function(id) {
+  if(!confirm('ลบหลักฐานนี้?')) return;
+  await remove(ref(db, `search_missions/${STATE.missionId}/clues/${id}`));
+  // Remove marker from map immediately
+  if(STATE.clueMarkers[id]) {
+    map.removeLayer(STATE.clueMarkers[id]);
+    delete STATE.clueMarkers[id];
+  }
+  delete STATE.clues[id];
+  renderClues();
+  showToast('ลบหลักฐานแล้ว', 'info');
+};
+
 window.closeClueDialog = async function(save) {
   document.getElementById('clue-dialog').classList.remove('show');
   STATE.clueMode = false;
@@ -2570,6 +2593,27 @@ window.sendChat = async function() {
   await push(ref(db, `search_missions/${STATE.missionId}/chat`), {
     text, uid: STATE.user?.id, name: STATE.user?.name || STATE.user?.id, ts: Date.now()
   });
+};
+
+window.sendGPSLocation = async function() {
+  const pos = STATE.myLocation;
+  if(!pos) {
+    showToast('ยังไม่มีข้อมูล GPS — รอสักครู่', 'error');
+    return;
+  }
+  const lat = pos.lat.toFixed(5);
+  const lng = pos.lng.toFixed(5);
+  const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+  const text = `📍 พิกัดของฉัน: ${lat}, ${lng}
+🗺️ ${mapsUrl}`;
+  await push(ref(db, `search_missions/${STATE.missionId}/chat`), {
+    text,
+    uid:  STATE.user?.id,
+    name: STATE.user?.name || STATE.user?.id,
+    ts:   Date.now(),
+    gps:  true,
+  });
+  showToast('ส่งพิกัดแล้ว 📍', 'success');
 };
 
 window.sendBroadcast = async function() {
