@@ -3147,6 +3147,68 @@ function buildTimelineData() {
 }
 
 // ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+// ██████  NOTIFICATION SYSTEM
+// ═══════════════════════════════════════════════════
+const _notifItems = [];
+let   _notifCount = 0;
+
+function requestNotifPermission() {
+  if('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => {});
+  }
+}
+
+window.pushNotif = function(title, body, icon) {
+  _notifCount++;
+  _notifItems.unshift({ title, body, icon: icon || '🔔', ts: Date.now() });
+  if(_notifItems.length > 50) _notifItems.pop();
+
+  // Update badge
+  const badge = document.getElementById('notif-badge');
+  if(badge) { badge.textContent = _notifCount; badge.style.display = _notifCount ? 'flex' : 'none'; }
+
+  // Render list
+  _renderNotifList();
+
+  // Browser notification (if permitted)
+  if('Notification' in window && Notification.permission === 'granted') {
+    try { new Notification(title, { body, icon: '/favicon.ico' }); } catch(e) {}
+  }
+};
+
+function _renderNotifList() {
+  const list = document.getElementById('notif-list');
+  if(!list) return;
+  if(!_notifItems.length) {
+    list.innerHTML = '<div style="padding:16px;text-align:center;color:rgba(255,255,255,0.4);font-size:13px">ยังไม่มีการแจ้งเตือน</div>';
+    return;
+  }
+  list.innerHTML = _notifItems.map(n => `
+    <div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;gap:10px;align-items:flex-start">
+      <div style="font-size:20px;flex-shrink:0">${n.icon}</div>
+      <div>
+        <div style="font-weight:600;font-size:13px;color:#fff">${n.title}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">${n.body}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:3px">${new Date(n.ts).toLocaleTimeString('th-TH')}</div>
+      </div>
+    </div>`).join('');
+}
+
+window.toggleNotifPanel = function() {
+  const panel = document.getElementById('notif-panel');
+  if(!panel) return;
+  panel.classList.toggle('show');
+  if(panel.classList.contains('show')) {
+    // Reset badge when opened
+    _notifCount = 0;
+    const badge = document.getElementById('notif-badge');
+    if(badge) badge.style.display = 'none';
+    _renderNotifList();
+  }
+};
+
+// ═══════════════════════════════════════════════════
 // ██████  PHASE 2B — INIT
 // ═══════════════════════════════════════════════════
 
