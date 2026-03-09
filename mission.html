@@ -911,6 +911,7 @@ html, body { height:100%; overflow:hidden; font-family:'Sarabun',sans-serif; bac
       <button class="map-ctrl-btn" id="draw-zone-btn" onclick="toggleDrawToolbar()" title="วาดโซน"><i class="fas fa-draw-polygon"></i></button>
       <button class="map-ctrl-btn" id="add-clue-btn" onclick="enterClueMode()" title="ปักหมุดหลักฐาน"><i class="fas fa-map-pin"></i></button>
       <button class="map-ctrl-btn" id="track-toggle-btn" onclick="toggleTrackLayer()" title="แสดง/ซ่อน Track"><i class="fas fa-route"></i></button>
+      <button class="map-ctrl-btn" onclick="clearAllTracks()" title="ลบเส้น Track ทั้งหมด" style="font-size:13px;padding:0 6px">🗑️</button>
       <button class="map-ctrl-btn" id="coverage-toggle-btn" onclick="toggleCoverageLayer()" title="พื้นที่ค้นแล้ว"><i class="fas fa-check-circle"></i></button>
       <button class="map-ctrl-btn" onclick="openAR()" title="AR Compass"><i class="fas fa-camera"></i></button>
     </div>
@@ -1722,6 +1723,33 @@ function redrawTrack(uid) {
   }
 }
 
+window.clearAllTracks = function() {
+  if(!Object.keys(STATE.trackPolylines).length && !Object.keys(STATE.memberTrails||{}).length) {
+    showToast('ไม่มีเส้น Track บนแผนที่', 'info'); return;
+  }
+  if(!confirm('ลบเส้น GPS Track ทั้งหมดออกจากแผนที่?')) return;
+  Object.keys(STATE.trackPolylines).forEach(uid => {
+    if(STATE.trackPolylines[uid]) map.removeLayer(STATE.trackPolylines[uid]);
+  });
+  Object.keys(STATE.memberTrails||{}).forEach(uid => {
+    if(STATE.memberTrails[uid]) map.removeLayer(STATE.memberTrails[uid]);
+  });
+  STATE.trackPolylines = {};
+  STATE.memberTrails   = {};
+  STATE.tracks         = {};
+  showToast('ลบ Track ทั้งหมดแล้ว', 'info');
+};
+
+window.clearMemberTrack = async function(uid, name) {
+  if(!confirm('ลบเส้น GPS Track ของ ' + name + ' ออกจากแผนที่?\n(ไม่ลบจาก Firebase — เฉพาะหน้าจอนี้)')) return;
+  // Remove from map
+  if(STATE.trackPolylines[uid]) { map.removeLayer(STATE.trackPolylines[uid]); delete STATE.trackPolylines[uid]; }
+  if(STATE.memberTrails[uid])   { map.removeLayer(STATE.memberTrails[uid]);   delete STATE.memberTrails[uid]; }
+  // Clear local state
+  delete STATE.tracks[uid];
+  showToast('ลบ Track ของ ' + name + ' แล้ว', 'info');
+};
+
 window.toggleTrackLayer = function() {
   STATE.showTracks = !STATE.showTracks;
   const btn = document.getElementById('track-toggle-btn');
@@ -1923,7 +1951,14 @@ function renderTeam() {
         </div>
         <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${fLabel} (${fatigue}%)</div>` : ''}
       </div>
-      <div class="member-status ${hasLeft?'offline':st}"></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+        <div class="member-status ${hasLeft?'offline':st}"></div>
+        ${STATE.tracks[uid] && STATE.tracks[uid].length > 1 ?
+          `<button onclick="clearMemberTrack('${uid}','${(m.name||uid).replace(/'/g,"\\'")}');event.stopPropagation()"
+            title="ลบเส้น Track"
+            style="background:none;border:none;cursor:pointer;padding:2px;font-size:12px;opacity:0.55;line-height:1"
+            onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.55">🗑️</button>` : ''}
+      </div>
     </div>`;
   }).join('');
   renderFatigue();
