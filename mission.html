@@ -398,10 +398,19 @@ html, body { height:100%; overflow:hidden; font-family:'Sarabun',sans-serif; bac
 
 /* ===== LEGEND ===== */
 #map-legend {
-  position:absolute; bottom:20px; left:60px; z-index:500;
+  position:absolute; bottom:80px; right:12px; z-index:500;
   background:rgba(255,255,255,0.95); border-radius:10px; padding:8px 12px;
-  box-shadow:var(--shadow-md); display:flex; flex-direction:column; gap:4px;
+  box-shadow:var(--shadow-md); flex-direction:column; gap:4px;
   backdrop-filter:blur(4px);
+  display:none; /* hidden by default on mobile, toggled */
+}
+#map-legend.show { display:flex; }
+#legend-toggle-btn {
+  position:absolute; bottom:80px; right:12px; z-index:501;
+  background:#fff; border:none; border-radius:10px;
+  width:38px; height:38px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:15px; color:var(--primary);
+  box-shadow:var(--shadow-md);
 }
 .legend-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-secondary); }
 .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
@@ -535,7 +544,7 @@ html, body { height:100%; overflow:hidden; font-family:'Sarabun',sans-serif; bac
   #map { width:100%; }
   #app { display:block; }
   #panel-toggle { display:flex; }
-  #map-legend { bottom:auto; top:60px; left:12px; }
+  #map-legend { bottom:80px; right:12px; left:auto; top:auto; }
 }
 @media (min-width:769px) {
   #panel-toggle { display:none; }
@@ -914,6 +923,9 @@ html, body { height:100%; overflow:hidden; font-family:'Sarabun',sans-serif; bac
       <button class="map-ctrl-btn" onclick="clearAllTracks()" title="ลบเส้น Track ทั้งหมด" style="font-size:13px;padding:0 6px">🗑️</button>
       <button class="map-ctrl-btn" id="coverage-toggle-btn" onclick="toggleCoverageLayer()" title="พื้นที่ค้นแล้ว"><i class="fas fa-check-circle"></i></button>
       <button class="map-ctrl-btn" onclick="openAR()" title="AR Compass"><i class="fas fa-camera"></i></button>
+      <button class="map-ctrl-btn" onclick="openHelp()" title="คำอธิบายการใช้งาน" style="background:#0a2463;color:#fff">
+        <i class="fas fa-question"></i>
+      </button>
     </div>
 
     <!-- Layer Toggle -->
@@ -961,13 +973,20 @@ html, body { height:100%; overflow:hidden; font-family:'Sarabun',sans-serif; bac
       <i class="fas fa-users"></i> ทีม & ข้อมูล
     </button>
 
+    <!-- Legend Toggle -->
+    <button id="legend-toggle-btn" onclick="toggleLegend()" title="คำอธิบายสัญลักษณ์">
+      <i class="fas fa-info-circle"></i>
+    </button>
     <!-- Legend -->
     <div id="map-legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#ef4444;box-shadow:0 0 6px #ef4444"></div> SOS</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> ออนไลน์</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#94a3b8"></div> ออฟไลน์</div>
-      <div class="legend-item"><div class="legend-line" style="background:#3b82f6;opacity:0.8"></div> เส้นทาง</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;border-radius:3px"></div> Zone</div>
+      <div style="font-family:'Kanit',sans-serif;font-size:11px;font-weight:700;color:var(--primary);margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid #e2e8f0">สัญลักษณ์แผนที่</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ef4444;box-shadow:0 0 6px #ef4444"></div> SOS — ต้องการช่วยเหลือ</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> ออนไลน์ — กำลังค้นหา</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#94a3b8"></div> ออฟไลน์ — ไม่ได้เชื่อมต่อ</div>
+      <div class="legend-item"><div class="legend-line" style="background:#3b82f6;opacity:0.8"></div> เส้นทาง GPS</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;border-radius:3px"></div> โซนค้นหา</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ef4444;border-radius:3px;opacity:0.5"></div> โซนอันตราย</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#10b981;border-radius:3px;opacity:0.5"></div> โซนค้นแล้ว</div>
     </div>
   </div>
 
@@ -1308,6 +1327,171 @@ html, body { height:100%; overflow:hidden; font-family:'Sarabun',sans-serif; bac
 <!-- ===== OFFLINE BADGE ===== -->
 <div id="offline-badge"><i class="fas fa-wifi-slash"></i> ออฟไลน์ — บันทึกในเครื่อง</div>
 <div id="sync-badge"><i class="fas fa-sync fa-spin"></i> กำลัง Sync ข้อมูล...</div>
+
+<!-- ===== HELP MODAL ===== -->
+<div id="help-modal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,0.6);overflow-y:auto">
+  <div style="background:#fff;max-width:480px;width:calc(100% - 32px);margin:16px auto 32px;border-radius:20px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#0a2463,#1b3d8f);padding:20px 20px 16px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-family:'Kanit',sans-serif;font-size:18px;font-weight:800;color:#fff">📖 คู่มือการใช้งาน</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px">ระบบภารกิจค้นหาผู้สูญหาย</div>
+      </div>
+      <button onclick="closeHelp()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px">✕</button>
+    </div>
+    <div style="padding:16px 20px 24px;display:flex;flex-direction:column;gap:16px">
+
+      <!-- Section: Header -->
+      <div>
+        <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:#0a2463;background:#eff6ff;padding:6px 10px;border-radius:8px;margin-bottom:8px">
+          🔝 แถบด้านบน
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#e2e8f0;border-radius:6px;padding:2px 8px;font-weight:700;min-width:60px;text-align:center;flex-shrink:0">● 3</span>
+            <span style="color:#374151">จำนวนสมาชิก <b>Online</b> ในภารกิจ — กดดูรายชื่อ</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#fef3c7;border-radius:6px;padding:2px 8px;font-weight:700;min-width:60px;text-align:center;flex-shrink:0">🔔</span>
+            <span style="color:#374151">การแจ้งเตือน — SOS / หลักฐานใหม่ / สมาชิกเหนื่อย ตัวเลขแดงคือยังไม่ได้อ่าน</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#fee2e2;border-radius:6px;padding:2px 8px;font-weight:700;min-width:60px;text-align:center;flex-shrink:0;color:#dc2626">SOS</span>
+            <span style="color:#374151">ส่งสัญญาณขอความช่วยเหลือฉุกเฉิน — <b>กดค้าง 2 วินาที</b> เพื่อยืนยัน</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#e2e8f0;border-radius:6px;padding:2px 8px;font-weight:700;min-width:60px;text-align:center;flex-shrink:0">🚪</span>
+            <span style="color:#374151">ออกจากภารกิจ — อัปเดตสถานะ Offline ให้ทีมเห็น Realtime</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Map Controls -->
+      <div>
+        <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:#0a2463;background:#eff6ff;padding:6px 10px;border-radius:8px;margin-bottom:8px">
+          🗺️ เครื่องมือบนแผนที่ (ซ้ายมือ)
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:60px;text-align:center;flex-shrink:0">🗂️</span>
+            <span style="color:#374151"><b>เปลี่ยน Layer แผนที่</b> — แผนที่ถนน / ดาวเทียม / ภูมิประเทศ</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:60px;text-align:center;flex-shrink:0">⬡</span>
+            <span style="color:#374151"><b>วาดโซนค้นหา</b> — เปิด toolbar วาดรูปทรงต่างๆ บนแผนที่</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:60px;text-align:center;flex-shrink:0">📍</span>
+            <span style="color:#374151"><b>ปักหมุดหลักฐาน</b> — กดแล้วแตะแผนที่เพื่อบันทึกหลักฐาน</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:60px;text-align:center;flex-shrink:0">〰️</span>
+            <span style="color:#374151"><b>แสดง/ซ่อน GPS Track</b> — เส้นทางเดินของสมาชิกทุกคน</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:60px;text-align:center;flex-shrink:0">🗑️</span>
+            <span style="color:#374151"><b>ลบเส้น Track ทั้งหมด</b> — ลบออกจากแผนที่ (ไม่ลบจาก Firebase)</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:60px;text-align:center;flex-shrink:0">✅</span>
+            <span style="color:#374151"><b>พื้นที่ค้นแล้ว</b> — แสดง overlay สีเขียวบริเวณที่ทีมเดินผ่าน</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:60px;text-align:center;flex-shrink:0">📷</span>
+            <span style="color:#374151"><b>AR Compass</b> — เปิดกล้องพร้อม compass ดูทิศทางไปจุดสำคัญ</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:60px;text-align:center;flex-shrink:0">❓</span>
+            <span style="color:#374151"><b>คู่มือนี้</b> — คำอธิบายการใช้งานทุกฟีเจอร์</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Draw Toolbar -->
+      <div>
+        <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:#0a2463;background:#eff6ff;padding:6px 10px;border-radius:8px;margin-bottom:8px">
+          ✏️ วาดโซนค้นหา
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#7c3aed;color:#fff;border-radius:6px;padding:2px 8px;min-width:72px;text-align:center;flex-shrink:0">ลากอิสระ</span>
+            <span style="color:#374151">กดค้างแล้วลากนิ้วบนแผนที่ — ปล่อยเพื่อปิดรูปอัตโนมัติ</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#7c3aed;color:#fff;border-radius:6px;padding:2px 8px;min-width:72px;text-align:center;flex-shrink:0">จุดต่อจุด</span>
+            <span style="color:#374151">แตะแผนที่ทีละจุด — กด <b>บันทึก</b> เพื่อปิดรูปและบันทึก</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#7c3aed;color:#fff;border-radius:6px;padding:2px 8px;min-width:72px;text-align:center;flex-shrink:0">สี่เหลี่ยม</span>
+            <span style="color:#374151">กดค้างแล้ว<b>ลาก</b>บนแผนที่ — ปล่อยมือเพื่อบันทึก</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#7c3aed;color:#fff;border-radius:6px;padding:2px 8px;min-width:72px;text-align:center;flex-shrink:0">วงกลม</span>
+            <span style="color:#374151">แตะจุดกึ่งกลาง แล้วแตะขอบวงกลม — บันทึกอัตโนมัติ</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#7c3aed;color:#fff;border-radius:6px;padding:2px 8px;min-width:72px;text-align:center;flex-shrink:0">Base Camp</span>
+            <span style="color:#374151">แตะแผนที่เพื่อตั้ง Base Camp — แสดงเป็นธงบนแผนที่</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Tabs -->
+      <div>
+        <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:#0a2463;background:#eff6ff;padding:6px 10px;border-radius:8px;margin-bottom:8px">
+          📑 แถบเมนูด้านข้าง
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:72px;text-align:center;flex-shrink:0">👥 ทีม</span>
+            <span style="color:#374151">รายชื่อสมาชิก สถานะ Online/Offline ระดับความล้า กด 🗑️ ลบ Track รายคน</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:72px;text-align:center;flex-shrink:0">🗺️ โซน</span>
+            <span style="color:#374151">รายการโซนค้นหาทั้งหมด แก้ไข ลบ ตั้ง % ความคืบหน้า</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:72px;text-align:center;flex-shrink:0">🔍 หลักฐาน</span>
+            <span style="color:#374151">รายการหลักฐานที่พบ รายละเอียด พิกัด และผู้รายงาน</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:72px;text-align:center;flex-shrink:0">💬 แชท</span>
+            <span style="color:#374151">สื่อสารในทีมแบบ Realtime — รองรับ Text และ Voice Command</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:72px;text-align:center;flex-shrink:0">🔧 เครื่องมือ</span>
+            <span style="color:#374151">GPS Share / หลักฐาน Quick / ค้นหาตาราง Grid / เครื่องมือพิเศษ</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:72px;text-align:center;flex-shrink:0">🧠 AI</span>
+            <span style="color:#374151">คำนวณ AI Heatmap แสดงโซนที่มีโอกาสพบผู้สูญหายสูงสุด</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+            <span style="background:#0a2463;color:#fff;border-radius:6px;padding:2px 8px;min-width:72px;text-align:center;flex-shrink:0">📄 รายงาน</span>
+            <span style="color:#374151">Export PDF รายงานภาษาไทยอย่างเป็นทางการ พร้อมลายมือชื่อ</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Voice -->
+      <div>
+        <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:#0a2463;background:#eff6ff;padding:6px 10px;border-radius:8px;margin-bottom:8px">
+          🎤 Voice Command (มุมขวาล่าง)
+        </div>
+        <div style="font-size:12px;color:#374151;line-height:1.8">
+          กดปุ่มไมโครโฟนแล้วพูดคำสั่ง เช่น<br>
+          <span style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:monospace">"พบรองเท้า"</span> → บันทึกหลักฐาน<br>
+          <span style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:monospace">"ไปจุด LKP"</span> → ซูมไปจุดนั้น<br>
+          <span style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:monospace">"SOS"</span> → ส่งสัญญาณฉุกเฉิน
+        </div>
+      </div>
+
+      <button onclick="closeHelp()" style="background:#0a2463;color:#fff;border:none;border-radius:12px;padding:12px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;cursor:pointer;width:100%">
+        ✅ เข้าใจแล้ว เริ่มใช้งาน
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- ===== ZONE DIALOG ===== -->
 <div id="zone-dialog">
@@ -1722,6 +1906,18 @@ function redrawTrack(uid) {
     }).addTo(map);
   }
 }
+
+window.toggleLegend = function() {
+  document.getElementById('map-legend').classList.toggle('show');
+};
+window.openHelp = function() {
+  document.getElementById('help-modal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+};
+window.closeHelp = function() {
+  document.getElementById('help-modal').style.display = 'none';
+  document.body.style.overflow = '';
+};
 
 window.clearAllTracks = function() {
   if(!Object.keys(STATE.trackPolylines).length && !Object.keys(STATE.memberTrails||{}).length) {
