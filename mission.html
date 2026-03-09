@@ -7,6 +7,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+/* Leaflet inline fallback — กัน CDN block */
+.leaflet-container { background:#1e293b !important; }
+.leaflet-tile { border:none !important; }
+</style>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -832,6 +838,20 @@ html, body { height:100%; overflow:hidden; font-family:'Sarabun',sans-serif; bac
 </style>
 </head>
 <body>
+
+<!-- ===== LOADING OVERLAY ===== -->
+<div id="loading-overlay" style="
+  position:fixed;inset:0;z-index:9999;
+  background:linear-gradient(135deg,#0a2463,#1b3d8f);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+">
+  <div style="font-size:48px">🔍</div>
+  <div style="font-family:'Kanit',sans-serif;font-size:18px;font-weight:700;color:#fff">กำลังโหลดภารกิจ...</div>
+  <div id="loading-msg" style="font-size:13px;color:rgba(255,255,255,0.7);font-family:'Sarabun',sans-serif">กำลังเชื่อมต่อ Firebase</div>
+  <div style="width:200px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;overflow:hidden">
+    <div id="loading-bar" style="height:100%;background:#f59e0b;border-radius:2px;width:0%;transition:width 0.4s ease"></div>
+  </div>
+</div>
 
 <!-- ===== HEADER ===== -->
 <div id="header">
@@ -2374,69 +2394,117 @@ window.goBack = function() {
 };
 
 // ===== INIT =====
+function setLoadingMsg(msg, pct) {
+  const el = document.getElementById('loading-msg');
+  const bar = document.getElementById('loading-bar');
+  if(el) el.textContent = msg;
+  if(bar) bar.style.width = pct + '%';
+}
+function hideLoading() {
+  const ov = document.getElementById('loading-overlay');
+  if(ov) { ov.style.opacity='0'; ov.style.transition='opacity 0.4s'; setTimeout(()=>ov.remove(),400); }
+}
+function showLoadingError(msg) {
+  const ov = document.getElementById('loading-overlay');
+  if(!ov) return;
+  ov.innerHTML = `
+    <div style="font-size:48px">❌</div>
+    <div style="font-family:'Kanit',sans-serif;font-size:18px;font-weight:700;color:#fff">${msg}</div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.6);font-family:'Sarabun',sans-serif;margin-top:4px">URL: ${location.href}</div>
+    <button onclick="location.reload()" style="margin-top:16px;padding:10px 24px;border-radius:10px;border:none;
+      background:#f59e0b;color:#000;font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;cursor:pointer">
+      🔄 ลองใหม่
+    </button>
+    <button onclick="history.back()" style="margin-top:8px;padding:8px 20px;border-radius:10px;border:1px solid rgba(255,255,255,0.3);
+      background:transparent;color:#fff;font-family:'Kanit',sans-serif;font-size:13px;cursor:pointer">
+      ← กลับหน้าหลัก
+    </button>`;
+}
+
 async function init() {
-  // Get mission ID from URL
-  const params = new URLSearchParams(window.location.search);
-  const missionId = params.get('id');
-  if(!missionId) {
-    document.getElementById('header-title').textContent = 'ไม่พบภารกิจ';
-    showToast('ไม่พบ Mission ID', 'error');
-    return;
-  }
-  STATE.missionId = missionId;
-
-  // Get user from localStorage (set by index.html via smJoin/smOpenMission)
   try {
-    // Priority: mission_user (set by smJoin) → fire_user (main app session) → fallback
-    const raw = localStorage.getItem('mission_user')
-             || localStorage.getItem('fire_user')
-             || localStorage.getItem('user')
-             || localStorage.getItem('_user');
-    if(raw) STATE.user = JSON.parse(raw);
-  } catch(e) {}
+    setLoadingMsg('อ่าน Mission ID จาก URL...', 10);
 
-  // Fallback user — แสดง dialog ขอชื่อถ้าไม่พบ session
-  if(!STATE.user?.id) {
-    const savedId   = localStorage.getItem('userId');
-    const savedName = localStorage.getItem('userName');
-    if(savedId) {
-      STATE.user = { id: savedId, name: savedName || savedId };
-    } else {
-      // ขอชื่อผู้ใช้ (กรณีเปิด mission.html โดยตรงไม่ผ่าน index.html)
-      const guestName = prompt('ไม่พบข้อมูลผู้ใช้\nกรุณาระบุชื่อ-สกุลของคุณ:', '') || 'ผู้ใช้งาน';
-      const guestId   = 'guest_' + Math.random().toString(36).slice(2,8);
-      STATE.user = { id: guestId, name: guestName };
-      localStorage.setItem('userId',   guestId);
-      localStorage.setItem('userName', guestName);
+    const params = new URLSearchParams(window.location.search);
+    const missionId = params.get('id');
+    if(!missionId) {
+      showLoadingError('ไม่พบ Mission ID ใน URL<br><small style="font-weight:400">ต้องเปิดผ่านปุ่ม "เข้าร่วมภารกิจ" ใน index.html</small>');
+      document.getElementById('header-title').textContent = 'ไม่พบภารกิจ';
+      return;
     }
+    STATE.missionId = missionId;
+    setLoadingMsg('ตรวจสอบผู้ใช้งาน...', 25);
+
+    // Get user from localStorage
+    try {
+      const raw = localStorage.getItem('mission_user')
+               || localStorage.getItem('fire_user')
+               || localStorage.getItem('user')
+               || localStorage.getItem('_user');
+      if(raw) STATE.user = JSON.parse(raw);
+    } catch(e) {}
+
+    if(!STATE.user?.id) {
+      const savedId   = localStorage.getItem('userId');
+      const savedName = localStorage.getItem('userName');
+      if(savedId) {
+        STATE.user = { id: savedId, name: savedName || savedId };
+      } else {
+        const guestName = prompt('ไม่พบข้อมูลผู้ใช้\nกรุณาระบุชื่อ-สกุลของคุณ:', '') || 'ผู้ใช้งาน';
+        const guestId   = 'guest_' + Math.random().toString(36).slice(2,8);
+        STATE.user = { id: guestId, name: guestName };
+        localStorage.setItem('userId',   guestId);
+        localStorage.setItem('userName', guestName);
+      }
+    }
+
+    setLoadingMsg('โหลดข้อมูลภารกิจจาก Firebase...', 45);
+
+    // Load mission with timeout
+    let snap;
+    try {
+      const timeout = new Promise((_,rej) => setTimeout(()=>rej(new Error('Firebase timeout')), 10000));
+      snap = await Promise.race([get(ref(db, `search_missions/${missionId}`)), timeout]);
+    } catch(e) {
+      showLoadingError('เชื่อมต่อ Firebase ไม่ได้<br><small style="font-weight:400">' + e.message + '</small>');
+      return;
+    }
+
+    const mission = snap.val();
+    if(!mission) {
+      showLoadingError(`ไม่พบภารกิจ ID: ${missionId}<br><small style="font-weight:400">ตรวจสอบว่าภารกิจยังเปิดอยู่</small>`);
+      return;
+    }
+    STATE.mission = mission;
+    document.getElementById('header-title').textContent = mission.title || 'ภารกิจค้นหา';
+    document.getElementById('header-sub').textContent   = mission.area  || 'ภารกิจค้นหาผู้สูญหาย';
+    document.title = `${mission.title || 'ภารกิจ'} | ค้นหา`;
+
+    setLoadingMsg('เตรียมแผนที่...', 65);
+    initMap();
+
+    // Force map size after DOM settles
+    await new Promise(r => setTimeout(r, 200));
+    if(map) map.invalidateSize();
+
+    setLoadingMsg('เชื่อมต่อ Firebase realtime...', 80);
+    bindListeners();
+
+    setLoadingMsg('เริ่ม GPS...', 90);
+    startGPS();
+
+    fetchWeather(15.7, 100.5);
+    setTimeout(() => { if(STATE.myLat) fetchWeather(STATE.myLat, STATE.myLng); }, 5000);
+    setInterval(() => { renderTeam(); renderBases(); }, 30000);
+
+    setLoadingMsg('พร้อมใช้งาน!', 100);
+    await new Promise(r => setTimeout(r, 400));
+    hideLoading();
+
+  } catch(e) {
+    console.error('init error:', e);
+    showLoadingError('เกิดข้อผิดพลาด: ' + e.message);
   }
-
-  // Load mission
-  const snap = await get(ref(db, `search_missions/${missionId}`));
-  const mission = snap.val();
-  if(!mission) { showToast('ไม่พบข้อมูลภารกิจ', 'error'); return; }
-  STATE.mission = mission;
-  document.getElementById('header-title').textContent = mission.title || 'ภารกิจค้นหา';
-  document.getElementById('header-sub').textContent = mission.area || 'ภารกิจค้นหาผู้สูญหาย';
-  document.title = `${mission.title || 'ภารกิจ'} | ค้นหา`;
-
-  // Init map
-  initMap();
-
-  // Bind Firebase listeners
-  bindListeners();
-
-  // Start GPS
-  startGPS();
-
-  // Weather (center of Thailand fallback)
-  fetchWeather(15.7, 100.5);
-  setTimeout(() => {
-    if(STATE.myLat) fetchWeather(STATE.myLat, STATE.myLng);
-  }, 5000);
-
-  // Refresh team/fatigue every 30s
-  setInterval(() => { renderTeam(); renderBases(); }, 30000);
 }
 
 // ═══════════════════════════════════════════════════
