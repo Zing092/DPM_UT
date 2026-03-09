@@ -1538,9 +1538,15 @@ window.centerMyLocation = function() {
   else showToast('ยังไม่ได้รับพิกัด GPS', 'info');
 };
 
-// ===== GPS TRACK RECORDING =====
+// ===== GPS TRACK RECORDING (with GPS interval throttle, merged) =====
 function recordMyTrack(lat, lng) {
   if(!STATE.user?.id || !STATE.missionId) return;
+  // Throttle by adaptive GPS interval (set by adaptGpsInterval)
+  const now = Date.now();
+  if(typeof lastGpsPush !== 'undefined' && typeof gpsInterval !== 'undefined') {
+    if(now - lastGpsPush < gpsInterval) return;
+    lastGpsPush = now;
+  }
   const uid = STATE.user.id;
   if(!STATE.tracks[uid]) STATE.tracks[uid] = [];
   const last = STATE.tracks[uid].slice(-1)[0];
@@ -1616,15 +1622,19 @@ window.toggleCoverageLayer = function() {
   }
 };
 
-// ===== PUSH LOCATION =====
+// ===== PUSH LOCATION (with offline support, merged) =====
 function pushMyLocation(lat, lng) {
   if(!STATE.missionId || !STATE.user?.id) return;
-  update(ref(db, `search_missions/${STATE.missionId}/locations/${STATE.user.id}`), {
-    lat, lng, ts: Date.now(), status: 'online'
-  }).catch(()=>{});
-  update(ref(db, `search_missions/${STATE.missionId}/members/${STATE.user.id}`), {
-    lastSeen: Date.now(), status: 'online'
-  }).catch(()=>{});
+  const _path = `search_missions/${STATE.missionId}/locations/${STATE.user.id}`;
+  const _data = { lat, lng, ts: Date.now(), status:'online' };
+  if(typeof isOnline === 'undefined' || isOnline) {
+    update(ref(db, _path), _data).catch(()=>{ if(typeof queueWrite==='function') queueWrite(_path, _data); });
+    update(ref(db, `search_missions/${STATE.missionId}/members/${STATE.user.id}`), {
+      lastSeen: Date.now(), status: 'online'
+    }).catch(()=>{});
+  } else {
+    if(typeof queueWrite==='function') queueWrite(_path, _data);
+  }
 }
 
 // ===== MEMBER MARKERS =====
@@ -3245,18 +3255,7 @@ window.addEventListener('offline', () => {
   showToast('ออฟไลน์ — บันทึกข้อมูลในเครื่อง', 'info');
 });
 
-// Override pushMyLocation to support offline
-const _origPushMyLocation = pushMyLocation;
-function pushMyLocation(lat, lng) {
-  if(!STATE.missionId || !STATE.user?.id) return;
-  const path = `search_missions/${STATE.missionId}/locations/${STATE.user.id}`;
-  const data = { lat, lng, ts: Date.now(), status:'online' };
-  if(isOnline) {
-    update(ref(db, path), data).catch(()=> queueWrite(path, data));
-  } else {
-    queueWrite(path, data);
-  }
-}
+// pushMyLocation already merged above (offline support included)
 
 // Auto-save snapshot every 60s
 setInterval(() => { if(isOnline) saveOfflineSnapshot(); }, 60000);
@@ -3288,14 +3287,7 @@ function adaptGpsInterval() {
 // Check connection quality every 30s
 setInterval(adaptGpsInterval, 30000);
 
-// Hook into GPS track recording - throttle by interval
-const _origRecordMyTrack = recordMyTrack;
-function recordMyTrack(lat, lng) {
-  const now = Date.now();
-  if(now - lastGpsPush < gpsInterval) return;
-  lastGpsPush = now;
-  _origRecordMyTrack(lat, lng);
-}
+// recordMyTrack throttle already merged above
 
 // ═══════════════════════════════════════════════════
 // ██████  PHASE 2A — REPORT PREVIEW UPDATE HOOK
