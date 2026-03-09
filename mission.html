@@ -3679,7 +3679,318 @@ function buildTimelineData() {
 }
 
 // ═══════════════════════════════════════════════════
+// ██████  PHASE 2B — MULTI-LANGUAGE BROADCAST
 // ═══════════════════════════════════════════════════
+const TRANSLATIONS = {
+  en: {
+    'มีใครได้ยินบ้าง':'Can anyone hear us?',
+    'ขอความช่วยเหลือ':'We need assistance!',
+    'พบร่องรอย':'Trail/evidence found at this location',
+    'พื้นที่อันตราย':'Danger zone — do not enter',
+    'กลับฐาน':'Return to base camp immediately',
+    'หยุดค้นหา':'Stop searching now',
+    'ผู้สูญหายพบแล้ว':'Missing person has been found!',
+    'default': t => `[EN] ${t}`
+  },
+  my: {
+    'มีใครได้ยินบ้าง':'ဘယ်သူမဆို ကြားနိုင်သလား?',
+    'ขอความช่วยเหลือ':'ကူညီမှု လိုအပ်သည်!',
+    'พบร่องรอย':'ဒီနေရာတွင် လမ်းကြောင်းတွေ့ပြီ',
+    'พื้นที่อันตราย':'အန္တရာယ်ရှိသောဇုန် — မဝင်ရ',
+    'กลับฐาน':'အခြေစိုက်ကင်းသို့ ချက်ချင်းပြန်သွားပါ',
+    'default': t => `[MY] ${t}`
+  },
+  lo: {
+    'มีใครได้ยินบ้าง':'ມີໃຜໄດ້ຍິນບໍ?',
+    'ขอความช่วยเหลือ':'ຕ້ອງການຄວາມຊ່ວຍເຫຼືອ!',
+    'พบร่องรอย':'ພົບຮ່ອງຮອຍທີ່ນີ້',
+    'พื้นที่อันตราย':'ເຂດອັນຕະລາຍ — ຫ້າມເຂົ້າ',
+    'กลับฐาน':'ກັບໄປຖານທີ່ຕັ້ງທັນທີ',
+    'default': t => `[LO] ${t}`
+  }
+};
+const LANG_META = {
+  th:{ flag:'🇹🇭', name:'ไทย',    tts:'th-TH' },
+  en:{ flag:'🇬🇧', name:'English', tts:'en-US' },
+  my:{ flag:'🇲🇲', name:'Myanmar', tts:'my-MM' },
+  lo:{ flag:'🇱🇦', name:'ລາວ',    tts:'lo-LA'  }
+};
+
+function translateText(text, lang) {
+  if(lang === 'th') return text;
+  const map = TRANSLATIONS[lang] || {};
+  for(const [key, val] of Object.entries(map)) {
+    if(key === 'default') continue;
+    if(text.includes(key)) return typeof val === 'function' ? val(text) : val;
+  }
+  const fb = map['default'];
+  return fb ? (typeof fb === 'function' ? fb(text) : fb) : `[${lang.toUpperCase()}] ${text}`;
+}
+
+function getSelectedLangs() {
+  return ['th','en','my','lo'].filter(l => document.getElementById('lang-'+l)?.checked);
+}
+
+// BUG-013 FIX: ตรวจ available voices ก่อนพูด fallback เป็น th-TH
+window.speakLang = function(text, ttsLang) {
+  if(!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  const voices = window.speechSynthesis.getVoices();
+  const match  = voices.find(v => v.lang === ttsLang || v.lang.startsWith(ttsLang.split('-')[0]));
+  u.lang  = match ? match.lang : 'th-TH'; // fallback ถ้าไม่มี voice pack
+  u.rate  = 0.9;
+  u.voice = match || null;
+  window.speechSynthesis.speak(u);
+};
+
+window.previewBroadcast = function() {
+  const text = document.getElementById('broadcast-text')?.value.trim();
+  if(!text) { showToast('พิมพ์ข้อความก่อน', 'error'); return; }
+  const langs = getSelectedLangs();
+  if(!langs.length) { showToast('เลือกภาษาก่อน', 'error'); return; }
+  const box = document.getElementById('broadcast-preview');
+  if(!box) return;
+  box.style.display = 'block';
+  box.innerHTML = langs.map(lang => {
+    const m = LANG_META[lang];
+    const translated = translateText(text, lang);
+    return `<div class="lang-preview-row">
+      <span class="lang-flag">${m.flag}</span>
+      <span style="flex:1;font-size:11px">${translated}</span>
+      <button class="lang-play-btn" onclick="speakLang('${translated.replace(/'/g,"\\'")}','${m.tts}')">
+        <i class="fas fa-volume-up"></i>
+      </button>
+    </div>`;
+  }).join('');
+};
+
+window.sendMultiLangBroadcast = async function() {
+  const text = document.getElementById('broadcast-text')?.value.trim();
+  if(!text) { showToast('พิมพ์ข้อความก่อน', 'error'); return; }
+  const langs = getSelectedLangs();
+  if(!langs.length) { showToast('เลือกภาษาก่อน', 'error'); return; }
+
+  const lines = langs.map(lang => `${LANG_META[lang].flag} ${translateText(text, lang)}`).join('\n');
+  await push(ref(db, `search_missions/${STATE.missionId}/chat`), {
+    text: lines,
+    uid: STATE.user?.id,
+    name: STATE.user?.name || STATE.user?.id,
+    ts: Date.now(),
+    broadcast: true,
+    multiLang: true
+  });
+
+  // เล่นเสียงแต่ละภาษาตามลำดับ
+  let delay = 0;
+  langs.forEach(lang => {
+    const translated = translateText(text, lang);
+    setTimeout(() => speakLang(translated, LANG_META[lang].tts), delay);
+    delay += Math.max(translated.length * 80, 1500);
+  });
+
+  const inp = document.getElementById('broadcast-text');
+  if(inp) inp.value = '';
+  const prev = document.getElementById('broadcast-preview');
+  if(prev) prev.style.display = 'none';
+  if(typeof pushNotif === 'function')
+    pushNotif('📢 Broadcast ส่งแล้ว', `${langs.length} ภาษา: ${text.slice(0,40)}`, '📢');
+  showToast(`ส่ง Broadcast ${langs.length} ภาษาแล้ว 📢`, 'success');
+};
+
+// ═══════════════════════════════════════════════════
+// ██████  PHASE 2B — AR COMPASS
+// BUG-012 FIX: เพิ่ม low-pass filter กัน heading กระโดด
+// ═══════════════════════════════════════════════════
+let arStream    = null;
+let arAnimFrame = null;
+let _rawHeading = 0;
+let _smoothHeading = 0; // BUG-012: low-pass filtered heading
+
+window.openAR = async function() {
+  const modal = document.getElementById('ar-modal');
+  if(!modal) { showToast('ไม่พบ AR modal', 'error'); return; }
+  modal.classList.add('show');
+
+  try {
+    arStream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:'environment', width:{ ideal:1280 }, height:{ ideal:720 } }
+    });
+    const vid = document.getElementById('ar-video');
+    if(vid) vid.srcObject = arStream;
+  } catch(e) {
+    showToast('ไม่สามารถเปิดกล้อง: ' + e.message, 'error');
+    modal.classList.remove('show'); return;
+  }
+
+  if(typeof DeviceOrientationEvent !== 'undefined' &&
+     typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try { await DeviceOrientationEvent.requestPermission(); } catch(e) {}
+  }
+  window.addEventListener('deviceorientation', _onArOrientation, true);
+  _startARLoop();
+  showToast('AR Compass เปิดแล้ว 📷', 'success');
+};
+
+function _onArOrientation(e) {
+  // BUG-012 FIX: low-pass filter (α=0.15) กัน heading กระโดด
+  let raw;
+  if(e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+    raw = e.webkitCompassHeading; // iOS — ตรงเป็น true north
+  } else if(e.alpha !== null) {
+    raw = (360 - e.alpha) % 360;  // Android
+  } else return;
+
+  // จัดการ wrap-around (359° → 1°)
+  let delta = raw - _rawHeading;
+  if(delta > 180)  delta -= 360;
+  if(delta < -180) delta += 360;
+  _rawHeading = (_rawHeading + delta + 360) % 360;
+  _smoothHeading = _smoothHeading * 0.85 + _rawHeading * 0.15; // low-pass
+
+  // อัปเดตเข็มทิศ SVG
+  const needleN = document.getElementById('ar-needle-n');
+  const needleS = document.getElementById('ar-needle-s');
+  if(needleN) {
+    const rad = _smoothHeading * Math.PI / 180;
+    needleN.setAttribute('x2', (60 + 40 * Math.sin(-rad)).toFixed(1));
+    needleN.setAttribute('y2', (60 - 40 * Math.cos(-rad)).toFixed(1));
+    needleS.setAttribute('x2', (60 - 35 * Math.sin(-rad)).toFixed(1));
+    needleS.setAttribute('y2', (60 + 35 * Math.cos(-rad)).toFixed(1));
+  }
+  const hdEl = document.getElementById('ar-heading');
+  if(hdEl) hdEl.textContent = Math.round(_smoothHeading) + '°';
+}
+
+function _startARLoop() {
+  const canvas  = document.getElementById('ar-canvas');
+  const ctx     = canvas?.getContext('2d');
+  const video   = document.getElementById('ar-video');
+  const listEl  = document.getElementById('ar-points-list');
+  if(!canvas || !ctx) return;
+
+  function loop() {
+    if(!document.getElementById('ar-modal')?.classList.contains('show')) return;
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    if(video && video.readyState >= 2) ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    if(STATE.myLat) {
+      const points = _buildARPoints();
+      // วาด AR overlay
+      points.slice(0,3).forEach(p => {
+        const relBear = (p.bearing - _smoothHeading + 360) % 360;
+        if(relBear < 70 || relBear > 290) {
+          const xFrac = relBear < 70
+            ? 0.5 + (relBear / 70) * 0.3
+            : 0.5 - ((360 - relBear) / 70) * 0.3;
+          const x = xFrac * canvas.width;
+          const y = canvas.height * 0.3;
+
+          ctx.save();
+          ctx.strokeStyle = p.color; ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(x, y-22); ctx.lineTo(x, y+22);
+          ctx.moveTo(x-22, y); ctx.lineTo(x+22, y);
+          ctx.stroke();
+
+          ctx.fillStyle = 'rgba(0,0,0,0.6)';
+          ctx.beginPath(); ctx.roundRect?.(x-56, y-64, 112, 40, 8) ?? ctx.rect(x-56, y-64, 112, 40);
+          ctx.fill();
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 13px Kanit, sans-serif';
+          ctx.fillText((p.icon + ' ' + p.name).slice(0,14), x, y-43);
+          ctx.font = '11px Kanit, sans-serif';
+          ctx.fillStyle = '#f59e0b';
+          ctx.fillText(`${p.dist.toFixed(2)}กม. · ${Math.round(p.bearing)}°`, x, y-29);
+          ctx.restore();
+        }
+      });
+
+      if(listEl) {
+        listEl.innerHTML = points.slice(0,4).map(p => `
+          <div class="ar-point-pill">
+            <div class="ar-point-icon">${p.icon}</div>
+            <div class="ar-point-info">
+              <div class="ar-point-name">${p.name}</div>
+              <div class="ar-point-dist">${p.dist.toFixed(2)} กม.</div>
+            </div>
+            <div class="ar-point-bearing">${Math.round(p.bearing)}°</div>
+          </div>`).join('');
+      }
+    }
+    arAnimFrame = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+function _buildARPoints() {
+  const pts = [];
+  Object.entries(STATE.bases||{}).forEach(([id,b]) => {
+    if(!b.lat) return;
+    pts.push({ id, icon: b.type==='rally'?'🔵':'🏕️', name: b.name||'Base',
+      dist: haversine(STATE.myLat,STATE.myLng,b.lat,b.lng),
+      bearing: calcBearing(STATE.myLat,STATE.myLng,b.lat,b.lng), color:'#f59e0b' });
+  });
+  Object.entries(STATE.members||{}).forEach(([uid,m]) => {
+    if(m.status !== 'sos') return;
+    const loc = (STATE.tracks[uid]||[]).slice(-1)[0];
+    if(!loc) return;
+    pts.push({ id:uid, icon:'🆘', name: m.name||uid,
+      dist: haversine(STATE.myLat,STATE.myLng,loc.lat,loc.lng),
+      bearing: calcBearing(STATE.myLat,STATE.myLng,loc.lat,loc.lng), color:'#ef4444' });
+  });
+  Object.entries(STATE.clues||{}).forEach(([id,c]) => {
+    if(!c.lat) return;
+    const d = haversine(STATE.myLat,STATE.myLng,c.lat,c.lng);
+    if(d > 1) return;
+    pts.push({ id, icon:'📍', name:(CLUE_LABELS[c.type]||c.type).slice(0,8),
+      dist:d, bearing:calcBearing(STATE.myLat,STATE.myLng,c.lat,c.lng),
+      color: CLUE_COLORS[c.type]||'#94a3b8' });
+  });
+  return pts.sort((a,b) => a.dist - b.dist);
+}
+
+window.closeAR = function() {
+  document.getElementById('ar-modal')?.classList.remove('show');
+  if(arStream) { arStream.getTracks().forEach(t => t.stop()); arStream = null; }
+  if(arAnimFrame) { cancelAnimationFrame(arAnimFrame); arAnimFrame = null; }
+  window.removeEventListener('deviceorientation', _onArOrientation, true);
+};
+
+// ═══════════════════════════════════════════════════
+// ██████  BUG-014 FIX — Grid Search Offline Support
+// ═══════════════════════════════════════════════════
+// Override toggleGridCell เพิ่ม offline queue support
+const _origToggleGridCell = toggleGridCell;
+function toggleGridCell(id, rect) {
+  const cell = STATE.gridCells[id];
+  if(!cell) return;
+  const next = { unchecked:'checked', checked:'danger', danger:'unchecked' }[cell.status];
+  cell.status = next;
+  const colorMap = { unchecked:'#94a3b8', checked:'#10b981', danger:'#ef4444' };
+  const fillMap  = { unchecked:'rgba(148,163,184,0.1)', checked:'rgba(16,185,129,0.15)', danger:'rgba(239,68,68,0.2)' };
+  rect.setStyle({ color:colorMap[next], fillColor:fillMap[next] });
+  updateGridStats();
+  // BUG-014 FIX: ใช้ offline queue ถ้าออฟไลน์
+  if(STATE.missionId) {
+    const path = `search_missions/${STATE.missionId}/grid/${id}`;
+    const data = { status: next, updatedAt: Date.now() };
+    const online = typeof isOnline !== 'undefined' ? isOnline : navigator.onLine;
+    if(online) {
+      update(ref(db, path), data).catch(() => {
+        if(typeof queueWrite === 'function') queueWrite(path, data);
+      });
+    } else if(typeof queueWrite === 'function') {
+      queueWrite(path, data);
+      showToast('บันทึก Grid ในคิว (ออฟไลน์)', 'info');
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────
 // ██████  NOTIFICATION SYSTEM
 // ═══════════════════════════════════════════════════
 const _notifItems = [];
