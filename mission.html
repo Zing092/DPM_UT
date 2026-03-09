@@ -86,6 +86,18 @@ html, body { height:100%; overflow:hidden; font-family:'Sarabun',sans-serif; bac
 #header-live span { font-size:11px; font-weight:700; color:#10b981; font-family:'Kanit',sans-serif; }
 @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
 
+#header-exit-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-left: 4px;
+}
+#header-exit-btn:hover { background: rgba(239,68,68,0.7); }
 #header-sos {
   width:40px; height:40px; border-radius:10px; border:none;
   background:linear-gradient(135deg,#ef4444,#dc2626);
@@ -879,6 +891,9 @@ html, body { height:100%; overflow:hidden; font-family:'Sarabun',sans-serif; bac
     <i class="fas fa-exclamation-triangle"></i>
     <span>SOS</span>
   </button>
+  <button id="header-exit-btn" onclick="exitMission()" title="ออกจากภารกิจ">
+    <i class="fas fa-door-open"></i>
+  </button>
 </div>
 
 <!-- ===== MAIN APP ===== -->
@@ -905,8 +920,11 @@ html, body { height:100%; overflow:hidden; font-family:'Sarabun',sans-serif; bac
 
     <!-- Draw Toolbar -->
     <div id="draw-toolbar">
+      <button class="draw-tool-btn" id="draw-freehand-btn" onclick="startDraw('freehand')">
+        <i class="fas fa-pen-nib"></i><span>ลากอิสระ</span>
+      </button>
       <button class="draw-tool-btn" id="draw-polygon-btn" onclick="startDraw('polygon')">
-        <i class="fas fa-draw-polygon"></i><span>Polygon</span>
+        <i class="fas fa-draw-polygon"></i><span>จุดต่อจุด</span>
       </button>
       <button class="draw-tool-btn" id="draw-rect-btn" onclick="startDraw('rectangle')">
         <i class="fas fa-vector-square"></i><span>สี่เหลี่ยม</span>
@@ -1508,6 +1526,63 @@ function onMapClick(e) {
   }
 }
 
+// ── Freehand drawing ────────────────────────────────
+let _freehandActive = false;
+let _freehandPolyline = null;
+
+function startFreehand() {
+  const container = map.getContainer();
+  function onMove(e) {
+    if(!_freehandActive || STATE.drawMode !== 'freehand') return;
+    const rect = container.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const point = map.containerPointToLatLng([clientX - rect.left, clientY - rect.top]);
+    STATE.drawPoints.push([point.lat, point.lng]);
+    if(_freehandPolyline) map.removeLayer(_freehandPolyline);
+    if(STATE.drawPoints.length > 1) {
+      _freehandPolyline = L.polyline(STATE.drawPoints, {
+        color: selectedZoneColor, weight:3, dashArray:'4,3', opacity:0.8
+      }).addTo(map);
+    }
+  }
+  function onEnd() {
+    if(!_freehandActive || STATE.drawMode !== 'freehand') return;
+    _freehandActive = false;
+    map.dragging.enable();
+    container.removeEventListener('mousemove', onMove);
+    container.removeEventListener('mouseup',   onEnd);
+    container.removeEventListener('touchmove', onMove);
+    container.removeEventListener('touchend',  onEnd);
+    if(_freehandPolyline) { map.removeLayer(_freehandPolyline); _freehandPolyline = null; }
+    if(STATE.drawPoints.length >= 3) {
+      // close the shape
+      STATE.drawPoints.push(STATE.drawPoints[0]);
+      if(STATE.drawShape) map.removeLayer(STATE.drawShape);
+      STATE.drawShape = L.polygon(STATE.drawPoints, {
+        color: selectedZoneColor, fillColor: selectedZoneColor, fillOpacity:0.2, weight:2
+      }).addTo(map);
+      finishDraw();
+    } else {
+      showToast('วาดสั้นเกินไป ลองใหม่อีกครั้ง', 'error');
+      cancelDraw();
+    }
+  }
+  function onStart(e) {
+    if(STATE.drawMode !== 'freehand') return;
+    e.preventDefault();
+    _freehandActive = true;
+    STATE.drawPoints = [];
+    map.dragging.disable();
+    container.addEventListener('mousemove', onMove);
+    container.addEventListener('mouseup',   onEnd);
+    container.addEventListener('touchmove', onMove, { passive:false });
+    container.addEventListener('touchend',  onEnd);
+  }
+  container.addEventListener('mousedown', onStart);
+  container.addEventListener('touchstart', onStart, { passive:false });
+}
+
 // ===== MY LOCATION =====
 function startGPS() {
   if(!navigator.geolocation) return;
@@ -2043,10 +2118,11 @@ window.startDraw = function(mode) {
   STATE.drawPoints = [];
   if(STATE.drawShape) { map.removeLayer(STATE.drawShape); STATE.drawShape = null; }
   document.querySelectorAll('.draw-tool-btn').forEach(b => b.classList.remove('active'));
-  const btnMap = { polygon:'draw-polygon-btn', rectangle:'draw-rect-btn', circle:'draw-circle-btn', base:'draw-base-btn' };
+  const btnMap = { freehand:'draw-freehand-btn', polygon:'draw-polygon-btn', rectangle:'draw-rect-btn', circle:'draw-circle-btn', base:'draw-base-btn' };
   if(btnMap[mode]) document.getElementById(btnMap[mode])?.classList.add('active');
   const hints = {
-    polygon: 'แตะบนแผนที่เพื่อวางจุด → แตะจุดเริ่มต้นเพื่อปิด Polygon',
+    freehand: 'กดค้างแล้วลากนิ้วบนแผนที่เพื่อวาดโซน → ปล่อยเพื่อปิด',
+    polygon: 'แตะบนแผนที่เพื่อวางจุด → ดับเบิลคลิกเพื่อปิด Polygon',
     rectangle: 'แตะมุมที่ 1 แล้วแตะมุมที่ 2 เพื่อสร้างสี่เหลี่ยม',
     circle: 'แตะจุดศูนย์กลาง แล้วแตะขอบเพื่อกำหนดรัศมี',
     base: 'แตะตำแหน่ง Base Camp / Rally Point บนแผนที่',
@@ -2403,6 +2479,25 @@ window.togglePanel = function() {
 };
 
 // ===== BACK =====
+window.exitMission = async function() {
+  if(!confirm('ออกจากภารกิจ?\nระบบจะบันทึกสถานะ Offline และปิดหน้าต่าง')) return;
+  try {
+    if(STATE.missionId && STATE.user?.id) {
+      await update(ref(db, `search_missions/${STATE.missionId}/members/${STATE.user.id}`), {
+        status: 'offline', lastSeen: Date.now()
+      });
+    }
+  } catch(e) {}
+  if(STATE.gpsWatchId) navigator.geolocation.clearWatch(STATE.gpsWatchId);
+  STATE.listeners.forEach(fn => fn());
+  localStorage.removeItem('mission_user');
+  showToast('ออกจากภารกิจแล้ว', 'info');
+  setTimeout(() => {
+    try { window.close(); } catch(e) {}
+    window.location.href = 'index.html';
+  }, 800);
+};
+
 window.goBack = function() {
   if(confirm('กลับหน้าหลัก? (GPS จะหยุดทำงาน)')) {
     if(STATE.gpsWatchId) navigator.geolocation.clearWatch(STATE.gpsWatchId);
@@ -2508,6 +2603,7 @@ async function init() {
     // Force map size after DOM settles
     await new Promise(r => setTimeout(r, 200));
     if(map) map.invalidateSize();
+    startFreehand();
 
     setLoadingMsg('เชื่อมต่อ Firebase realtime...', 80);
     bindListeners();
@@ -2854,1085 +2950,163 @@ function setupThaiFont(doc) {
   return 'helvetica';
 }
 
+// ██████  PHASE 2B — ENHANCED PDF (Thai Unicode workaround)
+// ═══════════════════════════════════════════════════
+// exportPDF — single consolidated version (Thai font + fallback)
 window.exportPDF = async function() {
   showToast('กำลังสร้าง PDF...', 'info');
   try {
-    // Pre-load Thai font
     if (!_sarabunFontB64) await loadSarabunFont();
     const { jsPDF } = window.jspdf;
+    if (!jsPDF) { showToast('jsPDF ยังโหลดไม่เสร็จ ลองอีกครั้ง', 'error'); return; }
     const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
     const thaiFont = setupThaiFont(doc);
     const W = 210, margin = 15;
     let y = margin;
 
-    // Header
+    const t = (str) => str || '-'; // safe text passthrough (Thai font handles it)
+
+    // ── Header bar ──────────────────────────────────────
     doc.setFillColor(10, 36, 99);
     doc.rect(0, 0, W, 30, 'F');
-    doc.setTextColor(255,255,255);
-    doc.setFontSize(16); doc.setFont(thaiFont,'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16); doc.setFont(thaiFont, 'bold');
     doc.text('SEARCH MISSION REPORT', margin, 12);
-    doc.setFontSize(10); doc.setFont(thaiFont,'normal');
+    doc.setFontSize(10); doc.setFont(thaiFont, 'normal');
     doc.text('กองป้องกันและบรรเทาสาธารณภัย', margin, 20);
-    doc.text(new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'}), W-margin, 20, {align:'right'});
-
+    doc.text(new Date().toLocaleDateString('th-TH', {
+      year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'
+    }), W - margin, 20, { align:'right' });
     y = 38;
-    doc.setTextColor(15,23,42);
 
-    // Mission Info Box
-    doc.setFillColor(240,244,255);
-    doc.roundedRect(margin, y, W-margin*2, 36, 3, 3, 'F');
-    doc.setFontSize(13); doc.setFont(thaiFont,'bold');
-    doc.setTextColor(10,36,99);
-    doc.text(STATE.mission?.title || 'ภารกิจค้นหา', margin+4, y+8);
-    doc.setFontSize(9); doc.setFont(thaiFont,'normal');
-    doc.setTextColor(71,85,105);
-    const info = [
-      `พื้นที่: ${STATE.mission?.area||'-'}`,
-      `สร้างโดย: ${STATE.mission?.createdByName||'-'}`,
-      `วันที่: ${STATE.mission?.createdAt ? new Date(STATE.mission.createdAt).toLocaleDateString('th-TH') : '-'}`,
-      `สถานะ: ${STATE.mission?.status||'-'}`
+    // ── Mission info box ─────────────────────────────────
+    doc.setFillColor(241, 245, 249);
+    doc.roundedRect(margin, y, W - margin * 2, 28, 3, 3, 'F');
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(13); doc.setFont(thaiFont, 'bold');
+    doc.text(t(STATE.mission?.title), margin + 4, y + 8);
+    doc.setFontSize(9); doc.setFont(thaiFont, 'normal');
+    const mInfo = [
+      `พื้นที่: ${t(STATE.mission?.area)}`,
+      `สถานะ: ${STATE.mission?.status === 'active' ? 'ดำเนินการอยู่' : 'สิ้นสุด'}`,
+      `สมาชิก: ${Object.keys(STATE.members).length} คน`,
+      `หลักฐาน: ${Object.keys(STATE.clues).length} รายการ`,
     ];
-    info.forEach((txt,i) => doc.text(txt, margin+4+(i%2)*90, y+16+(Math.floor(i/2))*7));
-    y += 44;
+    mInfo.forEach((txt, i) => doc.text(txt, margin + 4 + (i % 2) * 90, y + 16 + Math.floor(i / 2) * 7));
+    y += 34;
 
-    // Stats Row
+    // ── Stats row ────────────────────────────────────────
     const stats = [
       { label:'สมาชิก', val: Object.keys(STATE.members).length },
-      { label:'ออนไลน์', val: Object.values(STATE.members).filter(m=>m.status==='online').length },
       { label:'โซนค้นหา', val: Object.keys(STATE.zones).length },
       { label:'หลักฐาน', val: Object.keys(STATE.clues).length },
+      { label:'Base Camp', val: Object.keys(STATE.bases || {}).length },
     ];
-    const boxW = (W-margin*2-9)/4;
-    const colors = [[37,99,235],[16,185,129],[245,158,11],[239,68,68]];
-    stats.forEach((s,i) => {
-      const x = margin + i*(boxW+3);
-      doc.setFillColor(...colors[i]);
-      doc.roundedRect(x, y, boxW, 16, 2, 2, 'F');
-      doc.setTextColor(255,255,255);
-      doc.setFontSize(14); doc.setFont(thaiFont,'bold');
-      doc.text(String(s.val), x+boxW/2, y+9, {align:'center'});
-      doc.setFontSize(7); doc.setFont(thaiFont,'normal');
-      doc.text(s.label, x+boxW/2, y+14, {align:'center'});
+    const boxW = (W - margin * 2) / stats.length;
+    stats.forEach((s, i) => {
+      const x = margin + i * boxW;
+      doc.setFillColor(i % 2 === 0 ? 248 : 241, 250, 255);
+      doc.roundedRect(x, y, boxW - 1, 18, 2, 2, 'F');
+      doc.setFontSize(14); doc.setFont(thaiFont, 'bold'); doc.setTextColor(10, 36, 99);
+      doc.text(String(s.val), x + boxW / 2, y + 9, { align:'center' });
+      doc.setFontSize(7); doc.setFont(thaiFont, 'normal'); doc.setTextColor(71, 85, 105);
+      doc.text(s.label, x + boxW / 2, y + 14, { align:'center' });
     });
     y += 24;
 
-    // Members Table
-    doc.setTextColor(10,36,99);
-    doc.setFontSize(11); doc.setFont(thaiFont,'bold');
-    doc.text('สมาชิกทีม', margin, y); y += 5;
-    doc.setFillColor(10,36,99);
-    doc.rect(margin, y, W-margin*2, 6, 'F');
-    doc.setTextColor(255,255,255); doc.setFontSize(8);
-    ['ชื่อ-สกุล','สถานะ','ระยะเดิน (กม.)','เวลา lastSeen'].forEach((h,i) => {
-      doc.text(h, margin+3+i*45, y+4);
-    });
-    y += 6;
-    doc.setTextColor(15,23,42); doc.setFont(thaiFont,'normal');
-    Object.entries(STATE.members).forEach(([uid,m],idx) => {
-      const bg = idx%2===0 ? [248,250,252] : [255,255,255];
-      doc.setFillColor(...bg); doc.rect(margin, y, W-margin*2, 7, 'F');
-      const dist = calcTrackDist(STATE.tracks[uid]||[]).toFixed(2);
-      const last = m.lastSeen ? new Date(m.lastSeen).toLocaleTimeString('th-TH') : '-';
-      [m.name||uid, m.status||'-', dist, last].forEach((v,i) => {
-        doc.text(String(v).slice(0,18), margin+3+i*45, y+5);
-      });
-      y += 7;
-    });
-    y += 6;
-
-    // Clues Table
-    if(Object.keys(STATE.clues).length > 0) {
-      doc.setTextColor(10,36,99);
-      doc.setFontSize(11); doc.setFont(thaiFont,'bold');
-      doc.text('หลักฐานที่พบ', margin, y); y += 5;
-      doc.setFillColor(10,36,99);
-      doc.rect(margin, y, W-margin*2, 6, 'F');
-      doc.setTextColor(255,255,255); doc.setFontSize(8);
-      ['ประเภท','รายละเอียด','พิกัด','โดย','เวลา'].forEach((h,i) => {
-        doc.text(h, margin+3+i*36, y+4);
-      });
-      y += 6;
-      doc.setTextColor(15,23,42); doc.setFont(thaiFont,'normal');
-      const clueTypeLabel = { trace:'ร่องรอย', interest:'น่าสนใจ', safe:'ปลอดภัย', danger:'อันตราย' };
-      Object.entries(STATE.clues).forEach(([id,c],idx) => {
-        if(y > 260) { doc.addPage(); y = margin; }
-        const bg = idx%2===0 ? [248,250,252] : [255,255,255];
-        doc.setFillColor(...bg); doc.rect(margin, y, W-margin*2, 7, 'F');
-        const coord = c.lat ? `${c.lat.toFixed(4)},${c.lng.toFixed(4)}` : '-';
-        const ts    = c.ts ? new Date(c.ts).toLocaleTimeString('th-TH') : '-';
-        [clueTypeLabel[c.type]||c.type, (c.desc||'-').slice(0,20), coord, c.byName||'-', ts].forEach((v,i) => {
-          doc.text(String(v), margin+3+i*36, y+5);
-        });
-        y += 7;
-      });
-      y += 6;
-    }
-
-    // Zones
-    if(Object.keys(STATE.zones).length > 0) {
-      if(y > 240) { doc.addPage(); y = margin; }
-      doc.setTextColor(10,36,99);
-      doc.setFontSize(11); doc.setFont(thaiFont,'bold');
-      doc.text('โซนค้นหา', margin, y); y += 5;
-      Object.entries(STATE.zones).forEach(([id,z],idx) => {
-        if(y > 265) { doc.addPage(); y = margin; }
-        const bg = idx%2===0 ? [248,250,252] : [255,255,255];
-        doc.setFillColor(...bg); doc.rect(margin, y, W-margin*2, 7, 'F');
-        doc.setFontSize(8); doc.setFont(thaiFont,'normal'); doc.setTextColor(15,23,42);
-        doc.text(`${z.name||'-'} · ประเภท: ${z.type||'-'} · ครบถ้วน: ${z.progress||0}%`, margin+3, y+5);
-        y += 7;
+    // ── Members table ────────────────────────────────────
+    const members = Object.values(STATE.members);
+    if (members.length) {
+      doc.setFontSize(11); doc.setFont(thaiFont, 'bold'); doc.setTextColor(15, 23, 42);
+      doc.text('สมาชิกทีม', margin, y); y += 5;
+      doc.setFillColor(10, 36, 99);
+      doc.rect(margin, y, W - margin * 2, 8, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFontSize(8);
+      ['ชื่อ-สกุล', 'สถานะ', 'ตำแหน่ง GPS', 'เห็นล่าสุด'].forEach((h, i) =>
+        doc.text(h, margin + 3 + i * 45, y + 5));
+      y += 8;
+      doc.setTextColor(15, 23, 42); doc.setFont(thaiFont, 'normal');
+      members.forEach((m, ri) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        if (ri % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(margin, y, W - margin * 2, 8, 'F'); }
+        const vals = [
+          t(m.name),
+          m.status === 'online' ? 'Online' : 'Offline',
+          m.lat ? `${(+m.lat).toFixed(4)}, ${(+m.lng).toFixed(4)}` : '-',
+          m.lastSeen ? new Date(m.lastSeen).toLocaleTimeString('th-TH') : '-',
+        ];
+        vals.forEach((v, i) => doc.text(String(v).slice(0, 20), margin + 3 + i * 45, y + 5));
+        y += 8;
       });
       y += 4;
     }
 
-    // Footer
-    const totalDist = Object.entries(STATE.tracks).reduce((s,[uid,pts]) => s + calcTrackDist(pts), 0).toFixed(2);
-    const dur = STATE.mission?.createdAt ? Math.floor((Date.now()-STATE.mission.createdAt)/60000) : 0;
-    const durStr = dur > 60 ? `${Math.floor(dur/60)} ชม. ${dur%60} นาที` : `${dur} นาที`;
-    if(y > 250) { doc.addPage(); y = margin; }
-    doc.setFillColor(240,244,255);
-    doc.roundedRect(margin, y, W-margin*2, 18, 2, 2, 'F');
-    doc.setFontSize(9); doc.setFont(thaiFont,'bold'); doc.setTextColor(10,36,99);
-    doc.text(`ระยะทางรวม: ${totalDist} กม. · ระยะเวลา: ${durStr}`, margin+4, y+7);
-    doc.setFont(thaiFont,'normal'); doc.setFontSize(8); doc.setTextColor(71,85,105);
-    doc.text('รายงานสร้างโดยอัตโนมัติ — ระบบภารกิจค้นหาผู้สูญหาย', margin+4, y+14);
-
-    const filename = `mission_report_${STATE.missionId}_${Date.now()}.pdf`;
-    doc.save(filename);
-    showToast('ดาวน์โหลด PDF แล้ว ✅', 'success');
-  } catch(e) {
-    showToast('เกิดข้อผิดพลาด: ' + e.message, 'error');
-    console.error(e);
-  }
-};
-
-window.exportJSON = function() {
-  const data = {
-    mission: STATE.mission,
-    missionId: STATE.missionId,
-    exportedAt: new Date().toISOString(),
-    members: STATE.members,
-    zones: STATE.zones,
-    clues: STATE.clues,
-    bases: STATE.bases,
-    tracks: STATE.tracks,
-    chats: STATE.chats,
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = `mission_${STATE.missionId}_${Date.now()}.json`;
-  a.click(); URL.revokeObjectURL(url);
-  showToast('ดาวน์โหลด JSON แล้ว ✅', 'success');
-};
-
-// ═══════════════════════════════════════════════════
-// ██████  PHASE 2A — VOICE COMMAND
-// ═══════════════════════════════════════════════════
-let voiceRecognition = null;
-let voiceActive      = false;
-
-window.toggleVoiceCommand = function() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SpeechRecognition) {
-    showToast('Browser ไม่รองรับ Voice Command', 'error'); return;
-  }
-  const btn = document.getElementById('voice-cmd-btn');
-  if(voiceActive) {
-    voiceRecognition?.stop();
-    voiceActive = false;
-    btn.classList.remove('listening');
-    btn.innerHTML = '<i class="fas fa-microphone-alt"></i>';
-    hideVoiceFeedback();
-    return;
-  }
-  voiceRecognition = new SpeechRecognition();
-  voiceRecognition.lang = 'th-TH';
-  voiceRecognition.continuous = true;
-  voiceRecognition.interimResults = true;
-
-  voiceRecognition.onstart = () => {
-    voiceActive = true;
-    btn.classList.add('listening');
-    btn.innerHTML = '<i class="fas fa-stop"></i>';
-    showVoiceFeedback('🎙️ กำลังฟัง...');
-  };
-
-  voiceRecognition.onresult = (e) => {
-    const transcript = Array.from(e.results).map(r => r[0].transcript).join('').toLowerCase().trim();
-    showVoiceFeedback('🎙️ "' + transcript + '"');
-    if(e.results[e.results.length-1].isFinal) processVoiceCommand(transcript);
-  };
-
-  voiceRecognition.onerror = () => {
-    showToast('Voice Command ผิดพลาด', 'error');
-    voiceActive = false;
-    btn.classList.remove('listening');
-    btn.innerHTML = '<i class="fas fa-microphone-alt"></i>';
-  };
-
-  voiceRecognition.onend = () => {
-    if(voiceActive) voiceRecognition.start(); // restart for continuous
-  };
-
-  voiceRecognition.start();
-};
-
-function processVoiceCommand(cmd) {
-  showToast(`🎙️ "${cmd}"`, 'info');
-
-  // ปักหมุด / Mark position
-  if(cmd.includes('ปักหมุด') || cmd.includes('mark') || cmd.includes('บันทึกตำแหน่ง')) {
-    if(STATE.myLat) {
-      push(ref(db, `search_missions/${STATE.missionId}/clues`), {
-        type:'trace', desc:`Voice Mark โดย ${STATE.user?.name||'ผู้ใช้'}`,
-        lat:STATE.myLat, lng:STATE.myLng,
-        byId:STATE.user?.id, byName:STATE.user?.name, ts:Date.now()
+    // ── Clues table ───────────────────────────────────────
+    const clues = Object.values(STATE.clues);
+    if (clues.length) {
+      if (y > 240) { doc.addPage(); y = 20; }
+      doc.setFontSize(11); doc.setFont(thaiFont, 'bold'); doc.setTextColor(15, 23, 42);
+      doc.text('หลักฐานที่พบ', margin, y); y += 5;
+      doc.setFillColor(10, 36, 99);
+      doc.rect(margin, y, W - margin * 2, 8, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFontSize(8);
+      ['ประเภท', 'รายละเอียด', 'พิกัด', 'โดย', 'เวลา'].forEach((h, i) =>
+        doc.text(h, margin + 3 + i * 36, y + 5));
+      y += 8;
+      doc.setTextColor(15, 23, 42); doc.setFont(thaiFont, 'normal');
+      clues.sort((a, b) => (b.ts || 0) - (a.ts || 0)).forEach((cl, ri) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        if (ri % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(margin, y, W - margin * 2, 8, 'F'); }
+        const vals = [
+          t(CLUE_LABELS?.[cl.type] || cl.type),
+          t(cl.desc),
+          cl.lat ? `${(+cl.lat).toFixed(4)},${(+cl.lng).toFixed(4)}` : '-',
+          t(cl.byName),
+          cl.ts ? new Date(cl.ts).toLocaleTimeString('th-TH') : '-',
+        ];
+        vals.forEach((v, i) => doc.text(String(v).slice(0, 18), margin + 3 + i * 36, y + 5));
+        y += 8;
       });
-      speak('ปักหมุดตำแหน่งปัจจุบันแล้ว');
-      showToast('📍 ปักหมุดแล้ว!', 'success');
+      y += 4;
     }
-  }
-  // พบร่องรอย
-  else if(cmd.includes('พบร่องรอย') || cmd.includes('เจอร่องรอย')) {
-    enterClueMode();
-    speak('กรุณาแตะตำแหน่งบนแผนที่เพื่อบันทึกร่องรอย');
-    showToast('แตะแผนที่เพื่อบันทึกร่องรอย', 'info');
-  }
-  // SOS
-  else if(cmd.includes('sos') || cmd.includes('ฉุกเฉิน') || cmd.includes('ขอความช่วยเหลือ')) {
-    triggerSOS();
-    speak('ส่งสัญญาณ SOS แล้ว กำลังแจ้งทีม');
-  }
-  // ระยะ Base
-  else if(cmd.includes('ระยะ') || cmd.includes('base') || cmd.includes('ค่าย')) {
-    const bases = Object.values(STATE.bases);
-    if(bases.length && STATE.myLat) {
-      const dist = haversine(STATE.myLat, STATE.myLng, bases[0].lat, bases[0].lng).toFixed(2);
-      const bear = Math.round(calcBearing(STATE.myLat, STATE.myLng, bases[0].lat, bases[0].lng));
-      speak(`ระยะจาก Base Camp ${dist} กิโลเมตร ทิศ ${bear} องศา`);
-      showToast(`Base Camp: ${dist} กม. · ${bear}°`, 'info');
-    } else speak('ยังไม่มีจุด Base Camp');
-  }
-  // สถานะทีม
-  else if(cmd.includes('สถานะทีม') || cmd.includes('ทีม')) {
-    const online = Object.values(STATE.members).filter(m=>m.status==='online').length;
-    const total  = Object.keys(STATE.members).length;
-    speak(`ทีมมีสมาชิก ${total} คน ออนไลน์ ${online} คน`);
-    switchTab('team', document.querySelector('[onclick*="team"]'));
-  }
-  // แผนที่ / โซน
-  else if(cmd.includes('แผนที่') || cmd.includes('map')) {
-    centerMyLocation();
-    speak('กำลังแสดงตำแหน่งปัจจุบันบนแผนที่');
-  }
-  // ไม่รู้จำ
-  else {
-    speak('ไม่เข้าใจคำสั่ง กรุณาพูดใหม่');
-    showVoiceFeedback('❓ ไม่เข้าใจ ลองพูดใหม่');
-  }
-}
 
-function speak(text) {
-  if(!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'th-TH'; u.rate = 1.1;
-  window.speechSynthesis.speak(u);
-}
-
-function showVoiceFeedback(text) {
-  const el = document.getElementById('voice-feedback');
-  el.textContent = text; el.classList.add('show');
-}
-function hideVoiceFeedback() {
-  document.getElementById('voice-feedback').classList.remove('show');
-}
-
-// ═══════════════════════════════════════════════════
-// ██████  PHASE 2A — OFFLINE MODE (IndexedDB)
-// ═══════════════════════════════════════════════════
-const IDB_NAME    = 'mission_offline';
-const IDB_VERSION = 1;
-let idb = null;
-let isOnline = navigator.onLine;
-const offlineQueue = []; // { path, data, ts }
-
-// Open IndexedDB
-(function initIDB() {
-  const req = indexedDB.open(IDB_NAME, IDB_VERSION);
-  req.onupgradeneeded = e => {
-    const db2 = e.target.result;
-    if(!db2.objectStoreNames.contains('queue'))
-      db2.createObjectStore('queue', { keyPath:'id', autoIncrement:true });
-    if(!db2.objectStoreNames.contains('snapshot'))
-      db2.createObjectStore('snapshot', { keyPath:'key' });
-  };
-  req.onsuccess = e => {
-    idb = e.target.result;
-    loadOfflineSnapshot();
-  };
-  req.onerror = () => console.warn('IndexedDB unavailable');
-})();
-
-function idbPut(store, data) {
-  if(!idb) return;
-  const tx = idb.transaction(store, 'readwrite');
-  tx.objectStore(store).put(data);
-}
-
-function idbGetAll(store, cb) {
-  if(!idb) { cb([]); return; }
-  const tx  = idb.transaction(store, 'readonly');
-  const req = tx.objectStore(store).getAll();
-  req.onsuccess = () => cb(req.result || []);
-}
-
-function idbDelete(store, id) {
-  if(!idb) return;
-  const tx = idb.transaction(store, 'readwrite');
-  tx.objectStore(store).delete(id);
-}
-
-// Save snapshot of mission data locally
-function saveOfflineSnapshot() {
-  if(!idb || !STATE.missionId) return;
-  idbPut('snapshot', {
-    key: 'mission_' + STATE.missionId,
-    data: {
-      mission: STATE.mission, members: STATE.members,
-      zones: STATE.zones, clues: STATE.clues, bases: STATE.bases
-    },
-    ts: Date.now()
-  });
-}
-
-function loadOfflineSnapshot() {
-  if(!idb || !STATE.missionId) return;
-  const tx = idb.transaction('snapshot','readonly');
-  const req = tx.objectStore('snapshot').get('mission_' + STATE.missionId);
-  req.onsuccess = () => {
-    if(req.result && !isOnline) {
-      const d = req.result.data;
-      if(d.mission) STATE.mission = d.mission;
-      if(d.members) { STATE.members = d.members; renderTeam(); }
-      if(d.zones)   { STATE.zones   = d.zones;   renderZones(); renderZoneShapes(); }
-      if(d.clues)   { STATE.clues   = d.clues;   renderClues(); renderClueMarkers(); }
-      if(d.bases)   { STATE.bases   = d.bases;   renderBases(); renderBaseMarkers(); }
-      showToast('โหลดข้อมูลจาก Offline Cache ✅', 'info');
-    }
-  };
-}
-
-// Queue write for offline
-function queueWrite(path, data) {
-  idbPut('queue', { path, data, ts: Date.now() });
-}
-
-// Sync queue when back online
-async function syncOfflineQueue() {
-  document.getElementById('sync-badge').classList.add('show');
-  idbGetAll('queue', async items => {
-    for(const item of items) {
-      try {
-        await update(ref(db, item.path), item.data);
-        idbDelete('queue', item.id);
-      } catch(e) { /* retry next time */ }
-    }
-    document.getElementById('sync-badge').classList.remove('show');
-    if(items.length) showToast(`Sync ${items.length} รายการสำเร็จ ✅`, 'success');
-  });
-}
-
-// Network listeners
-window.addEventListener('online', () => {
-  isOnline = true;
-  document.getElementById('offline-badge').classList.remove('show');
-  syncOfflineQueue();
-});
-window.addEventListener('offline', () => {
-  isOnline = false;
-  document.getElementById('offline-badge').classList.add('show');
-  showToast('ออฟไลน์ — บันทึกข้อมูลในเครื่อง', 'info');
-});
-
-// pushMyLocation already merged above (offline support included)
-
-// Auto-save snapshot every 60s
-setInterval(() => { if(isOnline) saveOfflineSnapshot(); }, 60000);
-
-// ═══════════════════════════════════════════════════
-// ██████  PHASE 2A — SMART DATA COMPRESSION
-// ═══════════════════════════════════════════════════
-let gpsInterval = 5000; // default 5s
-let lastGpsPush  = 0;
-
-function getConnectionQuality() {
-  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-  if(!conn) return '4g';
-  const type = conn.effectiveType || conn.type || '4g';
-  return type; // '4g','3g','2g','slow-2g'
-}
-
-function adaptGpsInterval() {
-  const q = getConnectionQuality();
-  const map2 = { '4g':5000, '3g':15000, '2g':30000, 'slow-2g':60000 };
-  const newInterval = map2[q] || 15000;
-  if(newInterval !== gpsInterval) {
-    gpsInterval = newInterval;
-    const label = { 5000:'4G (5วิ)', 15000:'3G (15วิ)', 30000:'2G (30วิ)', 60000:'EDGE (60วิ)' }[newInterval];
-    showToast(`📡 GPS: ${label}`, 'info');
-  }
-}
-
-// Check connection quality every 30s
-setInterval(adaptGpsInterval, 30000);
-
-// recordMyTrack throttle already merged above
-
-// ═══════════════════════════════════════════════════
-// ██████  PHASE 2A — REPORT PREVIEW UPDATE HOOK
-// ═══════════════════════════════════════════════════
-// switchTab Phase 2A/2B hooks already merged into base function above
-
-// ═══════════════════════════════════════════════════
-// ██████  PHASE 2B — MULTI-LANGUAGE BROADCAST
-// ═══════════════════════════════════════════════════
-
-// Translation map (key phrases → languages)
-const TRANSLATIONS = {
-  th: { identity:true }, // original Thai
-  en: {
-    'มีใครได้ยินบ้าง': 'Can anyone hear us?',
-    'ขอความช่วยเหลือ': 'We need assistance!',
-    'พบร่องรอย': 'Trail found at this location',
-    'พื้นที่อันตราย': 'Danger zone - do not enter',
-    'กลับฐาน': 'Return to base camp',
-    'หยุดค้นหา': 'Stop searching',
-    'ผู้สูญหายพบแล้ว': 'Missing person found!',
-    'default': (txt) => `[EN] ${txt}`
-  },
-  my: {
-    'มีใครได้ยินบ้าง': 'ဘယ်သူမဆို ကြားနိုင်သလား?',
-    'ขอความช่วยเหลือ': 'ကူညီမှု လိုအပ်သည်!',
-    'พบร่องรอย': 'ဒီနေရာတွင် လမ်းကြောင်းတွေ့ပြီ',
-    'พื้นที่อันตราย': 'အန္တရာယ်ရှိသောဇုန် - မဝင်ရ',
-    'กลับฐาน': 'အခြေစိုက်ကင်းသို့ ပြန်သွားပါ',
-    'default': (txt) => `[MY] ${txt}`
-  },
-  lo: {
-    'มีใครได้ยินบ้าง': 'ມີໃຜໄດ້ຍິນບໍ?',
-    'ขอความช่วยเหลือ': 'ຕ້ອງການຄວາມຊ່ວຍເຫຼືອ!',
-    'พบร่องรอย': 'ພົບຮ່ອງຮອຍທີ່ນີ້',
-    'พื้นที่อันตราย': 'ເຂດອັນຕະລາຍ - ຫ້າມເຂົ້າ',
-    'กลับฐาน': 'ກັບໄປຖານທີ່ຕັ້ງ',
-    'default': (txt) => `[LO] ${txt}`
-  }
-};
-
-const LANG_META = {
-  th: { flag:'🇹🇭', name:'ไทย',    tts:'th-TH' },
-  en: { flag:'🇬🇧', name:'English', tts:'en-US' },
-  my: { flag:'🇲🇲', name:'Myanmar', tts:'my-MM' },
-  lo: { flag:'🇱🇦', name:'ລາວ',    tts:'lo-LA'  }
-};
-
-function translateText(text, lang) {
-  if(lang === 'th') return text;
-  const map = TRANSLATIONS[lang] || {};
-  // Check for known phrases
-  for(const [key, val] of Object.entries(map)) {
-    if(key === 'default') continue;
-    if(text.includes(key)) return typeof val === 'function' ? val(text) : val;
-  }
-  // Fallback
-  const fb = map['default'];
-  return fb ? (typeof fb === 'function' ? fb(text) : fb) : text;
-}
-
-window.previewBroadcast = function() {
-  const text = document.getElementById('broadcast-text').value.trim();
-  if(!text) { showToast('พิมพ์ข้อความก่อน', 'error'); return; }
-  const langs = getSelectedLangs();
-  if(!langs.length) { showToast('เลือกภาษาก่อน', 'error'); return; }
-  const box = document.getElementById('broadcast-preview');
-  box.style.display = 'block';
-  box.innerHTML = langs.map(lang => {
-    const m = LANG_META[lang];
-    const translated = translateText(text, lang);
-    return `<div class="lang-preview-row">
-      <span class="lang-flag">${m.flag}</span>
-      <span style="flex:1">${translated}</span>
-      <button class="lang-play-btn" onclick="speakLang('${translated}','${m.tts}')">
-        <i class="fas fa-volume-up"></i>
-      </button>
-    </div>`;
-  }).join('');
-};
-
-function getSelectedLangs() {
-  return ['th','en','my','lo'].filter(l => document.getElementById('lang-'+l)?.checked);
-}
-
-window.speakLang = function(text, ttsLang) {
-  if(!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = ttsLang; u.rate = 0.9;
-  window.speechSynthesis.speak(u);
-};
-
-window.sendMultiLangBroadcast = async function() {
-  const text = document.getElementById('broadcast-text').value.trim();
-  if(!text) { showToast('พิมพ์ข้อความก่อน', 'error'); return; }
-  const langs = getSelectedLangs();
-  if(!langs.length) { showToast('เลือกภาษาก่อน', 'error'); return; }
-
-  // Build combined message
-  const lines = langs.map(lang => {
-    const m = LANG_META[lang];
-    const translated = translateText(text, lang);
-    return `${m.flag} ${translated}`;
-  }).join('\n');
-
-  // Send to chat
-  await push(ref(db, `search_missions/${STATE.missionId}/chat`), {
-    text: lines,
-    uid: STATE.user?.id,
-    name: STATE.user?.name || STATE.user?.id,
-    ts: Date.now(),
-    broadcast: true,
-    multiLang: true,
-    langs: langs
-  });
-
-  // Speak each language sequentially
-  let delay = 0;
-  langs.forEach(lang => {
-    const m = LANG_META[lang];
-    const translated = translateText(text, lang);
-    setTimeout(() => speakLang(translated, m.tts), delay);
-    delay += (translated.length * 80) + 500;
-  });
-
-  document.getElementById('broadcast-text').value = '';
-  document.getElementById('broadcast-preview').style.display = 'none';
-  pushNotif('📢 Broadcast ส่งแล้ว', `${langs.length} ภาษา: ${text.slice(0,40)}`, '📢');
-  showToast(`ส่ง Broadcast ${langs.length} ภาษาแล้ว 📢`, 'success');
-};
-
-// ═══════════════════════════════════════════════════
-// ██████  PHASE 2B — AR COMPASS
-// ═══════════════════════════════════════════════════
-let arStream    = null;
-let arAnimFrame = null;
-let deviceHeading = 0;
-
-window.openAR = async function() {
-  const modal = document.getElementById('ar-modal');
-  modal.classList.add('show');
-
-  // Request camera
-  try {
-    arStream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:'environment', width:{ ideal:1280 }, height:{ ideal:720 } }
-    });
-    document.getElementById('ar-video').srcObject = arStream;
-  } catch(e) {
-    showToast('ไม่สามารถเปิดกล้อง: ' + e.message, 'error');
-    modal.classList.remove('show'); return;
-  }
-
-  // Request device orientation
-  if(typeof DeviceOrientationEvent !== 'undefined' &&
-     typeof DeviceOrientationEvent.requestPermission === 'function') {
-    try { await DeviceOrientationEvent.requestPermission(); } catch(e) {}
-  }
-
-  window.addEventListener('deviceorientation', onDeviceOrientation, true);
-  startARLoop();
-  showToast('AR Compass เปิดแล้ว 📷', 'success');
-};
-
-function onDeviceOrientation(e) {
-  // alpha = compass heading (0=N on some devices)
-  if(e.webkitCompassHeading !== undefined) {
-    deviceHeading = e.webkitCompassHeading; // iOS: direct compass
-  } else if(e.alpha !== null) {
-    deviceHeading = 360 - e.alpha; // Android: invert alpha
-  }
-  // Update compass needle
-  const needleN = document.getElementById('ar-needle-n');
-  const needleS = document.getElementById('ar-needle-s');
-  if(needleN) {
-    const rad = deviceHeading * Math.PI / 180;
-    const nx = 60 + 40 * Math.sin(-rad);
-    const ny = 60 - 40 * Math.cos(-rad);
-    const sx = 60 - 35 * Math.sin(-rad);
-    const sy = 60 + 35 * Math.cos(-rad);
-    needleN.setAttribute('x2', nx); needleN.setAttribute('y2', ny);
-    needleS.setAttribute('x2', sx); needleS.setAttribute('y2', sy);
-  }
-  document.getElementById('ar-heading').textContent = Math.round(deviceHeading) + '°';
-}
-
-function startARLoop() {
-  const canvas  = document.getElementById('ar-canvas');
-  const ctx     = canvas.getContext('2d');
-  const video   = document.getElementById('ar-video');
-  const listEl  = document.getElementById('ar-points-list');
-
-  function loop() {
-    if(!document.getElementById('ar-modal').classList.contains('show')) return;
-
-    // Resize canvas
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    // Draw video frame
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Draw AR overlays
-    if(STATE.myLat) {
-      const points = buildARPoints();
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Draw direction arrows on canvas for nearby points
-      points.slice(0,3).forEach(p => {
-        const relBear = ((p.bearing - deviceHeading) + 360) % 360;
-        // Only show if roughly in front (within 60°)
-        if(relBear < 60 || relBear > 300) {
-          const xFrac = relBear < 60
-            ? 0.5 + (relBear / 60) * 0.3
-            : 0.5 - ((360 - relBear) / 60) * 0.3;
-          const x = xFrac * canvas.width;
-          const y = canvas.height * 0.35;
-
-          // Crosshair
-          ctx.save();
-          ctx.strokeStyle = p.color;
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.moveTo(x, y - 20); ctx.lineTo(x, y + 20);
-          ctx.moveTo(x - 20, y); ctx.lineTo(x + 20, y);
-          ctx.stroke();
-
-          // Label
-          ctx.fillStyle = 'rgba(0,0,0,0.65)';
-          ctx.roundRect ? ctx.roundRect(x - 50, y - 60, 100, 36, 8)
-                        : ctx.rect(x - 50, y - 60, 100, 36);
-          ctx.fill();
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 13px Kanit, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(p.icon + ' ' + p.name.slice(0,10), x, y - 40);
-          ctx.font = '11px Kanit, sans-serif';
-          ctx.fillStyle = '#f59e0b';
-          ctx.fillText(`${p.dist.toFixed(2)}กม. · ${Math.round(p.bearing)}°`, x, y - 26);
-          ctx.restore();
-        }
+    // ── Zones table ───────────────────────────────────────
+    const zones = Object.values(STATE.zones);
+    if (zones.length) {
+      if (y > 240) { doc.addPage(); y = 20; }
+      doc.setFontSize(11); doc.setFont(thaiFont, 'bold'); doc.setTextColor(15, 23, 42);
+      doc.text('โซนค้นหา', margin, y); y += 5;
+      doc.setFillColor(10, 36, 99);
+      doc.rect(margin, y, W - margin * 2, 8, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFontSize(8);
+      ['ชื่อโซน', 'ประเภท', 'รูปร่าง', 'สร้างโดย', 'สถานะ'].forEach((h, i) =>
+        doc.text(h, margin + 3 + i * 38, y + 5));
+      y += 8;
+      doc.setTextColor(15, 23, 42); doc.setFont(thaiFont, 'normal');
+      zones.forEach((z, ri) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        if (ri % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(margin, y, W - margin * 2, 8, 'F'); }
+        const vals = [t(z.name), t(z.type), t(z.shapeType), t(z.createdByName), `${z.progress || 0}%`];
+        vals.forEach((v, i) => doc.text(String(v).slice(0, 18), margin + 3 + i * 38, y + 5));
+        y += 8;
       });
-
-      // Update list panel
-      listEl.innerHTML = points.slice(0,4).map(p => `
-        <div class="ar-point-pill">
-          <div class="ar-point-icon">${p.icon}</div>
-          <div class="ar-point-info">
-            <div class="ar-point-name">${p.name}</div>
-            <div class="ar-point-dist">${p.dist.toFixed(2)} กม.</div>
-          </div>
-          <div class="ar-point-bearing">${Math.round(p.bearing)}°</div>
-        </div>`).join('');
+      y += 4;
     }
 
-    arAnimFrame = requestAnimationFrame(loop);
-  }
-  loop();
-}
-
-function buildARPoints() {
-  if(!STATE.myLat) return [];
-  const pts = [];
-
-  // Base camps
-  Object.entries(STATE.bases).forEach(([id,b]) => {
-    if(!b.lat) return;
-    pts.push({
-      id, icon: b.type==='rally'?'🔵':'🏕️',
-      name: b.name || 'Base Camp',
-      dist: haversine(STATE.myLat, STATE.myLng, b.lat, b.lng),
-      bearing: calcBearing(STATE.myLat, STATE.myLng, b.lat, b.lng),
-      color: '#f59e0b'
-    });
-  });
-
-  // SOS members
-  Object.entries(STATE.members).forEach(([uid,m]) => {
-    if(m.status !== 'sos') return;
-    const loc = STATE.tracks[uid]?.slice(-1)[0];
-    if(!loc) return;
-    pts.push({
-      id:uid, icon:'🆘',
-      name: m.name || uid,
-      dist: haversine(STATE.myLat, STATE.myLng, loc.lat, loc.lng),
-      bearing: calcBearing(STATE.myLat, STATE.myLng, loc.lat, loc.lng),
-      color: '#ef4444'
-    });
-  });
-
-  // Clues (nearby only)
-  Object.entries(STATE.clues).forEach(([id,c]) => {
-    if(!c.lat) return;
-    const d = haversine(STATE.myLat, STATE.myLng, c.lat, c.lng);
-    if(d > 1) return; // only within 1km
-    pts.push({
-      id, icon:'📍',
-      name: (CLUE_LABELS[c.type] || c.type) + (c.desc ? ': '+c.desc.slice(0,10) : ''),
-      dist: d,
-      bearing: calcBearing(STATE.myLat, STATE.myLng, c.lat, c.lng),
-      color: CLUE_COLORS[c.type] || '#94a3b8'
-    });
-  });
-
-  return pts.sort((a,b) => a.dist - b.dist);
-}
-
-window.closeAR = function() {
-  document.getElementById('ar-modal').classList.remove('show');
-  if(arStream) { arStream.getTracks().forEach(t => t.stop()); arStream = null; }
-  if(arAnimFrame) { cancelAnimationFrame(arAnimFrame); arAnimFrame = null; }
-  window.removeEventListener('deviceorientation', onDeviceOrientation, true);
-};
-
-// ═══════════════════════════════════════════════════
-// ██████  PHASE 2B — PUSH NOTIFICATION SYSTEM
-// ═══════════════════════════════════════════════════
-const NOTIF_STORE = [];
-let unreadCount = 0;
-
-function pushNotif(title, desc, icon='🔔') {
-  const item = { title, desc, icon, ts: Date.now(), read:false, id: Date.now() };
-  NOTIF_STORE.unshift(item);
-  if(NOTIF_STORE.length > 50) NOTIF_STORE.pop();
-  unreadCount++;
-  updateNotifBadge();
-  renderNotifList();
-
-  // Native browser notification
-  if(Notification.permission === 'granted') {
-    new Notification(title, { body:desc, icon:'/favicon.ico' });
-  }
-}
-
-function updateNotifBadge() {
-  const badge = document.getElementById('notif-badge');
-  if(unreadCount > 0) {
-    badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
-    badge.classList.add('show');
-  } else {
-    badge.classList.remove('show');
-  }
-}
-
-function renderNotifList() {
-  const list = document.getElementById('notif-list');
-  if(!NOTIF_STORE.length) {
-    list.innerHTML = '<div class="empty-state" style="padding:20px"><i class="fas fa-bell-slash"></i><p>ยังไม่มีการแจ้งเตือน</p></div>';
-    return;
-  }
-  list.innerHTML = NOTIF_STORE.map(n => `
-    <div class="notif-item ${n.read?'':'unread'}" onclick="markNotifRead(${n.id})">
-      <div class="notif-icon">${n.icon}</div>
-      <div class="notif-body">
-        <div class="notif-title">${n.title}</div>
-        <div class="notif-desc">${n.desc}</div>
-        <div class="notif-time">${timeAgo(n.ts)}</div>
-      </div>
-    </div>`).join('');
-}
-
-window.markNotifRead = function(id) {
-  const n = NOTIF_STORE.find(x => x.id === id);
-  if(n && !n.read) { n.read = true; unreadCount = Math.max(0, unreadCount-1); }
-  updateNotifBadge(); renderNotifList();
-};
-
-window.clearAllNotif = function() {
-  NOTIF_STORE.length = 0; unreadCount = 0;
-  updateNotifBadge(); renderNotifList();
-};
-
-window.toggleNotifPanel = function() {
-  document.getElementById('notif-panel').classList.toggle('show');
-};
-
-// Request notification permission on init
-function requestNotifPermission() {
-  if('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission();
-  }
-}
-
-// ═══════════════════════════════════════════════════
-// ██████  PHASE 2B — AUTO NOTIFICATION TRIGGERS
-// ═══════════════════════════════════════════════════
-// Watch for SOS in Firebase members
-// renderTeam / renderClues / bindListeners — notification hooks merged into originals above
-
-// ═══════════════════════════════════════════════════
-// ██████  PHASE 2B — MISSION TIMELINE
-// ═══════════════════════════════════════════════════
-function buildTimeline() {
-  const events = [];
-
-  // Mission created
-  if(STATE.mission?.createdAt) {
-    events.push({
-      ts: STATE.mission.createdAt,
-      icon:'🚀', color:'#2563eb',
-      title:'เริ่มภารกิจ',
-      desc:`${STATE.mission.title||'ภารกิจค้นหา'} · พื้นที่: ${STATE.mission.area||'-'}`
-    });
-  }
-
-  // Members joined
-  Object.values(STATE.members).forEach(m => {
-    if(m.joinedAt) events.push({
-      ts: m.joinedAt, icon:'👤', color:'#10b981',
-      title:`${m.name||m.userId} เข้าร่วมภารกิจ`,
-      desc:`สถานะ: ${m.status||'online'}`
-    });
-    if(m.sosAt) events.push({
-      ts: m.sosAt, icon:'🆘', color:'#ef4444',
-      title:`SOS — ${m.name||m.userId}`,
-      desc:'ส่งสัญญาณฉุกเฉิน'
-    });
-  });
-
-  // Clues found
-  Object.values(STATE.clues).forEach(c => {
-    if(c.ts) events.push({
-      ts: c.ts, icon:'📍', color: CLUE_COLORS[c.type]||'#94a3b8',
-      title:`พบ${CLUE_LABELS[c.type]||'หลักฐาน'}`,
-      desc:`${c.desc||'-'} โดย ${c.byName||'-'}`
-    });
-  });
-
-  // Zones created
-  Object.values(STATE.zones).forEach(z => {
-    if(z.createdAt) events.push({
-      ts: z.createdAt, icon:'🗺️', color:'#f59e0b',
-      title:`สร้างโซน: ${z.name||'ไม่มีชื่อ'}`,
-      desc:`ประเภท: ${z.type||'-'} · สร้างโดย ${z.createdByName||'-'}`
-    });
-  });
-
-  // Chat broadcasts
-  Object.values(STATE.chats).filter(c=>c.broadcast).forEach(c => {
-    events.push({
-      ts: c.ts, icon:'📢', color:'#ef4444',
-      title:`Broadcast จาก ${c.name||c.uid||'-'}`,
-      desc: c.text?.slice(0,60) || '-'
-    });
-  });
-
-  // Sort descending
-  events.sort((a,b) => (b.ts||0)-(a.ts||0));
-
-  const el = document.getElementById('mission-timeline');
-  if(!el) return;
-  if(!events.length) {
-    el.innerHTML = '<div class="empty-state"><i class="fas fa-clock"></i><p>ยังไม่มีเหตุการณ์</p></div>';
-    return;
-  }
-  el.innerHTML = '<div class="timeline-wrap">' +
-    events.slice(0,30).map(e => `
-      <div class="timeline-item">
-        <div class="timeline-dot" style="background:${e.color}20;border:2px solid ${e.color}">
-          <span style="font-size:12px">${e.icon}</span>
-        </div>
-        <div class="timeline-content">
-          <div class="timeline-title">${e.title}</div>
-          <div class="timeline-desc">${e.desc}</div>
-          <div class="timeline-time">${timeStr(e.ts)} · ${timeAgo(e.ts)}</div>
-        </div>
-      </div>`).join('') + '</div>';
-}
-
-// ═══════════════════════════════════════════════════
-// ██████  PHASE 2B — OVERRIDE switchTab for Timeline
-// ═══════════════════════════════════════════════════
-// switchTab Phase 2B hook already merged into base function above
-
-// ═══════════════════════════════════════════════════
-// ██████  PHASE 2B — ENHANCED PDF (Thai Unicode workaround)
-// ═══════════════════════════════════════════════════
-// Override exportPDF to add Thai-safe version
-const _origExportPDF = window.exportPDF;
-window.exportPDF = async function() {
-  // Check if Thai characters need safe mode
-  const hasThaiMembers = Object.values(STATE.members).some(m =>
-    m.name && /[\u0E00-\u0E7F]/.test(m.name)
-  );
-
-  if(hasThaiMembers) {
-    // Use enhanced mode with Thai font support
-    showToast('สร้าง PDF (Thai font mode)...', 'info');
-    try {
-      if (!_sarabunFontB64) await loadSarabunFont();
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-      const thaiFont = setupThaiFont(doc);
-      const W = 210, margin = 15;
-      let y = margin;
-
-      // Header
-      doc.setFillColor(10,36,99);
-      doc.rect(0,0,W,32,'F');
-      doc.setTextColor(255,255,255);
-      doc.setFontSize(15); doc.setFont(thaiFont,'bold');
-      doc.text('SEARCH & RESCUE MISSION REPORT', margin, 13);
-      doc.setFontSize(9); doc.setFont(thaiFont,'normal');
-      doc.text('Disaster Prevention and Mitigation Division', margin, 21);
-      doc.text(new Date().toLocaleDateString('en-GB',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}), W-margin, 21, {align:'right'});
-      y = 40;
-
-      // Mission box
-      doc.setFillColor(240,244,255);
-      doc.roundedRect(margin,y,W-margin*2,32,3,3,'F');
-      doc.setFontSize(12); doc.setFont(thaiFont,'bold'); doc.setTextColor(10,36,99);
-      doc.text(safeText(STATE.mission?.title||'Search Mission'), margin+4, y+9);
-      doc.setFontSize(8); doc.setFont(thaiFont,'normal'); doc.setTextColor(71,85,105);
-      const mInfo = [
-        `Area: ${safeText(STATE.mission?.area||'-')}`,
-        `Created by: ${safeText(STATE.mission?.createdByName||'-')}`,
-        `Date: ${STATE.mission?.createdAt ? new Date(STATE.mission.createdAt).toLocaleDateString('en-GB') : '-'}`,
-        `Status: ${STATE.mission?.status||'-'}`
-      ];
-      mInfo.forEach((t,i) => doc.text(t, margin+4+(i%2)*90, y+18+(Math.floor(i/2)*7)));
-      y += 40;
-
-      // Stats
-      const sData = [
-        {l:'Members', v:Object.keys(STATE.members).length, c:[37,99,235]},
-        {l:'Online',  v:Object.values(STATE.members).filter(m=>m.status==='online').length, c:[16,185,129]},
-        {l:'Zones',   v:Object.keys(STATE.zones).length, c:[245,158,11]},
-        {l:'Clues',   v:Object.keys(STATE.clues).length, c:[239,68,68]},
-      ];
-      const bw = (W-margin*2-9)/4;
-      sData.forEach((s,i) => {
-        const x = margin+i*(bw+3);
-        doc.setFillColor(...s.c); doc.roundedRect(x,y,bw,16,2,2,'F');
-        doc.setTextColor(255,255,255);
-        doc.setFontSize(14); doc.setFont(thaiFont,'bold');
-        doc.text(String(s.v), x+bw/2, y+9, {align:'center'});
-        doc.setFontSize(7); doc.setFont(thaiFont,'normal');
-        doc.text(s.l, x+bw/2, y+14, {align:'center'});
-      });
-      y += 24;
-
-      // Members table
-      doc.setTextColor(10,36,99); doc.setFontSize(10); doc.setFont(thaiFont,'bold');
-      doc.text('Team Members', margin, y); y += 5;
-      doc.setFillColor(10,36,99); doc.rect(margin,y,W-margin*2,6,'F');
-      doc.setTextColor(255,255,255); doc.setFontSize(8);
-      ['Name','Status','Distance (km)','Duration','Last Seen'].forEach((h,i) =>
-        doc.text(h, margin+3+i*36, y+4));
-      y += 6;
-      doc.setTextColor(15,23,42); doc.setFont(thaiFont,'normal');
-      Object.entries(STATE.members).forEach(([uid,m],idx) => {
-        if(y > 255) { doc.addPage(); y = margin; }
-        doc.setFillColor(...(idx%2===0?[248,250,252]:[255,255,255]));
-        doc.rect(margin,y,W-margin*2,7,'F');
-        const dist = calcTrackDist(STATE.tracks[uid]||[]).toFixed(2);
-        const elapsed = m.joinedAt ? Math.floor((Date.now()-m.joinedAt)/60000)+'min' : '-';
-        const last = m.lastSeen ? new Date(m.lastSeen).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '-';
-        [safeText(m.name||uid), m.status||'-', dist, elapsed, last].forEach((v,i) =>
-          doc.text(String(v).slice(0,18), margin+3+i*36, y+5));
-        y += 7;
-      });
-      y += 6;
-
-      // Clues
-      if(Object.keys(STATE.clues).length) {
-        if(y > 240) { doc.addPage(); y = margin; }
-        doc.setTextColor(10,36,99); doc.setFontSize(10); doc.setFont(thaiFont,'bold');
-        doc.text('Evidence Found', margin, y); y += 5;
-        doc.setFillColor(10,36,99); doc.rect(margin,y,W-margin*2,6,'F');
-        doc.setTextColor(255,255,255); doc.setFontSize(8);
-        ['Type','Description','Coordinates','By','Time'].forEach((h,i) =>
-          doc.text(h, margin+3+i*36, y+4));
-        y += 6;
-        doc.setTextColor(15,23,42); doc.setFont(thaiFont,'normal');
-        const clueEn = {trace:'Trace/Track',interest:'Point of Interest',safe:'Safe Zone',danger:'Danger'};
-        Object.entries(STATE.clues).forEach(([id,c],idx) => {
-          if(y > 260) { doc.addPage(); y = margin; }
-          doc.setFillColor(...(idx%2===0?[248,250,252]:[255,255,255]));
-          doc.rect(margin,y,W-margin*2,7,'F');
-          const coord = c.lat ? `${c.lat.toFixed(4)},${c.lng.toFixed(4)}` : '-';
-          const ts = c.ts ? new Date(c.ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '-';
-          [clueEn[c.type]||c.type, safeText(c.desc||'-').slice(0,20), coord, safeText(c.byName||'-'), ts]
-            .forEach((v,i) => doc.text(String(v), margin+3+i*36, y+5));
-          y += 7;
-        });
-        y += 6;
-      }
-
-      // Zones
-      if(Object.keys(STATE.zones).length) {
-        if(y > 240) { doc.addPage(); y = margin; }
-        doc.setTextColor(10,36,99); doc.setFontSize(10); doc.setFont(thaiFont,'bold');
-        doc.text('Search Zones', margin, y); y += 5;
-        Object.entries(STATE.zones).forEach(([id,z],idx) => {
-          if(y > 265) { doc.addPage(); y = margin; }
-          doc.setFillColor(...(idx%2===0?[248,250,252]:[255,255,255]));
-          doc.rect(margin,y,W-margin*2,7,'F');
-          doc.setFontSize(8); doc.setFont(thaiFont,'normal'); doc.setTextColor(15,23,42);
-          doc.text(`${safeText(z.name||'-')} | Type: ${z.type||'-'} | Progress: ${z.progress||0}%`, margin+3, y+5);
-          y += 7;
-        });
-        y += 4;
-      }
-
-      // Timeline summary
-      if(y > 240) { doc.addPage(); y = margin; }
-      const events = buildTimelineData();
-      if(events.length) {
-        doc.setTextColor(10,36,99); doc.setFontSize(10); doc.setFont(thaiFont,'bold');
-        doc.text('Event Timeline', margin, y); y += 5;
-        events.slice(0,10).forEach((e,idx) => {
-          if(y > 265) { doc.addPage(); y = margin; }
-          doc.setFillColor(...(idx%2===0?[248,250,252]:[255,255,255]));
-          doc.rect(margin,y,W-margin*2,7,'F');
-          doc.setFontSize(8); doc.setFont(thaiFont,'normal'); doc.setTextColor(15,23,42);
-          const ts = new Date(e.ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-          doc.text(`${ts}  ${safeText(e.title)} — ${safeText(e.desc).slice(0,40)}`, margin+3, y+5);
-          y += 7;
-        });
-        y += 4;
-      }
-
-      // Footer
-      const totalDist = Object.entries(STATE.tracks).reduce((s,[uid,pts]) => s+calcTrackDist(pts), 0).toFixed(2);
-      const dur = STATE.mission?.createdAt ? Math.floor((Date.now()-STATE.mission.createdAt)/60000) : 0;
-      const durStr = dur>60 ? `${Math.floor(dur/60)}h ${dur%60}min` : `${dur}min`;
-      if(y > 255) { doc.addPage(); y = margin; }
-      doc.setFillColor(240,244,255); doc.roundedRect(margin,y,W-margin*2,18,2,2,'F');
-      doc.setFontSize(9); doc.setFont(thaiFont,'bold'); doc.setTextColor(10,36,99);
-      doc.text(`Total Distance: ${totalDist} km  |  Duration: ${durStr}  |  Members: ${Object.keys(STATE.members).length}`, margin+4, y+7);
-      doc.setFont(thaiFont,'normal'); doc.setFontSize(7); doc.setTextColor(71,85,105);
-      doc.text('Auto-generated by Search Mission System — Disaster Prevention and Mitigation Division', margin+4, y+14);
-
-      doc.save(`mission_report_${STATE.missionId}_${Date.now()}.pdf`);
-      pushNotif('📄 Export PDF สำเร็จ', 'รายงานภารกิจถูกดาวน์โหลดแล้ว', '📄');
-      showToast('Export PDF สำเร็จ ✅', 'success');
-    } catch(e) {
-      showToast('PDF Error: ' + e.message, 'error');
-      console.error(e);
+    // ── Footer ────────────────────────────────────────────
+    const pageCount = doc.getNumberOfPages();
+    for (let p = 1; p <= pageCount; p++) {
+      doc.setPage(p);
+      doc.setFontSize(8); doc.setFont(thaiFont, 'normal'); doc.setTextColor(71, 85, 105);
+      doc.text(`ภารกิจ: ${t(STATE.mission?.title)} · พิมพ์: ${new Date().toLocaleDateString('th-TH')} · หน้า ${p}/${pageCount}`,
+        margin, 295);
     }
-  } else {
-    // No Thai text detected — use original
-    _origExportPDF();
+
+    doc.save(`mission_report_${STATE.missionId}_${Date.now()}.pdf`);
+    showToast('บันทึก PDF สำเร็จ ✅', 'success');
+  } catch (e) {
+    console.error('PDF error:', e);
+    showToast('PDF Error: ' + e.message, 'error');
   }
 };
 
