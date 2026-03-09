@@ -2,6 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%230a2463'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='white'%3E🔍%3C/text%3E%3C/svg%3E">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ภารกิจค้นหา | กองป้องกันฯ</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -1495,9 +1496,7 @@ function onMapClick(e) {
   }
 
   if(STATE.drawMode === 'rectangle') {
-    STATE.drawPoints.push([lat,lng]);
-    if(STATE.drawPoints.length === 2) finishDraw();
-    else updateDrawHint();
+    // Rectangle uses drag — click does nothing (handled by startRectDrag)
     return;
   }
 
@@ -1526,7 +1525,72 @@ function onMapClick(e) {
   }
 }
 
-// ── Freehand drawing ────────────────────────────────
+// ── Rectangle drag drawing ──────────────────────────
+function startRectDrag() {
+  const container = map.getContainer();
+  let _rectStart = null;
+  let _rectShape = null;
+
+  function onStart(e) {
+    if(STATE.drawMode !== 'rectangle') return;
+    e.preventDefault();
+    const rect = container.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    _rectStart = map.containerPointToLatLng([clientX - rect.left, clientY - rect.top]);
+    STATE.drawPoints = [[_rectStart.lat, _rectStart.lng]];
+    map.dragging.disable();
+    container.addEventListener('mousemove', onMove);
+    container.addEventListener('mouseup',   onEnd);
+    container.addEventListener('touchmove', onMove, { passive:false });
+    container.addEventListener('touchend',  onEnd);
+  }
+
+  function onMove(e) {
+    if(!_rectStart || STATE.drawMode !== 'rectangle') return;
+    const rect = container.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const cur = map.containerPointToLatLng([clientX - rect.left, clientY - rect.top]);
+    if(_rectShape) map.removeLayer(_rectShape);
+    _rectShape = L.rectangle(
+      [[_rectStart.lat, _rectStart.lng], [cur.lat, cur.lng]],
+      { color: selectedZoneColor, fillColor: selectedZoneColor, fillOpacity:0.15, weight:2, dashArray:'6,4' }
+    ).addTo(map);
+  }
+
+  function onEnd(e) {
+    if(!_rectStart || STATE.drawMode !== 'rectangle') return;
+    container.removeEventListener('mousemove', onMove);
+    container.removeEventListener('mouseup',   onEnd);
+    container.removeEventListener('touchmove', onMove);
+    container.removeEventListener('touchend',  onEnd);
+    map.dragging.enable();
+    const rect = container.getBoundingClientRect();
+    const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+    const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+    const end = map.containerPointToLatLng([clientX - rect.left, clientY - rect.top]);
+    if(_rectShape) { map.removeLayer(_rectShape); _rectShape = null; }
+    const dx = Math.abs(end.lat - _rectStart.lat);
+    const dy = Math.abs(end.lng - _rectStart.lng);
+    if(dx < 0.0001 && dy < 0.0001) {
+      showToast('ลากให้ใหญ่กว่านี้', 'error');
+      _rectStart = null; return;
+    }
+    STATE.drawPoints = [[_rectStart.lat, _rectStart.lng], [end.lat, end.lng]];
+    STATE.drawShape = L.rectangle(
+      [[_rectStart.lat, _rectStart.lng], [end.lat, end.lng]],
+      { color: selectedZoneColor, fillColor: selectedZoneColor, fillOpacity:0.2, weight:2 }
+    ).addTo(map);
+    _rectStart = null;
+    finishDraw();
+  }
+
+  container.addEventListener('mousedown',  onStart);
+  container.addEventListener('touchstart', onStart, { passive:false });
+}
+
+// ── Freehand drawing ──────────────────────────────
 let _freehandActive = false;
 let _freehandPolyline = null;
 
@@ -2123,7 +2187,7 @@ window.startDraw = function(mode) {
   const hints = {
     freehand: 'กดค้างแล้วลากนิ้วบนแผนที่เพื่อวาดโซน → ปล่อยเพื่อปิด',
     polygon: 'แตะบนแผนที่เพื่อวางจุด → ดับเบิลคลิกเพื่อปิด Polygon',
-    rectangle: 'แตะมุมที่ 1 แล้วแตะมุมที่ 2 เพื่อสร้างสี่เหลี่ยม',
+    rectangle: 'กดค้างแล้วลากเพื่อวาดสี่เหลี่ยม → ปล่อยเพื่อบันทึก',
     circle: 'แตะจุดศูนย์กลาง แล้วแตะขอบเพื่อกำหนดรัศมี',
     base: 'แตะตำแหน่ง Base Camp / Rally Point บนแผนที่',
     measure: 'แตะจุดเริ่มต้น แล้วแตะปลายทางเพื่อวัดระยะ'
@@ -2603,7 +2667,8 @@ async function init() {
     // Force map size after DOM settles
     await new Promise(r => setTimeout(r, 200));
     if(map) map.invalidateSize();
-    startFreehand();
+    startFreehand();   // enable freehand drag drawing
+    startRectDrag();    // enable rectangle drag drawing
 
     setLoadingMsg('เชื่อมต่อ Firebase realtime...', 80);
     bindListeners();
@@ -2726,11 +2791,33 @@ window.runAIHeatmap = async function() {
     }
   }
 
-  if(aiHeatLayer) map.removeLayer(aiHeatLayer);
-  aiHeatLayer = L.heatLayer(points, {
-    radius:25, blur:20, maxZoom:17,
-    gradient:{ 0.1:'#3b82f6', 0.3:'#22c55e', 0.6:'#f59e0b', 0.85:'#ef4444', 1:'#7f1d1d' }
-  }).addTo(map);
+  // Filter out any NaN/invalid points before adding to heatLayer
+  const validPoints = points.filter(p =>
+    p && p.length === 3 &&
+    isFinite(p[0]) && isFinite(p[1]) && isFinite(p[2]) &&
+    p[2] > 0
+  );
+
+  if(!validPoints.length) {
+    showToast('ไม่มีข้อมูลพอสำหรับ Heatmap', 'error');
+    btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic"></i> คำนวณ AI Heatmap';
+    return;
+  }
+
+  if(aiHeatLayer) { try { map.removeLayer(aiHeatLayer); } catch(e) {} }
+  try {
+    aiHeatLayer = L.heatLayer(validPoints, {
+      radius:25, blur:20, maxZoom:17,
+      gradient:{ 0.1:'#3b82f6', 0.3:'#22c55e', 0.6:'#f59e0b', 0.85:'#ef4444', 1:'#7f1d1d' }
+    }).addTo(map);
+    // Force redraw after a tick to ensure map canvas is ready
+    setTimeout(() => { try { aiHeatLayer.redraw(); } catch(e) {} }, 100);
+  } catch(heatErr) {
+    console.error('HeatLayer error:', heatErr);
+    showToast('Heatmap error: ' + heatErr.message, 'error');
+    btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic"></i> คำนวณ AI Heatmap';
+    return;
+  }
 
   // Find peak probability zone
   const sorted = [...points].sort((a,b) => b[2]-a[2]);
@@ -2917,35 +3004,50 @@ function updateReportPreview() {
 let _sarabunFontB64 = null;
 async function loadSarabunFont() {
   if (_sarabunFontB64) return _sarabunFontB64;
-  // Try multiple CDN sources for Sarabun TTF
-  const urls = [
-    'https://cdn.jsdelivr.net/npm/@fontsource/sarabun@5/files/sarabun-thai-400-normal.woff2',
+  // jsPDF requires TTF (not woff/woff2) — use only .ttf sources
+  const ttfUrls = [
     'https://fonts.gstatic.com/s/sarabun/v15/DtVmJx26TKEr37c9YH5oulwm6gDXvwE.ttf',
     'https://fonts.gstatic.com/s/sarabun/v14/DtVmJx26TKEr37c9YH5oulwm6gDXvwE.ttf',
+    'https://fonts.gstatic.com/s/sarabun/v13/DtVmJx26TKEr37c9YH5oulwm6gDXvwE.ttf',
   ];
-  for (const url of urls) {
+  for (const url of ttfUrls) {
     try {
       const r = await fetch(url);
       if (!r.ok) continue;
       const buf = await r.arrayBuffer();
+      // Validate: TTF starts with 0x00010000 or 'true' or 'OTTO'
+      const magic = new Uint8Array(buf, 0, 4);
+      const isTTF = (magic[0]===0 && magic[1]===1) || (magic[0]===116); // 0x0001 or 't'
+      if (!isTTF) { console.warn('Not a TTF:', url); continue; }
       const bytes = new Uint8Array(buf);
       let binary = '';
-      bytes.forEach(b => binary += String.fromCharCode(b));
+      // Use chunk approach to avoid stack overflow on large fonts
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+      }
       _sarabunFontB64 = btoa(binary);
+      console.log('Sarabun TTF loaded from', url);
       return _sarabunFontB64;
-    } catch(e) { /* try next */ }
+    } catch(e) { console.warn('Font fetch failed:', url, e.message); }
   }
-  console.warn('ไม่สามารถโหลด Sarabun font ได้ — ใช้ helvetica แทน');
+  console.warn('Sarabun font unavailable — using helvetica');
   return null;
 }
 
 function setupThaiFont(doc) {
   if (_sarabunFontB64) {
-    doc.addFileToVFS('Sarabun.ttf', _sarabunFontB64);
-    doc.addFont('Sarabun.ttf', 'Sarabun', 'normal');
-    doc.addFileToVFS('SarabunB.ttf', _sarabunFontB64);
-    doc.addFont('SarabunB.ttf', 'Sarabun', 'bold');
-    return 'Sarabun';
+    try {
+      doc.addFileToVFS('Sarabun-normal.ttf', _sarabunFontB64);
+      doc.addFont('Sarabun-normal.ttf', 'Sarabun', 'normal');
+      doc.addFileToVFS('Sarabun-bold.ttf', _sarabunFontB64);
+      doc.addFont('Sarabun-bold.ttf', 'Sarabun', 'bold');
+      doc.setFont('Sarabun', 'normal'); // test — throws if font bad
+      return 'Sarabun';
+    } catch(e) {
+      console.warn('setupThaiFont failed, falling back to helvetica:', e.message);
+      _sarabunFontB64 = null; // invalidate so next export retries
+    }
   }
   return 'helvetica';
 }
@@ -2964,17 +3066,34 @@ window.exportPDF = async function() {
     const W = 210, margin = 15;
     let y = margin;
 
-    const t = (str) => str || '-'; // safe text passthrough (Thai font handles it)
+    // Always set font before text to avoid 'widths' undefined crash
+    let _curFont = thaiFont, _curStyle = 'normal';
+    function sf(style) {
+      _curStyle = style;
+      doc.setFont(_curFont, style);
+    }
+    function txt(str, x, yy, opts) {
+      // Ensure font is set; if Thai font unavailable, transliterate
+      doc.setFont(_curFont, _curStyle);
+      const s = String(str || '-');
+      try { doc.text(s, x, yy, opts); }
+      catch(e) {
+        // Font crash — strip to ASCII and retry
+        const ascii = s.replace(/[^\u0000-\u007f]/g, '?');
+        try { doc.text(ascii, x, yy, opts); } catch(e2) {}
+      }
+    }
+    const t = (str) => String(str || '-'); // value passthrough
 
     // ── Header bar ──────────────────────────────────────
     doc.setFillColor(10, 36, 99);
     doc.rect(0, 0, W, 30, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16); doc.setFont(thaiFont, 'bold');
-    doc.text('SEARCH MISSION REPORT', margin, 12);
-    doc.setFontSize(10); doc.setFont(thaiFont, 'normal');
-    doc.text('กองป้องกันและบรรเทาสาธารณภัย', margin, 20);
-    doc.text(new Date().toLocaleDateString('th-TH', {
+    doc.setFontSize(16); sf('bold');
+    txt('SEARCH MISSION REPORT', margin, 12);
+    doc.setFontSize(10); sf('normal');
+    txt('กองป้องกันและบรรเทาสาธารณภัย', margin, 20);
+    txt(new Date().toLocaleDateString('th-TH', {
       year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'
     }), W - margin, 20, { align:'right' });
     y = 38;
@@ -2983,16 +3102,16 @@ window.exportPDF = async function() {
     doc.setFillColor(241, 245, 249);
     doc.roundedRect(margin, y, W - margin * 2, 28, 3, 3, 'F');
     doc.setTextColor(15, 23, 42);
-    doc.setFontSize(13); doc.setFont(thaiFont, 'bold');
-    doc.text(t(STATE.mission?.title), margin + 4, y + 8);
-    doc.setFontSize(9); doc.setFont(thaiFont, 'normal');
+    doc.setFontSize(13); sf('bold');
+    txt(t(STATE.mission?.title), margin + 4, y + 8);
+    doc.setFontSize(9); sf('normal');
     const mInfo = [
       `พื้นที่: ${t(STATE.mission?.area)}`,
       `สถานะ: ${STATE.mission?.status === 'active' ? 'ดำเนินการอยู่' : 'สิ้นสุด'}`,
       `สมาชิก: ${Object.keys(STATE.members).length} คน`,
       `หลักฐาน: ${Object.keys(STATE.clues).length} รายการ`,
     ];
-    mInfo.forEach((txt, i) => doc.text(txt, margin + 4 + (i % 2) * 90, y + 16 + Math.floor(i / 2) * 7));
+    mInfo.forEach((mi, i) => txt(mi, margin + 4 + (i % 2) * 90, y + 16 + Math.floor(i / 2) * 7));
     y += 34;
 
     // ── Stats row ────────────────────────────────────────
@@ -3007,25 +3126,25 @@ window.exportPDF = async function() {
       const x = margin + i * boxW;
       doc.setFillColor(i % 2 === 0 ? 248 : 241, 250, 255);
       doc.roundedRect(x, y, boxW - 1, 18, 2, 2, 'F');
-      doc.setFontSize(14); doc.setFont(thaiFont, 'bold'); doc.setTextColor(10, 36, 99);
-      doc.text(String(s.val), x + boxW / 2, y + 9, { align:'center' });
-      doc.setFontSize(7); doc.setFont(thaiFont, 'normal'); doc.setTextColor(71, 85, 105);
-      doc.text(s.label, x + boxW / 2, y + 14, { align:'center' });
+      doc.setFontSize(14); sf('bold'); doc.setTextColor(10, 36, 99);
+      txt(String(s.val), x + boxW / 2, y + 9, { align:'center' });
+      doc.setFontSize(7); sf('normal'); doc.setTextColor(71, 85, 105);
+      txt(s.label, x + boxW / 2, y + 14, { align:'center' });
     });
     y += 24;
 
     // ── Members table ────────────────────────────────────
     const members = Object.values(STATE.members);
     if (members.length) {
-      doc.setFontSize(11); doc.setFont(thaiFont, 'bold'); doc.setTextColor(15, 23, 42);
-      doc.text('สมาชิกทีม', margin, y); y += 5;
+      doc.setFontSize(11); sf('bold'); doc.setTextColor(15, 23, 42);
+      txt('สมาชิกทีม', margin, y); y += 5;
       doc.setFillColor(10, 36, 99);
       doc.rect(margin, y, W - margin * 2, 8, 'F');
       doc.setTextColor(255, 255, 255); doc.setFontSize(8);
       ['ชื่อ-สกุล', 'สถานะ', 'ตำแหน่ง GPS', 'เห็นล่าสุด'].forEach((h, i) =>
-        doc.text(h, margin + 3 + i * 45, y + 5));
+        txt(h, margin + 3 + i * 45, y + 5));
       y += 8;
-      doc.setTextColor(15, 23, 42); doc.setFont(thaiFont, 'normal');
+      doc.setTextColor(15, 23, 42); sf('normal');
       members.forEach((m, ri) => {
         if (y > 270) { doc.addPage(); y = 20; }
         if (ri % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(margin, y, W - margin * 2, 8, 'F'); }
@@ -3035,7 +3154,7 @@ window.exportPDF = async function() {
           m.lat ? `${(+m.lat).toFixed(4)}, ${(+m.lng).toFixed(4)}` : '-',
           m.lastSeen ? new Date(m.lastSeen).toLocaleTimeString('th-TH') : '-',
         ];
-        vals.forEach((v, i) => doc.text(String(v).slice(0, 20), margin + 3 + i * 45, y + 5));
+        vals.forEach((v, i) => txt(String(v).slice(0, 20), margin + 3 + i * 45, y + 5));
         y += 8;
       });
       y += 4;
@@ -3045,15 +3164,15 @@ window.exportPDF = async function() {
     const clues = Object.values(STATE.clues);
     if (clues.length) {
       if (y > 240) { doc.addPage(); y = 20; }
-      doc.setFontSize(11); doc.setFont(thaiFont, 'bold'); doc.setTextColor(15, 23, 42);
-      doc.text('หลักฐานที่พบ', margin, y); y += 5;
+      doc.setFontSize(11); sf('bold'); doc.setTextColor(15, 23, 42);
+      txt('หลักฐานที่พบ', margin, y); y += 5;
       doc.setFillColor(10, 36, 99);
       doc.rect(margin, y, W - margin * 2, 8, 'F');
       doc.setTextColor(255, 255, 255); doc.setFontSize(8);
       ['ประเภท', 'รายละเอียด', 'พิกัด', 'โดย', 'เวลา'].forEach((h, i) =>
-        doc.text(h, margin + 3 + i * 36, y + 5));
+        txt(h, margin + 3 + i * 36, y + 5));
       y += 8;
-      doc.setTextColor(15, 23, 42); doc.setFont(thaiFont, 'normal');
+      doc.setTextColor(15, 23, 42); sf('normal');
       clues.sort((a, b) => (b.ts || 0) - (a.ts || 0)).forEach((cl, ri) => {
         if (y > 270) { doc.addPage(); y = 20; }
         if (ri % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(margin, y, W - margin * 2, 8, 'F'); }
@@ -3064,7 +3183,7 @@ window.exportPDF = async function() {
           t(cl.byName),
           cl.ts ? new Date(cl.ts).toLocaleTimeString('th-TH') : '-',
         ];
-        vals.forEach((v, i) => doc.text(String(v).slice(0, 18), margin + 3 + i * 36, y + 5));
+        vals.forEach((v, i) => txt(String(v).slice(0, 18), margin + 3 + i * 36, y + 5));
         y += 8;
       });
       y += 4;
@@ -3074,20 +3193,20 @@ window.exportPDF = async function() {
     const zones = Object.values(STATE.zones);
     if (zones.length) {
       if (y > 240) { doc.addPage(); y = 20; }
-      doc.setFontSize(11); doc.setFont(thaiFont, 'bold'); doc.setTextColor(15, 23, 42);
-      doc.text('โซนค้นหา', margin, y); y += 5;
+      doc.setFontSize(11); sf('bold'); doc.setTextColor(15, 23, 42);
+      txt('โซนค้นหา', margin, y); y += 5;
       doc.setFillColor(10, 36, 99);
       doc.rect(margin, y, W - margin * 2, 8, 'F');
       doc.setTextColor(255, 255, 255); doc.setFontSize(8);
       ['ชื่อโซน', 'ประเภท', 'รูปร่าง', 'สร้างโดย', 'สถานะ'].forEach((h, i) =>
-        doc.text(h, margin + 3 + i * 38, y + 5));
+        txt(h, margin + 3 + i * 38, y + 5));
       y += 8;
-      doc.setTextColor(15, 23, 42); doc.setFont(thaiFont, 'normal');
+      doc.setTextColor(15, 23, 42); sf('normal');
       zones.forEach((z, ri) => {
         if (y > 270) { doc.addPage(); y = 20; }
         if (ri % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(margin, y, W - margin * 2, 8, 'F'); }
         const vals = [t(z.name), t(z.type), t(z.shapeType), t(z.createdByName), `${z.progress || 0}%`];
-        vals.forEach((v, i) => doc.text(String(v).slice(0, 18), margin + 3 + i * 38, y + 5));
+        vals.forEach((v, i) => txt(String(v).slice(0, 18), margin + 3 + i * 38, y + 5));
         y += 8;
       });
       y += 4;
@@ -3097,8 +3216,8 @@ window.exportPDF = async function() {
     const pageCount = doc.getNumberOfPages();
     for (let p = 1; p <= pageCount; p++) {
       doc.setPage(p);
-      doc.setFontSize(8); doc.setFont(thaiFont, 'normal'); doc.setTextColor(71, 85, 105);
-      doc.text(`ภารกิจ: ${t(STATE.mission?.title)} · พิมพ์: ${new Date().toLocaleDateString('th-TH')} · หน้า ${p}/${pageCount}`,
+      doc.setFontSize(8); sf('normal'); doc.setTextColor(71, 85, 105);
+      txt(`ภารกิจ: ${t(STATE.mission?.title)} · พิมพ์: ${new Date().toLocaleDateString('th-TH')} · หน้า ${p}/${pageCount}`,
         margin, 295);
     }
 
