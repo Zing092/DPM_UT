@@ -2343,10 +2343,7 @@ function renderChat() {
       <div>
         ${!me ? `<div class="chat-name">${c.name||c.uid}</div>` : ''}
         <div class="chat-bubble" ${c.broadcast?'style="border-left:3px solid #ef4444"':c.gps?'style="border-left:3px solid #10b981;background:#f0fdf4"':''}>
-          ${broadcast}${c.gps
-            ? c.text.replace(/(https:\/\/maps\.google[^\s]+)/g, '<a href="$1" target="_blank" style="color:#10b981;font-size:11px;display:block;margin-top:4px">🗺️ เปิดใน Google Maps</a>').replace(/📍 พิกัดของฉัน: ([^
-]+)/, '<span style="font-weight:700;color:#166534">📍 พิกัด: $1</span>')
-            : c.text}
+          ${broadcast}${c.gps ? formatGPSMsg(c.text) : c.text}
           ${c.voice ? '<div style="margin-top:4px"><i class="fas fa-volume-up"></i> Voice Note</div>' : ''}
           <span class="chat-time">${timeStr(c.ts)}</span>
         </div>
@@ -2594,6 +2591,16 @@ window.sendChat = async function() {
     text, uid: STATE.user?.id, name: STATE.user?.name || STATE.user?.id, ts: Date.now()
   });
 };
+
+function formatGPSMsg(text) {
+  // Replace Google Maps URL with clickable link
+  var out = text.replace(/(https:\/\/maps\.google[^\s]+)/g,
+    '<a href="$1" target="_blank" style="color:#10b981;font-size:11px;display:block;margin-top:4px">🗺️ เปิดใน Google Maps</a>');
+  // Bold the coordinates line
+  out = out.replace(/📍 พิกัดของฉัน: (.+)/,
+    '<span style="font-weight:700;color:#166534">📍 พิกัด: $1</span>');
+  return out;
+}
 
 window.sendGPSLocation = async function() {
   const pos = STATE.myLocation;
