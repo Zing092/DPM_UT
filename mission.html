@@ -14,7 +14,7 @@
 .leaflet-tile { border:none !important; }
 </style>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="leaflet-heat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
@@ -2428,8 +2428,8 @@ async function init() {
     const params = new URLSearchParams(window.location.search);
     const missionId = params.get('id');
     if(!missionId) {
-      showLoadingError('ไม่พบ Mission ID ใน URL<br><small style="font-weight:400">ต้องเปิดผ่านปุ่ม "เข้าร่วมภารกิจ" ใน index.html</small>');
-      document.getElementById('header-title').textContent = 'ไม่พบภารกิจ';
+      // BUG-008 FIX: redirect back instead of showing error
+      window.location.href = 'index.html';
       return;
     }
     STATE.missionId = missionId;
@@ -2795,11 +2795,52 @@ function updateReportPreview() {
   document.getElementById('rp-duration').textContent = `ระยะเวลา: ${durStr}`;
 }
 
+// BUG-009 FIX: Load Sarabun Thai font for jsPDF
+let _sarabunFontB64 = null;
+async function loadSarabunFont() {
+  if (_sarabunFontB64) return _sarabunFontB64;
+  try {
+    const res = await fetch('https://fonts.gstatic.com/s/sarabun/v13/DtVmJx26TKEr37c9YNpoulwm6gDXvwE.woff2');
+    // Use ttf from CDN fallback (base64 via arraybuffer)
+    const ttfRes = await fetch('https://cdn.jsdelivr.net/npm/@fontsource/sarabun@5/files/sarabun-thai-400-normal.woff2');
+    // Fallback: use Google Fonts API to get ttf
+    throw new Error('use_ttf');
+  } catch(e) {
+    // Fetch Sarabun TTF as base64 via a reliable CDN
+    try {
+      const r = await fetch('https://fonts.gstatic.com/s/sarabun/v13/DtVmJx26TKEr37c9YH5oulwm6gDXvwE.ttf');
+      const buf = await r.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      bytes.forEach(b => binary += String.fromCharCode(b));
+      _sarabunFontB64 = btoa(binary);
+      return _sarabunFontB64;
+    } catch(e2) {
+      console.warn('ไม่สามารถโหลด Sarabun font ได้ — ใช้ helvetica แทน');
+      return null;
+    }
+  }
+}
+
+function setupThaiFont(doc) {
+  if (_sarabunFontB64) {
+    doc.addFileToVFS('Sarabun.ttf', _sarabunFontB64);
+    doc.addFont('Sarabun.ttf', 'Sarabun', 'normal');
+    doc.addFileToVFS('SarabunB.ttf', _sarabunFontB64);
+    doc.addFont('SarabunB.ttf', 'Sarabun', 'bold');
+    return 'Sarabun';
+  }
+  return 'helvetica';
+}
+
 window.exportPDF = async function() {
   showToast('กำลังสร้าง PDF...', 'info');
   try {
+    // Pre-load Thai font
+    if (!_sarabunFontB64) await loadSarabunFont();
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+    const thaiFont = setupThaiFont(doc);
     const W = 210, margin = 15;
     let y = margin;
 
@@ -2807,9 +2848,9 @@ window.exportPDF = async function() {
     doc.setFillColor(10, 36, 99);
     doc.rect(0, 0, W, 30, 'F');
     doc.setTextColor(255,255,255);
-    doc.setFontSize(16); doc.setFont('helvetica','bold');
+    doc.setFontSize(16); doc.setFont(thaiFont,'bold');
     doc.text('SEARCH MISSION REPORT', margin, 12);
-    doc.setFontSize(10); doc.setFont('helvetica','normal');
+    doc.setFontSize(10); doc.setFont(thaiFont,'normal');
     doc.text('กองป้องกันและบรรเทาสาธารณภัย', margin, 20);
     doc.text(new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'}), W-margin, 20, {align:'right'});
 
@@ -2819,10 +2860,10 @@ window.exportPDF = async function() {
     // Mission Info Box
     doc.setFillColor(240,244,255);
     doc.roundedRect(margin, y, W-margin*2, 36, 3, 3, 'F');
-    doc.setFontSize(13); doc.setFont('helvetica','bold');
+    doc.setFontSize(13); doc.setFont(thaiFont,'bold');
     doc.setTextColor(10,36,99);
     doc.text(STATE.mission?.title || 'ภารกิจค้นหา', margin+4, y+8);
-    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    doc.setFontSize(9); doc.setFont(thaiFont,'normal');
     doc.setTextColor(71,85,105);
     const info = [
       `พื้นที่: ${STATE.mission?.area||'-'}`,
@@ -2847,16 +2888,16 @@ window.exportPDF = async function() {
       doc.setFillColor(...colors[i]);
       doc.roundedRect(x, y, boxW, 16, 2, 2, 'F');
       doc.setTextColor(255,255,255);
-      doc.setFontSize(14); doc.setFont('helvetica','bold');
+      doc.setFontSize(14); doc.setFont(thaiFont,'bold');
       doc.text(String(s.val), x+boxW/2, y+9, {align:'center'});
-      doc.setFontSize(7); doc.setFont('helvetica','normal');
+      doc.setFontSize(7); doc.setFont(thaiFont,'normal');
       doc.text(s.label, x+boxW/2, y+14, {align:'center'});
     });
     y += 24;
 
     // Members Table
     doc.setTextColor(10,36,99);
-    doc.setFontSize(11); doc.setFont('helvetica','bold');
+    doc.setFontSize(11); doc.setFont(thaiFont,'bold');
     doc.text('สมาชิกทีม', margin, y); y += 5;
     doc.setFillColor(10,36,99);
     doc.rect(margin, y, W-margin*2, 6, 'F');
@@ -2865,7 +2906,7 @@ window.exportPDF = async function() {
       doc.text(h, margin+3+i*45, y+4);
     });
     y += 6;
-    doc.setTextColor(15,23,42); doc.setFont('helvetica','normal');
+    doc.setTextColor(15,23,42); doc.setFont(thaiFont,'normal');
     Object.entries(STATE.members).forEach(([uid,m],idx) => {
       const bg = idx%2===0 ? [248,250,252] : [255,255,255];
       doc.setFillColor(...bg); doc.rect(margin, y, W-margin*2, 7, 'F');
@@ -2881,7 +2922,7 @@ window.exportPDF = async function() {
     // Clues Table
     if(Object.keys(STATE.clues).length > 0) {
       doc.setTextColor(10,36,99);
-      doc.setFontSize(11); doc.setFont('helvetica','bold');
+      doc.setFontSize(11); doc.setFont(thaiFont,'bold');
       doc.text('หลักฐานที่พบ', margin, y); y += 5;
       doc.setFillColor(10,36,99);
       doc.rect(margin, y, W-margin*2, 6, 'F');
@@ -2890,7 +2931,7 @@ window.exportPDF = async function() {
         doc.text(h, margin+3+i*36, y+4);
       });
       y += 6;
-      doc.setTextColor(15,23,42); doc.setFont('helvetica','normal');
+      doc.setTextColor(15,23,42); doc.setFont(thaiFont,'normal');
       const clueTypeLabel = { trace:'ร่องรอย', interest:'น่าสนใจ', safe:'ปลอดภัย', danger:'อันตราย' };
       Object.entries(STATE.clues).forEach(([id,c],idx) => {
         if(y > 260) { doc.addPage(); y = margin; }
@@ -2910,13 +2951,13 @@ window.exportPDF = async function() {
     if(Object.keys(STATE.zones).length > 0) {
       if(y > 240) { doc.addPage(); y = margin; }
       doc.setTextColor(10,36,99);
-      doc.setFontSize(11); doc.setFont('helvetica','bold');
+      doc.setFontSize(11); doc.setFont(thaiFont,'bold');
       doc.text('โซนค้นหา', margin, y); y += 5;
       Object.entries(STATE.zones).forEach(([id,z],idx) => {
         if(y > 265) { doc.addPage(); y = margin; }
         const bg = idx%2===0 ? [248,250,252] : [255,255,255];
         doc.setFillColor(...bg); doc.rect(margin, y, W-margin*2, 7, 'F');
-        doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
+        doc.setFontSize(8); doc.setFont(thaiFont,'normal'); doc.setTextColor(15,23,42);
         doc.text(`${z.name||'-'} · ประเภท: ${z.type||'-'} · ครบถ้วน: ${z.progress||0}%`, margin+3, y+5);
         y += 7;
       });
@@ -2930,9 +2971,9 @@ window.exportPDF = async function() {
     if(y > 250) { doc.addPage(); y = margin; }
     doc.setFillColor(240,244,255);
     doc.roundedRect(margin, y, W-margin*2, 18, 2, 2, 'F');
-    doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(10,36,99);
+    doc.setFontSize(9); doc.setFont(thaiFont,'bold'); doc.setTextColor(10,36,99);
     doc.text(`ระยะทางรวม: ${totalDist} กม. · ระยะเวลา: ${durStr}`, margin+4, y+7);
-    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(71,85,105);
+    doc.setFont(thaiFont,'normal'); doc.setFontSize(8); doc.setTextColor(71,85,105);
     doc.text('รายงานสร้างโดยอัตโนมัติ — ระบบภารกิจค้นหาผู้สูญหาย', margin+4, y+14);
 
     const filename = `mission_report_${STATE.missionId}_${Date.now()}.pdf`;
@@ -3732,11 +3773,13 @@ window.exportPDF = async function() {
   );
 
   if(hasThaiMembers) {
-    // Use enhanced mode: transliterate Thai to readable ASCII labels
-    showToast('สร้าง PDF (Thai-safe mode)...', 'info');
+    // Use enhanced mode with Thai font support
+    showToast('สร้าง PDF (Thai font mode)...', 'info');
     try {
+      if (!_sarabunFontB64) await loadSarabunFont();
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+      const thaiFont = setupThaiFont(doc);
       const W = 210, margin = 15;
       let y = margin;
 
@@ -3744,9 +3787,9 @@ window.exportPDF = async function() {
       doc.setFillColor(10,36,99);
       doc.rect(0,0,W,32,'F');
       doc.setTextColor(255,255,255);
-      doc.setFontSize(15); doc.setFont('helvetica','bold');
+      doc.setFontSize(15); doc.setFont(thaiFont,'bold');
       doc.text('SEARCH & RESCUE MISSION REPORT', margin, 13);
-      doc.setFontSize(9); doc.setFont('helvetica','normal');
+      doc.setFontSize(9); doc.setFont(thaiFont,'normal');
       doc.text('Disaster Prevention and Mitigation Division', margin, 21);
       doc.text(new Date().toLocaleDateString('en-GB',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}), W-margin, 21, {align:'right'});
       y = 40;
@@ -3754,9 +3797,9 @@ window.exportPDF = async function() {
       // Mission box
       doc.setFillColor(240,244,255);
       doc.roundedRect(margin,y,W-margin*2,32,3,3,'F');
-      doc.setFontSize(12); doc.setFont('helvetica','bold'); doc.setTextColor(10,36,99);
+      doc.setFontSize(12); doc.setFont(thaiFont,'bold'); doc.setTextColor(10,36,99);
       doc.text(safeText(STATE.mission?.title||'Search Mission'), margin+4, y+9);
-      doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(71,85,105);
+      doc.setFontSize(8); doc.setFont(thaiFont,'normal'); doc.setTextColor(71,85,105);
       const mInfo = [
         `Area: ${safeText(STATE.mission?.area||'-')}`,
         `Created by: ${safeText(STATE.mission?.createdByName||'-')}`,
@@ -3778,22 +3821,22 @@ window.exportPDF = async function() {
         const x = margin+i*(bw+3);
         doc.setFillColor(...s.c); doc.roundedRect(x,y,bw,16,2,2,'F');
         doc.setTextColor(255,255,255);
-        doc.setFontSize(14); doc.setFont('helvetica','bold');
+        doc.setFontSize(14); doc.setFont(thaiFont,'bold');
         doc.text(String(s.v), x+bw/2, y+9, {align:'center'});
-        doc.setFontSize(7); doc.setFont('helvetica','normal');
+        doc.setFontSize(7); doc.setFont(thaiFont,'normal');
         doc.text(s.l, x+bw/2, y+14, {align:'center'});
       });
       y += 24;
 
       // Members table
-      doc.setTextColor(10,36,99); doc.setFontSize(10); doc.setFont('helvetica','bold');
+      doc.setTextColor(10,36,99); doc.setFontSize(10); doc.setFont(thaiFont,'bold');
       doc.text('Team Members', margin, y); y += 5;
       doc.setFillColor(10,36,99); doc.rect(margin,y,W-margin*2,6,'F');
       doc.setTextColor(255,255,255); doc.setFontSize(8);
       ['Name','Status','Distance (km)','Duration','Last Seen'].forEach((h,i) =>
         doc.text(h, margin+3+i*36, y+4));
       y += 6;
-      doc.setTextColor(15,23,42); doc.setFont('helvetica','normal');
+      doc.setTextColor(15,23,42); doc.setFont(thaiFont,'normal');
       Object.entries(STATE.members).forEach(([uid,m],idx) => {
         if(y > 255) { doc.addPage(); y = margin; }
         doc.setFillColor(...(idx%2===0?[248,250,252]:[255,255,255]));
@@ -3810,14 +3853,14 @@ window.exportPDF = async function() {
       // Clues
       if(Object.keys(STATE.clues).length) {
         if(y > 240) { doc.addPage(); y = margin; }
-        doc.setTextColor(10,36,99); doc.setFontSize(10); doc.setFont('helvetica','bold');
+        doc.setTextColor(10,36,99); doc.setFontSize(10); doc.setFont(thaiFont,'bold');
         doc.text('Evidence Found', margin, y); y += 5;
         doc.setFillColor(10,36,99); doc.rect(margin,y,W-margin*2,6,'F');
         doc.setTextColor(255,255,255); doc.setFontSize(8);
         ['Type','Description','Coordinates','By','Time'].forEach((h,i) =>
           doc.text(h, margin+3+i*36, y+4));
         y += 6;
-        doc.setTextColor(15,23,42); doc.setFont('helvetica','normal');
+        doc.setTextColor(15,23,42); doc.setFont(thaiFont,'normal');
         const clueEn = {trace:'Trace/Track',interest:'Point of Interest',safe:'Safe Zone',danger:'Danger'};
         Object.entries(STATE.clues).forEach(([id,c],idx) => {
           if(y > 260) { doc.addPage(); y = margin; }
@@ -3835,13 +3878,13 @@ window.exportPDF = async function() {
       // Zones
       if(Object.keys(STATE.zones).length) {
         if(y > 240) { doc.addPage(); y = margin; }
-        doc.setTextColor(10,36,99); doc.setFontSize(10); doc.setFont('helvetica','bold');
+        doc.setTextColor(10,36,99); doc.setFontSize(10); doc.setFont(thaiFont,'bold');
         doc.text('Search Zones', margin, y); y += 5;
         Object.entries(STATE.zones).forEach(([id,z],idx) => {
           if(y > 265) { doc.addPage(); y = margin; }
           doc.setFillColor(...(idx%2===0?[248,250,252]:[255,255,255]));
           doc.rect(margin,y,W-margin*2,7,'F');
-          doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
+          doc.setFontSize(8); doc.setFont(thaiFont,'normal'); doc.setTextColor(15,23,42);
           doc.text(`${safeText(z.name||'-')} | Type: ${z.type||'-'} | Progress: ${z.progress||0}%`, margin+3, y+5);
           y += 7;
         });
@@ -3852,13 +3895,13 @@ window.exportPDF = async function() {
       if(y > 240) { doc.addPage(); y = margin; }
       const events = buildTimelineData();
       if(events.length) {
-        doc.setTextColor(10,36,99); doc.setFontSize(10); doc.setFont('helvetica','bold');
+        doc.setTextColor(10,36,99); doc.setFontSize(10); doc.setFont(thaiFont,'bold');
         doc.text('Event Timeline', margin, y); y += 5;
         events.slice(0,10).forEach((e,idx) => {
           if(y > 265) { doc.addPage(); y = margin; }
           doc.setFillColor(...(idx%2===0?[248,250,252]:[255,255,255]));
           doc.rect(margin,y,W-margin*2,7,'F');
-          doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
+          doc.setFontSize(8); doc.setFont(thaiFont,'normal'); doc.setTextColor(15,23,42);
           const ts = new Date(e.ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
           doc.text(`${ts}  ${safeText(e.title)} — ${safeText(e.desc).slice(0,40)}`, margin+3, y+5);
           y += 7;
@@ -3872,9 +3915,9 @@ window.exportPDF = async function() {
       const durStr = dur>60 ? `${Math.floor(dur/60)}h ${dur%60}min` : `${dur}min`;
       if(y > 255) { doc.addPage(); y = margin; }
       doc.setFillColor(240,244,255); doc.roundedRect(margin,y,W-margin*2,18,2,2,'F');
-      doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(10,36,99);
+      doc.setFontSize(9); doc.setFont(thaiFont,'bold'); doc.setTextColor(10,36,99);
       doc.text(`Total Distance: ${totalDist} km  |  Duration: ${durStr}  |  Members: ${Object.keys(STATE.members).length}`, margin+4, y+7);
-      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(71,85,105);
+      doc.setFont(thaiFont,'normal'); doc.setFontSize(7); doc.setTextColor(71,85,105);
       doc.text('Auto-generated by Search Mission System — Disaster Prevention and Mitigation Division', margin+4, y+14);
 
       doc.save(`mission_report_${STATE.missionId}_${Date.now()}.pdf`);
@@ -3942,6 +3985,20 @@ init = async function() {
 };
 
 init();
+
+// BUG-009 FIX: Preload Sarabun Thai font in background for faster PDF export
+setTimeout(loadSarabunFont, 3000);
+
+// BUG-010 FIX: Hide voice command button on iOS Safari (no SpeechRecognition support)
+(function() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    const voiceBtn = document.getElementById('voice-cmd-btn');
+    if (voiceBtn) voiceBtn.style.display = 'none';
+    const voiceRecordBtn = document.getElementById('voice-record-btn');
+    if (voiceRecordBtn) voiceRecordBtn.style.display = 'none';
+  }
+})();
 </script>
 </body>
 </html>
