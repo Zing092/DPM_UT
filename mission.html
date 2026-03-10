@@ -94,7 +94,14 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
 #track-map{width:100%;height:100%;}
 
 /* ── MAP FLOATING TOOLBAR ── */
-.map-toolbar{position:absolute;right:10px;top:10px;z-index:900;display:flex;flex-direction:column;gap:6px;}
+.toolbar-toggle{position:absolute;right:10px;top:10px;z-index:910;width:42px;height:42px;border-radius:12px;
+  background:#1e293b;border:none;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:17px;color:#fff;box-shadow:0 3px 12px rgba(0,0,0,0.25);transition:all 0.2s;}
+.toolbar-toggle:hover{background:#0f172a;transform:scale(1.05);}
+.map-toolbar{position:absolute;right:10px;top:60px;z-index:900;display:flex;flex-direction:column;gap:6px;
+  transition:transform 0.25s cubic-bezier(0.4,0,0.2,1),opacity 0.2s;
+  transform-origin:top right;}
+.map-toolbar.collapsed{transform:scaleY(0) translateY(-10px);opacity:0;pointer-events:none;}
 .mtool{width:42px;height:42px;border-radius:12px;background:#fff;border:1.5px solid var(--border-light);
   display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;
   box-shadow:var(--shadow-md);transition:all 0.2s;color:var(--text-secondary);position:relative;}
@@ -340,8 +347,13 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
   <div id="map-wrap">
     <div id="track-map"></div>
 
-    <!-- Floating toolbar -->
-    <div class="map-toolbar">
+    <!-- Toolbar toggle button -->
+    <button class="toolbar-toggle" id="btn-toolbar-toggle" onclick="toggleMapToolbar()" title="เครื่องมือแผนที่">
+      <i class="fas fa-tools" id="toolbar-toggle-icon"></i>
+    </button>
+
+    <!-- Floating toolbar (collapsible) -->
+    <div class="map-toolbar collapsed" id="map-toolbar">
       <div class="mtool" id="btn-draw" onclick="toggleDraw()"><i class="fas fa-draw-polygon"></i><span class="mtool-tip">วาดโซน</span></div>
       <div class="mtool" id="btn-pin" onclick="togglePinPicker()"><i class="fas fa-map-pin"></i><span class="mtool-tip">ปักหมุด</span></div>
       <div class="mtool trail-on" id="btn-trail" onclick="toggleTrail()"><i class="fas fa-route"></i><span class="mtool-tip">ซ่อนเส้นทาง</span></div>
@@ -647,6 +659,27 @@ window.cancelDraw=cancelDraw; window.saveZone=saveZone; window.cancelZone=cancel
 window.togglePinPicker=togglePinPicker; window.closePinPicker=closePinPicker;
 window.startPin=startPin; window.confirmPin=confirmPin; window.handlePinImg=handlePinImg;
 window.toggleTrail=toggleTrail; window.toggleZones=toggleZones; window.toggleZonePanel=toggleZonePanel; window.closeZonePanel=closeZonePanel; window.toggleAllZonesVis=toggleAllZonesVis; window.zoneAction=zoneAction;
+window.toggleMapToolbar=toggleMapToolbar;
+
+function _ensureToolbarOpen(){
+  const tb=document.getElementById('map-toolbar');
+  if(tb&&tb.classList.contains('collapsed')) toggleMapToolbar();
+}
+function toggleMapToolbar(){
+  const tb=document.getElementById('map-toolbar');
+  const ic=document.getElementById('toolbar-toggle-icon');
+  const btn=document.getElementById('btn-toolbar-toggle');
+  const isOpen=!tb.classList.contains('collapsed');
+  tb.classList.toggle('collapsed',isOpen);
+  ic.className=isOpen?'fas fa-tools':'fas fa-times';
+  btn.style.background=isOpen?'#1e293b':'#475569';
+  // ปิด picker ทั้งหมดเมื่อยุบ toolbar
+  if(isOpen){
+    document.getElementById('grid-picker')?.classList.remove('show');
+    document.getElementById('pin-picker')?.classList.remove('show');
+    closeZonePanel();
+  }
+}
 window.openChat=openChat; window.closeChat=closeChat; window.sendMsg=sendMsg;
 window.sendLocation=sendLocation; window.sendPhotos=sendPhotos;
 window.chatKey=chatKey; window.autoResize=autoResize;
@@ -1145,7 +1178,7 @@ function renderTrailLegend(){
   const el=document.createElement('div');
   el.id='trail-legend';
   // mobile-friendly: ติดขอบซ้ายล่าง เป็น pill ยุบ/ขยายได้
-  el.style.cssText=`position:absolute;bottom:60px;left:10px;z-index:900;
+  el.style.cssText=`position:absolute;bottom:16px;left:10px;z-index:900;
     background:rgba(255,255,255,0.97);border-radius:${isExpanded?'14px':'20px'};
     box-shadow:0 2px 14px rgba(0,0,0,0.18);border:1px solid #e2e8f0;
     backdrop-filter:blur(8px);overflow:hidden;max-width:${isExpanded?'190px':'auto'};
@@ -1307,6 +1340,7 @@ function centerMap(){
 // ─── ZONE DRAWING ─────────────────────────────────────────
 // ══════════════════════════════════════════════════════════
 function toggleDraw(){
+  _ensureToolbarOpen();
   if(_drawOn){cancelDraw();return;}
   document.getElementById('draw-tb').classList.add('show');
   document.getElementById('btn-draw').classList.add('active');
@@ -1683,6 +1717,7 @@ function toggleZones(){
 let _zoneAllData = {}; // cache ข้อมูลโซนทั้งหมดจาก Firebase
 
 function toggleZonePanel(){
+  _ensureToolbarOpen();
   const panel = document.getElementById('zone-panel');
   const btn   = document.getElementById('btn-zones');
   if(panel.classList.contains('show')){
@@ -2232,6 +2267,7 @@ function deleteGrid(gridId){
 
 // ── UI picker ─────────────────────────────────────────────
 function toggleGridPicker(){
+  _ensureToolbarOpen();
   const p = document.getElementById('grid-picker');
   document.getElementById('pin-picker').classList.remove('show');
   document.getElementById('btn-pin').classList.remove('active');
