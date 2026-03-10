@@ -2176,6 +2176,97 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
   </div>
 </div>
 
+<!-- Export PDF Modal -->
+<div class="modal-overlay" id="modal-sm-export-pdf">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header" style="background:linear-gradient(135deg,#0a2463,#1b3d8f);color:#fff;border-radius:14px 14px 0 0;padding:16px 18px;">
+      <div class="modal-title" style="color:#fff;font-family:'Kanit',sans-serif;font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px">
+        <i class="fas fa-file-pdf" style="color:#fca5a5"></i> ออกรายงาน PDF ภารกิจค้นหา
+      </div>
+      <button class="btn-close" onclick="closeModal('modal-sm-export-pdf')" style="color:#fff;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2)"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" style="padding:18px">
+
+      <!-- Filter type -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px;font-family:'Kanit',sans-serif">
+          <i class="fas fa-filter" style="color:var(--primary-light);margin-right:6px"></i>เลือกประเภทภารกิจที่ต้องการออกรายงาน
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <label style="cursor:pointer">
+            <input type="radio" name="pdf-filter" value="all" checked style="display:none" id="pdf-filter-all">
+            <div class="pdf-filter-card" onclick="setPdfFilter('all')" id="pdf-card-all" style="border:2px solid var(--primary-light);background:#eff6ff;color:var(--primary);padding:12px 8px;border-radius:12px;text-align:center;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s">
+              <i class="fas fa-list" style="font-size:20px;display:block;margin-bottom:4px"></i>ทั้งหมด
+            </div>
+          </label>
+          <label style="cursor:pointer">
+            <input type="radio" name="pdf-filter" value="active" style="display:none" id="pdf-filter-active">
+            <div class="pdf-filter-card" onclick="setPdfFilter('active')" id="pdf-card-active" style="border:2px solid var(--border-light);background:#fff;color:var(--text-secondary);padding:12px 8px;border-radius:12px;text-align:center;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s">
+              <i class="fas fa-satellite-dish" style="font-size:20px;display:block;margin-bottom:4px;color:#16a34a"></i>กำลังดำเนิน
+            </div>
+          </label>
+          <label style="cursor:pointer">
+            <input type="radio" name="pdf-filter" value="closed" style="display:none" id="pdf-filter-closed">
+            <div class="pdf-filter-card" onclick="setPdfFilter('closed')" id="pdf-card-closed" style="border:2px solid var(--border-light);background:#fff;color:var(--text-secondary);padding:12px 8px;border-radius:12px;text-align:center;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s">
+              <i class="fas fa-flag-checkered" style="font-size:20px;display:block;margin-bottom:4px;color:#64748b"></i>จบแล้ว
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Mission checkboxes -->
+      <div style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;color:var(--text-primary);font-family:'Kanit',sans-serif">
+            <i class="fas fa-tasks" style="color:var(--primary-light);margin-right:6px"></i>เลือกภารกิจ
+          </div>
+          <div style="display:flex;gap:8px">
+            <button onclick="smPdfSelectAll(true)" style="font-size:11px;padding:4px 10px;border:1px solid var(--primary-light);border-radius:20px;background:#fff;color:var(--primary-light);cursor:pointer;font-family:'Sarabun',sans-serif;font-weight:600">เลือกทั้งหมด</button>
+            <button onclick="smPdfSelectAll(false)" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:20px;background:#fff;color:var(--text-secondary);cursor:pointer;font-family:'Sarabun',sans-serif;font-weight:600">ยกเลิกทั้งหมด</button>
+          </div>
+        </div>
+        <div id="sm-pdf-mission-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border-light);border-radius:12px;background:#fafafa">
+          <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin"></i> กำลังโหลด...</div>
+        </div>
+      </div>
+
+      <!-- Options -->
+      <div style="background:#f0f4ff;border-radius:10px;padding:12px 14px;margin-bottom:16px;border:1px solid #c7d2fe">
+        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;font-family:'Kanit',sans-serif"><i class="fas fa-sliders-h" style="margin-right:6px"></i>ตัวเลือกรายงาน</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--text-primary)">
+            <input type="checkbox" id="pdf-opt-map" checked style="width:16px;height:16px;accent-color:var(--primary-light)">
+            <span><i class="fas fa-map" style="color:#0ea5e9;margin-right:4px"></i>รวมแผนที่ปฏิบัติการ (Static Map)</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--text-primary)">
+            <input type="checkbox" id="pdf-opt-photos" checked style="width:16px;height:16px;accent-color:var(--primary-light)">
+            <span><i class="fas fa-images" style="color:#f59e0b;margin-right:4px"></i>รวมรูปภาพประกอบ (ถ้ามี)</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--text-primary)">
+            <input type="checkbox" id="pdf-opt-members" checked style="width:16px;height:16px;accent-color:var(--primary-light)">
+            <span><i class="fas fa-users" style="color:#8b5cf6;margin-right:4px"></i>รวมรายชื่อสมาชิก</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Count info -->
+      <div id="sm-pdf-count-info" style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:10px 14px;font-size:13px;color:#065f46;font-weight:600;display:none">
+        <i class="fas fa-check-circle" style="margin-right:6px;color:#16a34a"></i>
+        <span id="sm-pdf-count-text">เลือก 0 ภารกิจ</span>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="padding:14px 18px;border-top:1px solid var(--border-light);display:flex;gap:10px;justify-content:flex-end;background:#fafafa;border-radius:0 0 14px 14px">
+      <button class="btn btn-secondary" onclick="closeModal('modal-sm-export-pdf')" style="min-width:90px">
+        <i class="fas fa-times"></i> ยกเลิก
+      </button>
+      <button class="btn btn-primary" id="sm-pdf-export-btn" onclick="smGeneratePdf()" style="min-width:140px;background:linear-gradient(135deg,#dc2626,#ef4444);border:none">
+        <i class="fas fa-file-pdf"></i> ออกรายงาน PDF
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Vehicle/Pump Modal -->
 <div class="modal-overlay" id="modal-vehicle">
   <div class="modal">
@@ -5873,6 +5964,12 @@ function renderAdminSearchMissions(c) {
     const closed  = entries.filter(([,m]) => m.status === 'closed').length;
 
     c.innerHTML = `
+      <!-- Export PDF button -->
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button onclick="openSmExportPdf()" style="display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:12px;background:linear-gradient(135deg,#dc2626,#ef4444);border:none;color:#fff;font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 10px rgba(220,38,38,0.35);transition:all 0.2s" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">
+          <i class="fas fa-file-pdf" style="font-size:16px"></i> ออกรายงาน PDF
+        </button>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
         <div style="background:#fff;border-radius:10px;padding:12px;text-align:center;box-shadow:var(--shadow-sm);border:1px solid var(--border-light)">
           <div style="font-family:'Kanit',sans-serif;font-size:22px;font-weight:700;color:var(--primary)">${total}</div>
@@ -5947,6 +6044,572 @@ window.smCloseMission = async function(missionId) {
   if(!confirm('ปิดภารกิจนี้?')) return;
   await update(ref(db, `search_missions/${missionId}`), { status: 'closed', closedAt: Date.now() });
   showToast('ปิดภารกิจแล้ว', 'info');
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ── Export PDF — ออกรายงานภารกิจค้นหา (สำหรับแอดมิน) ──────────
+// ═══════════════════════════════════════════════════════════════
+
+let _pdfAllMissions = [];  // cache missions for pdf modal
+let _pdfFilter = 'all';    // 'all' | 'active' | 'closed'
+
+window.setPdfFilter = function(val) {
+  _pdfFilter = val;
+  // Update card styles
+  ['all','active','closed'].forEach(f => {
+    const card = document.getElementById(`pdf-card-${f}`);
+    if(!card) return;
+    if(f === val) {
+      card.style.border = '2px solid var(--primary-light)';
+      card.style.background = '#eff6ff';
+      card.style.color = 'var(--primary)';
+    } else {
+      card.style.border = '2px solid var(--border-light)';
+      card.style.background = '#fff';
+      card.style.color = 'var(--text-secondary)';
+    }
+  });
+  smRenderPdfMissionList();
+};
+
+function smRenderPdfMissionList() {
+  const container = document.getElementById('sm-pdf-mission-list');
+  if(!container) return;
+
+  let filtered = _pdfAllMissions;
+  if(_pdfFilter === 'active') {
+    filtered = _pdfAllMissions.filter(([,m]) => m.status !== 'closed');
+  } else if(_pdfFilter === 'closed') {
+    filtered = _pdfAllMissions.filter(([,m]) => m.status === 'closed');
+  }
+
+  if(!filtered.length) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">ไม่มีภารกิจในประเภทนี้</div>';
+    smUpdatePdfCount();
+    return;
+  }
+
+  const statusLabel = { open:'🟢 เปิดรับ', ongoing:'🟡 กำลังดำเนิน', closed:'⚫ จบแล้ว' };
+  container.innerHTML = filtered.map(([id, m]) => {
+    const sl = statusLabel[m.status] || m.status;
+    return `<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border-light);cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">
+      <input type="checkbox" class="pdf-mission-cb" value="${id}" checked style="margin-top:3px;width:16px;height:16px;accent-color:var(--primary-light);flex-shrink:0" onchange="smUpdatePdfCount()">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:var(--text-primary);font-family:'Kanit',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.title || 'ไม่มีชื่อ'}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${sl} · ${m.area || 'ไม่ระบุพื้นที่'} · ${smFormatDate(m.createdAt)}</div>
+      </div>
+    </label>`;
+  }).join('');
+  smUpdatePdfCount();
+}
+
+function smUpdatePdfCount() {
+  const checked = document.querySelectorAll('.pdf-mission-cb:checked');
+  const info = document.getElementById('sm-pdf-count-info');
+  const text = document.getElementById('sm-pdf-count-text');
+  if(info) info.style.display = checked.length > 0 ? 'block' : 'none';
+  if(text) text.textContent = `เลือก ${checked.length} ภารกิจ`;
+}
+
+window.smPdfSelectAll = function(val) {
+  document.querySelectorAll('.pdf-mission-cb').forEach(cb => { cb.checked = val; });
+  smUpdatePdfCount();
+};
+
+window.openSmExportPdf = async function() {
+  _pdfFilter = 'all';
+  setPdfFilter('all');
+  openModal('modal-sm-export-pdf');
+  const container = document.getElementById('sm-pdf-mission-list');
+  if(container) container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin"></i> กำลังโหลดข้อมูล...</div>';
+  try {
+    const snap = await get(ref(db, 'search_missions'));
+    const data = snap.val() || {};
+    _pdfAllMissions = Object.entries(data).sort((a,b) => (b[1].createdAt||0) - (a[1].createdAt||0));
+    smRenderPdfMissionList();
+  } catch(e) {
+    if(container) container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--accent-red);font-size:13px"><i class="fas fa-exclamation-circle"></i> โหลดข้อมูลไม่สำเร็จ</div>`;
+  }
+};
+
+// ── Thai date formatter ────────────────────────────────────────
+function pdfThaiDateTime(ts) {
+  if(!ts) return '-';
+  const d = new Date(ts);
+  const MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = MONTHS[d.getMonth()];
+  const yy = d.getFullYear()+543;
+  const hh = String(d.getHours()).padStart(2,'0');
+  const min = String(d.getMinutes()).padStart(2,'0');
+  return `${dd} ${mm} พ.ศ.${yy} เวลา ${hh}:${min} น.`;
+}
+
+function pdfThaiDateShort(ts) {
+  if(!ts) return '-';
+  const d = new Date(ts);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yy = d.getFullYear()+543;
+  const hh = String(d.getHours()).padStart(2,'0');
+  const min = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm}/${yy} ${hh}:${min}`;
+}
+
+// ── Get static map image URL ───────────────────────────────────
+function getStaticMapUrl(lat, lng, zoom=13, w=600, h=300) {
+  if(!lat || !lng) return null;
+  return `https://static-maps.yandex.ru/1.x/?ll=${lng},${lat}&z=${zoom}&size=${w},${h}&l=map&pt=${lng},${lat},pm2rdl&lang=th_TH`;
+}
+
+// ── Load image as base64 ───────────────────────────────────────
+function loadImageBase64(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width || 600;
+        canvas.height = img.height || 300;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      } catch(e) { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
+  });
+}
+
+// ── Main PDF Generator ────────────────────────────────────────
+window.smGeneratePdf = async function() {
+  const selectedIds = Array.from(document.querySelectorAll('.pdf-mission-cb:checked')).map(cb => cb.value);
+  if(!selectedIds.length) { showToast('กรุณาเลือกภารกิจอย่างน้อย 1 รายการ', 'error'); return; }
+
+  const includeMap     = document.getElementById('pdf-opt-map')?.checked ?? true;
+  const includePhotos  = document.getElementById('pdf-opt-photos')?.checked ?? true;
+  const includeMembers = document.getElementById('pdf-opt-members')?.checked ?? true;
+
+  const btn = document.getElementById('sm-pdf-export-btn');
+  if(btn) { btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> กำลังสร้าง PDF...'; }
+
+  try {
+    // Load full mission data
+    const missions = [];
+    for(const id of selectedIds) {
+      const snap = await get(ref(db, `search_missions/${id}`));
+      const m = snap.val();
+      if(m) missions.push({ id, ...m });
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
+
+    const PAGE_W = 210, PAGE_H = 297;
+    const MARGIN = 18;
+    const CONTENT_W = PAGE_W - MARGIN*2;
+
+    // ── Color palette ──────────────────────────────────────────
+    const C = {
+      navyDark:  [10, 36, 99],
+      navy:      [27, 61, 143],
+      navyLight: [37, 99, 235],
+      gold:      [245, 158, 11],
+      green:     [16, 185, 129],
+      red:       [239, 68, 68],
+      gray:      [100, 116, 139],
+      lightGray: [241, 245, 249],
+      white:     [255, 255, 255],
+      textDark:  [15, 23, 42],
+      textMid:   [71, 85, 105],
+    };
+
+    // ── Helpers ───────────────────────────────────────────────
+    function setFont(size, style='normal', color=C.textDark) {
+      doc.setFontSize(size);
+      doc.setFont('helvetica', style);
+      doc.setTextColor(...color);
+    }
+
+    function fillRect(x, y, w, h, color) {
+      doc.setFillColor(...color);
+      doc.rect(x, y, w, h, 'F');
+    }
+
+    function drawLine(x1,y1,x2,y2,color=C.navy,lw=0.3) {
+      doc.setDrawColor(...color);
+      doc.setLineWidth(lw);
+      doc.line(x1,y1,x2,y2);
+    }
+
+    function wrapText(text, maxW, fontSize, style='normal') {
+      doc.setFontSize(fontSize);
+      doc.setFont('helvetica', style);
+      return doc.splitTextToSize(String(text||''), maxW);
+    }
+
+    // ─── COVER PAGE ────────────────────────────────────────────
+    // Hero background gradient band
+    fillRect(0, 0, PAGE_W, 80, C.navyDark);
+    fillRect(0, 68, PAGE_W, 20, C.navy);
+
+    // Decorative lines
+    doc.setDrawColor(...C.gold);
+    doc.setLineWidth(1.5);
+    doc.line(MARGIN, 72, PAGE_W-MARGIN, 72);
+    doc.setLineWidth(0.4);
+    doc.line(MARGIN, 75, PAGE_W-MARGIN, 75);
+
+    // Header text
+    setFont(10, 'bold', C.gold);
+    doc.text('กองป้องกันและบรรเทาสาธารณภัย', PAGE_W/2, 22, {align:'center'});
+
+    setFont(18, 'bold', C.white);
+    doc.text('รายงานภารกิจค้นหา', PAGE_W/2, 38, {align:'center'});
+
+    setFont(12, 'normal', [180,200,240]);
+    doc.text('Search and Rescue Mission Report', PAGE_W/2, 50, {align:'center'});
+
+    setFont(9, 'normal', [180,200,240]);
+    const nowTh = pdfThaiDateTime(Date.now());
+    doc.text(`วันที่ออกรายงาน: ${nowTh}`, PAGE_W/2, 62, {align:'center'});
+
+    // Filter badge
+    const filterNames = { all:'ทุกภารกิจ', active:'กำลังดำเนิน', closed:'ภารกิจที่จบแล้ว' };
+    const filterColors = { all:[37,99,235], active:[16,185,129], closed:[100,116,139] };
+    const fc = filterColors[_pdfFilter] || C.navyLight;
+    fillRect(PAGE_W/2-28, 79, 56, 10, fc);
+    doc.setDrawColor(...fc);
+    doc.setLineWidth(0);
+    setFont(8, 'bold', C.white);
+    doc.text(filterNames[_pdfFilter]||'ทุกภารกิจ', PAGE_W/2, 86, {align:'center'});
+
+    // Summary box
+    let sy = 100;
+    fillRect(MARGIN, sy, CONTENT_W, 36, C.lightGray);
+    doc.setDrawColor(...C.navyLight);
+    doc.setLineWidth(0.5);
+    doc.rect(MARGIN, sy, CONTENT_W, 36, 'D');
+
+    const closed = missions.filter(m=>m.status==='closed').length;
+    const active  = missions.filter(m=>m.status!=='closed').length;
+
+    const cols = [
+      { label:'จำนวนภารกิจทั้งหมด', val: String(missions.length) },
+      { label:'กำลังดำเนินการ', val: String(active) },
+      { label:'จบแล้ว', val: String(closed) },
+    ];
+    const colW = CONTENT_W/3;
+    cols.forEach((col,i) => {
+      const cx = MARGIN + colW*i + colW/2;
+      setFont(18, 'bold', C.navyDark);
+      doc.text(col.val, cx, sy+16, {align:'center'});
+      setFont(8, 'normal', C.gray);
+      doc.text(col.label, cx, sy+26, {align:'center'});
+      if(i<2) drawLine(MARGIN+colW*(i+1), sy+4, MARGIN+colW*(i+1), sy+32, C.navy, 0.3);
+    });
+
+    // Prepared by
+    sy = 150;
+    setFont(10, 'bold', C.navyDark);
+    doc.text('จัดทำโดย', MARGIN, sy);
+    drawLine(MARGIN, sy+2, MARGIN+CONTENT_W/2, sy+2, C.navyLight, 0.3);
+    setFont(9, 'normal', C.textMid);
+    doc.text(`${S.user?.name || S.user?.id || '-'}  (${S.user?.position || 'ผู้ดูแลระบบ'})`, MARGIN, sy+10);
+    doc.text(`รหัสพนักงาน: ${S.user?.id || '-'}`, MARGIN, sy+18);
+
+    // Document number / classification box
+    fillRect(PAGE_W-MARGIN-70, sy-8, 70, 32, [239,246,255]);
+    doc.setDrawColor(...C.navyLight);
+    doc.setLineWidth(0.5);
+    doc.rect(PAGE_W-MARGIN-70, sy-8, 70, 32, 'D');
+    setFont(7, 'bold', C.navyLight);
+    doc.text('เอกสารราชการ', PAGE_W-MARGIN-35, sy, {align:'center'});
+    setFont(7, 'normal', C.gray);
+    doc.text(`ผู้จัดทำ: ${S.user?.name || '-'}`, PAGE_W-MARGIN-35, sy+8, {align:'center'});
+    doc.text(`วันที่: ${pdfThaiDateShort(Date.now())}`, PAGE_W-MARGIN-35, sy+16, {align:'center'});
+
+    // TOC
+    sy = 195;
+    setFont(11, 'bold', C.navyDark);
+    doc.text('สารบัญ', MARGIN, sy);
+    drawLine(MARGIN, sy+2, PAGE_W-MARGIN, sy+2, C.navy, 0.4);
+
+    missions.forEach((m, idx) => {
+      sy += 10;
+      if(sy > 270) return;
+      const statusEmoji = m.status==='closed' ? '●' : '○';
+      setFont(9, 'normal', C.textMid);
+      doc.text(`${idx+1}.`, MARGIN+2, sy);
+      setFont(9, 'bold', C.navyDark);
+      const titleLines = wrapText(`${m.title||'ไม่มีชื่อ'}`, CONTENT_W-40, 9, 'bold');
+      doc.text(titleLines[0], MARGIN+10, sy);
+      setFont(8, 'normal', C.gray);
+      doc.text(statusEmoji, PAGE_W-MARGIN-20, sy);
+      doc.text(pdfThaiDateShort(m.createdAt), PAGE_W-MARGIN-15, sy, {align:'right'});
+    });
+
+    // Footer
+    setFont(8, 'normal', C.gray);
+    doc.text('เอกสารนี้จัดทำโดยระบบบันทึกการปฏิบัติงาน กองป้องกันและบรรเทาสาธารณภัย', PAGE_W/2, PAGE_H-12, {align:'center'});
+    drawLine(MARGIN, PAGE_H-16, PAGE_W-MARGIN, PAGE_H-16, C.navyLight, 0.3);
+
+    // ─── MISSION DETAIL PAGES ─────────────────────────────────
+    for(let mIdx=0; mIdx<missions.length; mIdx++) {
+      const m = missions[mIdx];
+      doc.addPage();
+
+      let cy = 0;
+
+      // Page header band
+      fillRect(0, 0, PAGE_W, 22, C.navyDark);
+      fillRect(0, 20, PAGE_W, 4, C.navyLight);
+      setFont(8, 'bold', C.gold);
+      doc.text('รายงานภารกิจค้นหา — กองป้องกันและบรรเทาสาธารณภัย', MARGIN, 13);
+      setFont(8, 'normal', [160,180,220]);
+      doc.text(`หน้า ${mIdx+2}/${missions.length+1}`, PAGE_W-MARGIN, 13, {align:'right'});
+
+      cy = 32;
+
+      // Mission number badge
+      fillRect(MARGIN, cy, 12, 12, C.navyLight);
+      setFont(8,'bold',C.white);
+      doc.text(String(mIdx+1), MARGIN+6, cy+8.5, {align:'center'});
+
+      // Mission title
+      setFont(14, 'bold', C.navyDark);
+      const titleW = CONTENT_W-18;
+      const titleLines = wrapText(m.title||'ไม่มีชื่อ', titleW, 14, 'bold');
+      doc.text(titleLines[0], MARGIN+16, cy+8.5);
+      if(titleLines[1]) doc.text(titleLines[1], MARGIN+16, cy+17);
+      cy += titleLines.length > 1 ? 26 : 18;
+
+      // Status badge
+      const statusMap = { open:{label:'เปิดรับสมาชิก',bg:C.green}, ongoing:{label:'กำลังดำเนินการ',bg:C.navyLight}, closed:{label:'ปิดภารกิจ (จบแล้ว)',bg:C.gray} };
+      const st = statusMap[m.status] || statusMap.open;
+      fillRect(MARGIN, cy, 52, 8, st.bg);
+      setFont(7,'bold',C.white);
+      doc.text(st.label, MARGIN+26, cy+5.5, {align:'center'});
+      cy += 14;
+
+      // ── Info Table ──────────────────────────────────────────
+      const infoRows = [
+        ['ชื่อภารกิจ', m.title||'-'],
+        ['พื้นที่ / รายละเอียด', m.area||'-'],
+        ['สถานะ', st.label],
+        ['ผู้สร้างภารกิจ', m.createdByName||m.createdBy||'-'],
+        ['วันที่เริ่ม', pdfThaiDateTime(m.createdAt)],
+        ...(m.closedAt ? [['วันที่จบ', pdfThaiDateTime(m.closedAt)]] : []),
+        ...(m.closedByName ? [['จบโดย', m.closedByName]] : []),
+      ];
+
+      // Table header
+      fillRect(MARGIN, cy, CONTENT_W, 8, C.navy);
+      setFont(8,'bold',C.white);
+      doc.text('รายละเอียดภารกิจ', MARGIN+4, cy+5.5);
+      cy += 8;
+
+      // Rows
+      const labelW = 52;
+      infoRows.forEach((row,i) => {
+        const rowH = 9;
+        fillRect(MARGIN, cy, CONTENT_W, rowH, i%2===0 ? C.lightGray : C.white);
+        doc.setDrawColor(...C.navyLight);
+        doc.setLineWidth(0.2);
+        doc.rect(MARGIN, cy, CONTENT_W, rowH, 'D');
+
+        // Label col
+        fillRect(MARGIN, cy, labelW, rowH, i%2===0 ? [220,230,250] : [230,238,255]);
+        setFont(7.5,'bold',C.navy);
+        doc.text(String(row[0]), MARGIN+3, cy+6);
+
+        // Value col
+        setFont(7.5,'normal',C.textDark);
+        const valLines = wrapText(String(row[1]||'-'), CONTENT_W-labelW-4, 7.5);
+        doc.text(valLines[0], MARGIN+labelW+3, cy+6);
+        cy += rowH;
+        if(valLines.length>1) {
+          for(let vl=1;vl<valLines.length;vl++) {
+            fillRect(MARGIN, cy, CONTENT_W, rowH, i%2===0 ? C.lightGray : C.white);
+            doc.setDrawColor(...C.navyLight);
+            doc.setLineWidth(0.2);
+            doc.rect(MARGIN, cy, CONTENT_W, rowH, 'D');
+            setFont(7.5,'normal',C.textDark);
+            doc.text(valLines[vl], MARGIN+labelW+3, cy+6);
+            cy += rowH;
+          }
+        }
+      });
+      cy += 8;
+
+      // ── Summary ─────────────────────────────────────────────
+      if(m.summary) {
+        if(cy > 230) { doc.addPage(); cy=28; }
+        fillRect(MARGIN, cy, CONTENT_W, 8, C.green);
+        setFont(8,'bold',C.white);
+        doc.text('สรุปผลภารกิจ', MARGIN+4, cy+5.5);
+        cy += 8;
+        fillRect(MARGIN, cy, CONTENT_W, 4, [200,245,220]);
+        cy += 4;
+        const sumLines = wrapText(m.summary, CONTENT_W-8, 8);
+        const sumH = sumLines.length*7+6;
+        fillRect(MARGIN, cy, CONTENT_W, sumH, [240,253,244]);
+        doc.setDrawColor(...C.green);
+        doc.setLineWidth(0.4);
+        doc.rect(MARGIN, cy, CONTENT_W, sumH, 'D');
+        doc.setDrawColor(...C.green);
+        doc.setLineWidth(1.5);
+        doc.line(MARGIN, cy, MARGIN, cy+sumH);
+        setFont(8,'normal',C.textDark);
+        sumLines.forEach((line,i) => { doc.text(line, MARGIN+6, cy+5+i*7); });
+        cy += sumH+8;
+      }
+
+      // ── Members ─────────────────────────────────────────────
+      if(includeMembers) {
+        const members = m.memberSnapshot || m.members || {};
+        const memberEntries = Object.entries(members);
+        if(memberEntries.length > 0) {
+          if(cy > 230) { doc.addPage(); cy=28; }
+          fillRect(MARGIN, cy, CONTENT_W, 8, C.navyLight);
+          setFont(8,'bold',C.white);
+          doc.text(`สมาชิกร่วมภารกิจ (${memberEntries.length} คน)`, MARGIN+4, cy+5.5);
+          cy += 8;
+          const colCount = 2;
+          const mColW = CONTENT_W/colCount;
+          memberEntries.forEach(([uid, mem], i) => {
+            const col = i%colCount;
+            const row = Math.floor(i/colCount);
+            if(col===0 && row>0) cy += 8;
+            if(col===0 && cy>255) { doc.addPage(); cy=28; }
+            const mx = MARGIN + col*mColW;
+            const statusColors = { sos:[239,68,68], online:[16,185,129], offline:[148,163,184] };
+            const sc = statusColors[mem.status] || statusColors.offline;
+            fillRect(mx, cy, mColW-2, 8, i%2===0 ? C.lightGray : C.white);
+            doc.setFillColor(...sc);
+            doc.circle(mx+5, cy+4, 2, 'F');
+            setFont(7.5,'normal',C.textDark);
+            const name = mem.name||uid;
+            doc.text(name.length>20 ? name.slice(0,19)+'...' : name, mx+10, cy+5.5);
+          });
+          cy += 14;
+        }
+      }
+
+      // ── Map ──────────────────────────────────────────────────
+      if(includeMap) {
+        // Try to get a GPS fix from locations
+        let lat=null, lng=null;
+        const locs = m.locations || {};
+        const locVals = Object.values(locs);
+        if(locVals.length>0) {
+          const latArr = locVals.map(l=>l.lat).filter(Boolean);
+          const lngArr = locVals.map(l=>l.lng).filter(Boolean);
+          if(latArr.length) {
+            lat = latArr.reduce((a,b)=>a+b,0)/latArr.length;
+            lng = lngArr.reduce((a,b)=>a+b,0)/lngArr.length;
+          }
+        }
+
+        if(lat && lng) {
+          if(cy > 210) { doc.addPage(); cy=28; }
+          fillRect(MARGIN, cy, CONTENT_W, 8, [14,165,233]);
+          setFont(8,'bold',C.white);
+          doc.text('แผนที่ปฏิบัติการ', MARGIN+4, cy+5.5);
+          cy += 8;
+
+          const mapUrl = getStaticMapUrl(lat, lng, 14, 580, 280);
+          const mapImg = await loadImageBase64(mapUrl);
+          if(mapImg) {
+            const mapH = 55;
+            doc.addImage(mapImg, 'JPEG', MARGIN, cy, CONTENT_W, mapH);
+            cy += mapH;
+          } else {
+            // Fallback: text map info
+            fillRect(MARGIN, cy, CONTENT_W, 18, [240,249,255]);
+            doc.setDrawColor(14,165,233);
+            doc.setLineWidth(0.4);
+            doc.rect(MARGIN, cy, CONTENT_W, 18, 'D');
+            setFont(8,'normal',[14,120,170]);
+            doc.text(`พิกัดศูนย์กลาง: ${lat.toFixed(6)}, ${lng.toFixed(6)}`, MARGIN+CONTENT_W/2, cy+7, {align:'center'});
+            doc.text(`(แผนที่ไม่สามารถโหลดได้ — โปรดตรวจสอบการเชื่อมต่อ)`, MARGIN+CONTENT_W/2, cy+14, {align:'center'});
+            cy += 18;
+          }
+
+          // Coord list
+          if(locVals.length>0 && locVals.length<=6) {
+            cy += 4;
+            fillRect(MARGIN, cy, CONTENT_W, 7, C.lightGray);
+            setFont(7.5,'bold',C.navy);
+            doc.text('พิกัดสมาชิก', MARGIN+4, cy+5);
+            cy += 7;
+            locVals.forEach((loc,i) => {
+              fillRect(MARGIN, cy, CONTENT_W, 7, i%2===0?C.white:C.lightGray);
+              setFont(7,'normal',C.textMid);
+              doc.text(`• ${loc.lat?.toFixed(5)||'-'}, ${loc.lng?.toFixed(5)||'-'}`, MARGIN+4, cy+5);
+              cy += 7;
+            });
+          }
+          cy += 8;
+        }
+      }
+
+      // ── Photos ─────────────────────────────────────────────
+      if(includePhotos && m.photos && m.photos.length>0) {
+        if(cy > 200) { doc.addPage(); cy=28; }
+        fillRect(MARGIN, cy, CONTENT_W, 8, C.gold);
+        setFont(8,'bold',C.white);
+        doc.text(`รูปภาพประกอบ (${m.photos.length} รูป)`, MARGIN+4, cy+5.5);
+        cy += 8;
+
+        const photosToShow = m.photos.slice(0,4);
+        const photoW = (CONTENT_W-6)/2;
+        const photoH = 45;
+        for(let pi=0; pi<photosToShow.length; pi++) {
+          const photo = photosToShow[pi];
+          const src = typeof photo==='string' ? photo : photo.data;
+          if(!src) continue;
+          const col = pi%2;
+          const row = Math.floor(pi/2);
+          if(col===0 && row>0) cy += photoH+4;
+          if(cy+photoH > 270) { doc.addPage(); cy=28; }
+          const px = MARGIN + col*(photoW+6);
+          try {
+            const fmt = src.includes('png') ? 'PNG' : 'JPEG';
+            doc.addImage(src, fmt, px, cy, photoW, photoH);
+            doc.setDrawColor(...C.gray);
+            doc.setLineWidth(0.3);
+            doc.rect(px, cy, photoW, photoH, 'D');
+          } catch(e) {
+            fillRect(px, cy, photoW, photoH, C.lightGray);
+            setFont(8,'normal',C.gray);
+            doc.text('ไม่สามารถโหลดรูปภาพ', px+photoW/2, cy+photoH/2, {align:'center'});
+          }
+        }
+        cy += photoH+10;
+      }
+
+      // ── Page footer ────────────────────────────────────────
+      drawLine(MARGIN, PAGE_H-14, PAGE_W-MARGIN, PAGE_H-14, C.navyLight, 0.3);
+      setFont(7.5,'normal',C.gray);
+      doc.text('กองป้องกันและบรรเทาสาธารณภัย  |  รายงานภารกิจค้นหา', MARGIN, PAGE_H-8);
+      doc.text(`${pdfThaiDateShort(Date.now())}  |  หน้า ${mIdx+2}/${missions.length+1}`, PAGE_W-MARGIN, PAGE_H-8, {align:'right'});
+    }
+
+    // ─── Save ─────────────────────────────────────────────────
+    const today = new Date();
+    const filename = `รายงานภารกิจค้นหา_${today.getDate()}${today.getMonth()+1}${today.getFullYear()+543}.pdf`;
+    doc.save(filename);
+    closeModal('modal-sm-export-pdf');
+    showToast(`ออกรายงาน PDF สำเร็จ (${missions.length} ภารกิจ) ✅`, 'success');
+
+  } catch(e) {
+    console.error('PDF error:', e);
+    showToast('เกิดข้อผิดพลาดในการสร้าง PDF: ' + e.message, 'error');
+  } finally {
+    if(btn) { btn.disabled=false; btn.innerHTML='<i class="fas fa-file-pdf"></i> ออกรายงาน PDF'; }
+  }
 };
 
 // ── Photo Upload for End Mission ──────────────────────────
