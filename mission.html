@@ -756,6 +756,7 @@ function heartbeat(){
 // ─── Markers ─────────────────────────────────────────────
 function gc(i){return COLORS[i%COLORS.length];}
 function mkIcon(lbl,color,status,fullName){
+  color=color||'#3b82f6'; status=status||'online';
   const isSos=status==='sos', isOff=status==='offline', isMov=status==='moving';
 
   // ── colour tokens ──────────────────────────────────────
@@ -816,8 +817,10 @@ function mkIcon(lbl,color,status,fullName){
 }
 // darken a hex color by pct (negative = darken)
 function shadeColor(hex,pct){
+  if(!hex||typeof hex!=='string') return '#334155';
   hex=hex.replace('#','');
   if(hex.length===3) hex=hex.split('').map(c=>c+c).join('');
+  if(hex.length!==6) return '#334155';
   let [r,g,b]=[0,2,4].map(i=>parseInt(hex.slice(i,i+2),16));
   r=Math.max(0,Math.min(255,r+pct)); g=Math.max(0,Math.min(255,g+pct)); b=Math.max(0,Math.min(255,b+pct));
   return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
