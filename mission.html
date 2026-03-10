@@ -128,7 +128,22 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
 .draw-cancel{padding:7px;border-radius:9px;border:1px solid #fecaca;background:#fff;color:#ef4444;
   font-size:11px;font-weight:700;font-family:'Sarabun',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;margin-top:2px;}
 
-/* ── PIN PICKER ── */
+/* ── LAYER PICKER ── */
+#layer-picker{top:auto;bottom:10px;right:60px;}
+.layer-opt{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;border:1.5px solid var(--border-light);
+  background:#fff;cursor:pointer;transition:all 0.15s;width:100%;}
+.layer-opt:hover{background:var(--surface-2);border-color:var(--primary-light);}
+.layer-opt.active{background:#eff6ff;border-color:var(--primary-light);}
+.layer-opt-icon{width:32px;height:32px;border-radius:8px;overflow:hidden;flex-shrink:0;border:1px solid var(--border-light);}
+.layer-opt-icon img{width:100%;height:100%;object-fit:cover;}
+.layer-opt-info{flex:1;text-align:left;}
+.layer-opt-name{font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;color:var(--primary);}
+.layer-opt-desc{font-size:10px;color:var(--text-muted);margin-top:1px;}
+.layer-opt .chk{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:9px;}
+.layer-opt.active .chk{background:var(--primary-light);border-color:var(--primary-light);color:#fff;}
+
+
 .pin-picker{position:absolute;right:60px;top:10px;z-index:950;background:#fff;border-radius:14px;
   padding:10px;box-shadow:var(--shadow-xl);border:1px solid var(--border-light);display:none;flex-direction:column;gap:5px;min-width:160px;}
 .pin-picker.show{display:flex;}
@@ -354,6 +369,7 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 
     <!-- Floating toolbar (collapsible) -->
     <div class="map-toolbar collapsed" id="map-toolbar">
+      <div class="mtool" id="btn-layer" onclick="toggleLayerPicker()"><i class="fas fa-layer-group" style="color:#0891b2"></i><span class="mtool-tip">ชั้นแผนที่</span></div>
       <div class="mtool" id="btn-draw" onclick="toggleDraw()"><i class="fas fa-draw-polygon"></i><span class="mtool-tip">วาดโซน</span></div>
       <div class="mtool" id="btn-pin" onclick="togglePinPicker()"><i class="fas fa-map-pin"></i><span class="mtool-tip">ปักหมุด</span></div>
       <div class="mtool trail-on" id="btn-trail" onclick="toggleTrail()"><i class="fas fa-route"></i><span class="mtool-tip">ซ่อนเส้นทาง</span></div>
@@ -396,6 +412,35 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
         <button id="btn-clear-all-grids" class="draw-cancel" style="flex:1" onclick="clearAllGrids()"><i class="fas fa-trash"></i> ลบ (ของฉัน)</button>
         <button class="draw-cancel" style="flex:1;border-color:#e2e8f0;color:#64748b" onclick="closeGridPicker()"><i class="fas fa-times"></i> ปิด</button>
       </div>
+    </div>
+
+    <!-- Layer Switcher Panel -->
+    <div class="pin-picker" id="layer-picker" style="min-width:230px;max-width:260px;right:60px;top:auto;bottom:10px">
+      <div class="pin-picker-title"><i class="fas fa-map" style="margin-right:5px;color:#0891b2"></i>ชั้นแผนที่</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:2px">
+        <button class="layer-opt active" id="layer-opt-street" onclick="switchLayer('street')">
+          <div class="layer-opt-icon"><img src="https://tile.openstreetmap.org/13/6415/3564.png" alt=""></div>
+          <div class="layer-opt-info"><div class="layer-opt-name">Street Map</div><div class="layer-opt-desc">OpenStreetMap มาตรฐาน</div></div>
+          <div class="chk"><i class="fas fa-check"></i></div>
+        </button>
+        <button class="layer-opt" id="layer-opt-satellite" onclick="switchLayer('satellite')">
+          <div class="layer-opt-icon"><img src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/13/3564/6415" alt="" onerror="this.style.background='#1a3a5c'"></div>
+          <div class="layer-opt-info"><div class="layer-opt-name">ดาวเทียม</div><div class="layer-opt-desc">Esri World Imagery</div></div>
+          <div class="chk"></div>
+        </button>
+        <button class="layer-opt" id="layer-opt-topo" onclick="switchLayer('topo')">
+          <div class="layer-opt-icon"><img src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/13/3564/6415" alt="" onerror="this.style.background='#d4e9c4'"></div>
+          <div class="layer-opt-info"><div class="layer-opt-name">ภูมิประเทศ</div><div class="layer-opt-desc">Esri World Topo</div></div>
+          <div class="chk"></div>
+        </button>
+        <button class="layer-opt" id="layer-opt-contour" onclick="switchLayer('contour')">
+          <div class="layer-opt-icon"><img src="https://tile.opentopomap.org/13/6415/3564.png" alt="" onerror="this.style.background='#e8dcc8'"></div>
+          <div class="layer-opt-info"><div class="layer-opt-name">เส้นชั้นความสูง</div><div class="layer-opt-desc">OpenTopoMap</div></div>
+          <div class="chk"></div>
+        </button>
+      </div>
+      <div style="border-top:1px solid var(--border-light);margin:8px 0 4px"></div>
+      <button class="draw-cancel" style="border-color:#e2e8f0;color:#64748b;width:100%;justify-content:center" onclick="closeLayerPicker()"><i class="fas fa-times"></i> ปิด</button>
     </div>
 
     <!-- Zone Panel -->
@@ -603,6 +648,15 @@ if (!missionId) { errScreen('ไม่พบรหัสภารกิจ','ก
 
 // ─── State ───────────────────────────────────────────────
 let _map=null, _markers={}, _trailLayers={}, _zoneLayers={}, _pinMarkers={};
+let _currentTileLayer=null, _activeLayerId='street';
+
+// ── Tile Layer Definitions ────────────────────────────────
+const TILE_LAYERS = {
+  street:    { url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',    maxZoom:19, opts:{} },
+  satellite: { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', maxZoom:19, opts:{subdomains:[]} },
+  topo:      { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', maxZoom:19, opts:{subdomains:[]} },
+  contour:   { url:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',      maxZoom:17, opts:{subdomains:['a','b','c']} },
+};
 let _wid=null, _bgInt=null, _trailInt=null, _timerInt=null;
 let _unLoc=null, _unMem=null, _unStatus=null, _unChat=null, _unPins=null, _unZones=null, _unTrails=null;
 let _trailData={}; // cache trail data from Firebase
@@ -777,7 +831,8 @@ const p2=n=>String(n).padStart(2,'0');
 function initMap(){
   if(_map){_map.remove();_map=null;_markers={};_trailLayers={};_zoneLayers={};_pinMarkers={};_mapZoneClickBound=false;}
   _map=L.map('track-map',{zoomControl:true,attributionControl:false});
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_map);
+  const tl = TILE_LAYERS[_activeLayerId];
+  _currentTileLayer = L.tileLayer(tl.url, {maxZoom: tl.maxZoom, ...tl.opts}).addTo(_map);
   _map.setView([15.7,100.0],13);
 
   // Custom panes: gridPane (200) < zonePane (300) < gridClickPane (350) < pinPane (400)
@@ -1890,6 +1945,7 @@ function toggleAllZonesVis(){
 // ─── QUICK PINS ───────────────────────────────────────────
 // ══════════════════════════════════════════════════════════
 function togglePinPicker(){
+  closeLayerPicker();
   const p=document.getElementById('pin-picker');p.classList.toggle('show');
   document.getElementById('btn-pin').classList.toggle('active',p.classList.contains('show'));
 }
@@ -2308,6 +2364,42 @@ function toggleGridVisibility(){
   toast(_gridVisible ? 'แสดงกริดแล้ว ✅' : 'ซ่อนกริดแล้ว (เฉพาะหน้าจอคุณ)', 'info');
 }
 
+// ── Layer Switcher ────────────────────────────────────────
+function switchLayer(id){
+  if(!_map || !TILE_LAYERS[id]) return;
+  if(_currentTileLayer){ _map.removeLayer(_currentTileLayer); }
+  const tl = TILE_LAYERS[id];
+  _currentTileLayer = L.tileLayer(tl.url, {maxZoom: tl.maxZoom, ...tl.opts}).addTo(_map);
+  _currentTileLayer.bringToBack();
+  _activeLayerId = id;
+  // อัปเดต UI
+  ['street','satellite','topo','contour'].forEach(k => {
+    const el = document.getElementById('layer-opt-'+k);
+    if(!el) return;
+    const isActive = k === id;
+    el.classList.toggle('active', isActive);
+    el.querySelector('.chk').innerHTML = isActive ? '<i class="fas fa-check"></i>' : '';
+  });
+  const names = {street:'Street Map',satellite:'ดาวเทียม',topo:'ภูมิประเทศ',contour:'เส้นชั้นความสูง'};
+  toast('เปลี่ยนเป็น '+names[id]+' ✅','info');
+}
+function toggleLayerPicker(){
+  _ensureToolbarOpen();
+  const p = document.getElementById('layer-picker');
+  // ปิด picker อื่น
+  document.getElementById('pin-picker').classList.remove('show');
+  document.getElementById('btn-pin').classList.remove('active');
+  document.getElementById('grid-picker').classList.remove('show');
+  document.getElementById('btn-grid').classList.remove('active');
+  const show = p.classList.toggle('show');
+  document.getElementById('btn-layer').classList.toggle('active', show);
+}
+function closeLayerPicker(){
+  document.getElementById('layer-picker').classList.remove('show');
+  document.getElementById('btn-layer').classList.remove('active');
+}
+window.switchLayer=switchLayer; window.toggleLayerPicker=toggleLayerPicker; window.closeLayerPicker=closeLayerPicker;
+
 // ── ลบกริดชุดนึงออกจาก Firebase ──────────────────────────
 function deleteGrid(gridId){
   if(!confirm('ลบกริดนี้?\nทุกคนในภารกิจจะไม่เห็นกริดนี้อีกต่อไป')) return;
@@ -2323,6 +2415,7 @@ function toggleGridPicker(){
   const p = document.getElementById('grid-picker');
   document.getElementById('pin-picker').classList.remove('show');
   document.getElementById('btn-pin').classList.remove('active');
+  closeLayerPicker();
   const show = p.classList.toggle('show');
   document.getElementById('btn-grid').classList.toggle('active', show || _gridLayers.length > 0);
   // อัปเดตป้ายปุ่มลบตามสิทธิ์
