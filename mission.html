@@ -576,6 +576,22 @@ let _wid=null, _bgInt=null, _trailInt=null, _timerInt=null;
 let _unLoc=null, _unMem=null, _unStatus=null, _unChat=null, _unPins=null, _unZones=null, _unTrails=null;
 let _trailData={}; // cache trail data from Firebase
 let _gps=false, _trailOn=true, _zonesOn=true;
+// โซนที่ซ่อนเฉพาะเครื่องนี้ — เก็บใน localStorage
+const _hiddenZonesKey = ()=>`sm_hidden_zones_${missionId||'x'}`;
+let _hiddenZones = new Set(JSON.parse(localStorage.getItem(_hiddenZonesKey())||'[]'));
+function _saveHiddenZones(){ localStorage.setItem(_hiddenZonesKey(), JSON.stringify([..._hiddenZones])); }
+function toggleHideZone(id){
+  if(_hiddenZones.has(id)) _hiddenZones.delete(id); else _hiddenZones.add(id);
+  _saveHiddenZones();
+  // re-apply visibility
+  if(_zoneLayers[id]){
+    const hidden = _hiddenZones.has(id);
+    _zoneLayers[id].setStyle({fillOpacity: hidden?0:0.15, opacity: hidden?0:1});
+  }
+  _map?.closePopup();
+  toast(_hiddenZones.has(id)?'ซ่อนโซนนี้แล้ว (เฉพาะคุณ)':'แสดงโซนนี้แล้ว','info');
+}
+window.toggleHideZone = toggleHideZone;
 let _sosOn=false, _sosExp=0, _sosT=null;
 let _mStart=null;
 let _unread=0, _chatOpen=false, _lastChatTs=0;
@@ -1154,114 +1170,114 @@ function clearPrev(){
   _rStart=null;if(_rRect){_rRect.remove();_rRect=null;}
   _cCtr=null;if(_cCirc){_cCirc.remove();_cCirc=null;}
 }
-function getLL(e){
-  // Leaflet wrap native event ใน e.originalEvent
-  const oe = e.originalEvent || e;
-
-  // 1) Leaflet คำนวณ latlng ให้แล้ว (mousedown/mousemove)
-  if(e.latlng) return e.latlng;
-
-  // 2) touchstart / touchmove → ใช้ touches[0]
-  const src = oe.touches && oe.touches.length ? oe.touches[0]
-             // 3) touchend → touches ว่าง ใช้ changedTouches[0]
-             : oe.changedTouches && oe.changedTouches.length ? oe.changedTouches[0]
-             : null;
-  if(!src) return null;
-
-  const r = _map.getContainer().getBoundingClientRect();
-  return _map.containerPointToLatLng(
-    L.point(src.clientX - r.left, src.clientY - r.top)
-  );
-}
-
 function setupDrawEvents(){
-  // ─── Zone draw ────────────────────────────────────────────
-  _map.on('mousedown touchstart', e=>{
-    if(!_drawOn || !_drawMode) return;
-    const ll = getLL(e); if(!ll) return;
-    L.DomEvent.preventDefault(e.originalEvent || e);
+  const mc = _map.getContainer();
+
+  // helper: client coords → LatLng
+  function ptToLL(cx, cy){
+    const r = mc.getBoundingClientRect();
+    return _map.containerPointToLatLng(L.point(cx - r.left, cy - r.top));
+  }
+
+  // ── Zone draw ─────────────────────────────────────────────
+  function onDrawStart(cx, cy){
+    if(!_drawOn || !_drawMode) return false;
+    const ll = ptToLL(cx, cy);
     if(_drawMode==='free'){
-      _fPts=[ll];
-      if(_fLine) _fLine.remove();
+      _fPts=[ll]; if(_fLine) _fLine.remove();
       _fLine = L.polyline([ll],{color:_zoneColor,weight:3,dashArray:'6,3'}).addTo(_map);
     }
     if(_drawMode==='rect')   _rStart = ll;
     if(_drawMode==='circle') _cCtr   = ll;
-  });
-
-  _map.on('mousemove touchmove', e=>{
+    return true;
+  }
+  function onDrawMove(cx, cy){
     if(!_drawOn || !_drawMode) return;
-    const ll = getLL(e); if(!ll) return;
-    L.DomEvent.preventDefault(e.originalEvent || e);
-    if(_drawMode==='free' && _fPts.length){
-      _fPts.push(ll); _fLine?.setLatLngs(_fPts);
-    }
+    const ll = ptToLL(cx, cy);
+    if(_drawMode==='free' && _fPts.length){ _fPts.push(ll); _fLine?.setLatLngs(_fPts); }
     if(_drawMode==='rect' && _rStart){
-      const b = L.latLngBounds(_rStart,ll);
+      const b=L.latLngBounds(_rStart,ll);
       if(_rRect) _rRect.setBounds(b);
-      else _rRect = L.rectangle(b,{color:_zoneColor,weight:2,fillOpacity:0.2,dashArray:'6,3'}).addTo(_map);
+      else _rRect=L.rectangle(b,{color:_zoneColor,weight:2,fillOpacity:0.2,dashArray:'6,3'}).addTo(_map);
     }
     if(_drawMode==='circle' && _cCtr){
-      const r = _cCtr.distanceTo(ll);
+      const r=_cCtr.distanceTo(ll);
       if(_cCirc) _cCirc.setRadius(r);
-      else _cCirc = L.circle(_cCtr,{radius:r,color:_zoneColor,weight:2,fillOpacity:0.15,dashArray:'6,3'}).addTo(_map);
+      else _cCirc=L.circle(_cCtr,{radius:r,color:_zoneColor,weight:2,fillOpacity:0.15,dashArray:'6,3'}).addTo(_map);
     }
-  });
-
-  _map.on('mouseup touchend', e=>{
+  }
+  function onDrawEnd(cx, cy){
     if(!_drawOn || !_drawMode) return;
-    const ll = getLL(e);
+    const ll = ptToLL(cx, cy);
     if(_drawMode==='free'){
-      if(_fPts.length < 3){ clearPrev(); return; }
-      _pendingZone = {type:'polygon', latlngs:_fPts.map(p=>({lat:p.lat,lng:p.lng}))};
-    } else if(_drawMode==='rect' && _rStart && ll){
-      const b = L.latLngBounds(_rStart,ll);
-      if(b.getNorth()===b.getSouth() || b.getEast()===b.getWest()){ clearPrev(); return; }
-      _pendingZone = {type:'rectangle', sw:{lat:b.getSouth(),lng:b.getWest()}, ne:{lat:b.getNorth(),lng:b.getEast()}};
-    } else if(_drawMode==='circle' && _cCtr && ll){
-      const r = _cCtr.distanceTo(ll); if(r < 10){ clearPrev(); return; }
-      _pendingZone = {type:'circle', center:{lat:_cCtr.lat,lng:_cCtr.lng}, radius:Math.round(r)};
+      if(_fPts.length<3){ clearPrev(); return; }
+      _pendingZone={type:'polygon',latlngs:_fPts.map(p=>({lat:p.lat,lng:p.lng}))};
+    } else if(_drawMode==='rect' && _rStart){
+      const b=L.latLngBounds(_rStart,ll);
+      if(b.getNorth()===b.getSouth()||b.getEast()===b.getWest()){ clearPrev(); return; }
+      _pendingZone={type:'rectangle',sw:{lat:b.getSouth(),lng:b.getWest()},ne:{lat:b.getNorth(),lng:b.getEast()}};
+    } else if(_drawMode==='circle' && _cCtr){
+      const r=_cCtr.distanceTo(ll); if(r<10){ clearPrev(); return; }
+      _pendingZone={type:'circle',center:{lat:_cCtr.lat,lng:_cCtr.lng},radius:Math.round(r)};
     } else return;
-    _map.dragging.enable();
-    if(_map.tap) _map.tap.enable();
-    _map.getContainer().style.cursor = '';
-    _map.getContainer().style.touchAction = '';
-    document.getElementById('zone-name').value = '';
+    _map.dragging.enable(); if(_map.tap) _map.tap.enable();
+    mc.style.cursor=''; mc.style.touchAction='';
+    document.getElementById('zone-name').value='';
     document.querySelectorAll('.cswatch').forEach(s=>s.classList.toggle('sel',s.dataset.c===_zoneColor));
     openModal('modal-zone');
-  });
+  }
 
-  // ─── Grid draw ────────────────────────────────────────────
-  _map.on('mousedown touchstart', eg=>{
-    if(!_gridDrawing) return;
-    const ll = getLL(eg); if(!ll) return;
-    L.DomEvent.preventDefault(eg.originalEvent || eg);
-    _gridStart = ll;
+  // ── Grid draw ─────────────────────────────────────────────
+  function onGridStart(cx, cy){
+    if(!_gridDrawing) return false;
+    const ll=ptToLL(cx,cy);
+    _gridStart=ll;
     if(_gridRect){ _gridRect.remove(); _gridRect=null; }
-    _gridRect = L.rectangle([ll,ll],{color:'#2563eb',weight:2,fillColor:'#3b82f6',fillOpacity:0.08,dashArray:'6,4'}).addTo(_map);
-  });
-
-  _map.on('mousemove touchmove', eg=>{
-    if(!_gridDrawing || !_gridStart) return;
-    const ll = getLL(eg); if(!ll) return;
-    L.DomEvent.preventDefault(eg.originalEvent || eg);
-    _gridRect?.setBounds(L.latLngBounds(_gridStart,ll));
-  });
-
-  _map.on('mouseup touchend', eg=>{
-    if(!_gridDrawing || !_gridStart) return;
-    const ll = getLL(eg) || _gridStart;
-    const b  = L.latLngBounds(_gridStart,ll);
-    if(b.getNorth()===b.getSouth() || b.getEast()===b.getWest()){ cancelGridDraw(); return; }
+    _gridRect=L.rectangle([ll,ll],{color:'#2563eb',weight:2,fillColor:'#3b82f6',fillOpacity:0.08,dashArray:'6,4'}).addTo(_map);
+    return true;
+  }
+  function onGridMove(cx, cy){
+    if(!_gridDrawing||!_gridStart) return;
+    _gridRect?.setBounds(L.latLngBounds(_gridStart,ptToLL(cx,cy)));
+  }
+  function onGridEnd(cx, cy){
+    if(!_gridDrawing||!_gridStart) return;
+    const b=L.latLngBounds(_gridStart,ptToLL(cx,cy));
+    if(b.getNorth()===b.getSouth()||b.getEast()===b.getWest()){ cancelGridDraw(); return; }
     if(_gridRect){ _gridRect.remove(); _gridRect=null; }
-    _map.dragging.enable();
-    if(_map.tap) _map.tap.enable();
-    _map.getContainer().style.cursor = '';
-    _map.getContainer().style.touchAction = '';
-    _gridDrawing = false;
-    document.getElementById('grid-draw-hint').style.display = 'none';
-    addGrid(_gridSize, b.getSouthWest(), b.getNorthEast());
-    _gridStart = null;
+    _map.dragging.enable(); if(_map.tap) _map.tap.enable();
+    mc.style.cursor=''; mc.style.touchAction='';
+    _gridDrawing=false;
+    document.getElementById('grid-draw-hint').style.display='none';
+    addGrid(_gridSize,b.getSouthWest(),b.getNorthEast());
+    _gridStart=null;
+  }
+
+  // ── Mouse ─────────────────────────────────────────────────
+  mc.addEventListener('mousedown', e=>{
+    if(onDrawStart(e.clientX,e.clientY)||onGridStart(e.clientX,e.clientY)) e.preventDefault();
+  });
+  mc.addEventListener('mousemove', e=>{
+    onDrawMove(e.clientX,e.clientY); onGridMove(e.clientX,e.clientY);
+  });
+  mc.addEventListener('mouseup', e=>{
+    onDrawEnd(e.clientX,e.clientY); onGridEnd(e.clientX,e.clientY);
+  });
+
+  // ── Touch (mobile) ────────────────────────────────────────
+  mc.addEventListener('touchstart', e=>{
+    const t=e.touches[0];
+    if(onDrawStart(t.clientX,t.clientY)||onGridStart(t.clientX,t.clientY)) e.preventDefault();
+  },{passive:false});
+  mc.addEventListener('touchmove', e=>{
+    if(!_drawOn&&!_gridDrawing) return;
+    e.preventDefault();
+    const t=e.touches[0];
+    onDrawMove(t.clientX,t.clientY); onGridMove(t.clientX,t.clientY);
+  },{passive:false});
+  mc.addEventListener('touchend', e=>{
+    const t=e.changedTouches[0];
+    onDrawEnd(t.clientX,t.clientY); onGridEnd(t.clientX,t.clientY);
   });
 }
 function pickColor(el){document.querySelectorAll('.cswatch').forEach(s=>s.classList.remove('sel'));el.classList.add('sel');_zoneColor=el.dataset.c;}
@@ -1312,6 +1328,11 @@ function renderZones(zones){
     layer._zoneId   = id;
     layer._zoneData = z;
     layer._areaSqm  = areaSqm;
+
+    // apply local hidden state
+    if(_hiddenZones.has(id)){
+      layer.setStyle({fillOpacity:0, opacity:0});
+    }
 
     // ไม่ bind click ที่ layer โดยตรง — ใช้ map-level click แทน
     // เพื่อหาทุกโซนที่จุดคลิกได้อย่างแม่นยำ (ดู listenMapClickForZones)
@@ -1394,6 +1415,7 @@ function _openZonePopup(id, z, areaSqm, latlng){
     ? `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9"><span style="color:#94a3b8">กว้าง × ยาว</span><span style="font-weight:700;color:#0f172a">${fmtD(Math.round((s.ne.lng-s.sw.lng)*111320*Math.cos((s.sw.lat+s.ne.lat)/2*Math.PI/180)))} × ${fmtD(Math.round((s.ne.lat-s.sw.lat)*111320))}</span></div>`
     : '';
 
+  const isHidden = _hiddenZones.has(id);
   L.popup({maxWidth:260, className:'zone-popup'})
     .setLatLng(latlng)
     .setContent(`
@@ -1409,7 +1431,7 @@ function _openZonePopup(id, z, areaSqm, latlng){
           <div style="font-family:'Kanit',sans-serif;font-size:20px;font-weight:800;color:${c}">${areaStr}</div>
           <div style="font-size:9px;color:${c}99;font-weight:600;margin-top:1px">พื้นที่โซน</div>
         </div>
-        <div style="font-size:11px;color:#475569;margin-bottom:6px">
+        <div style="font-size:11px;color:#475569;margin-bottom:8px">
           ${extraInfo}
           <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9">
             <span style="color:#94a3b8">สร้างโดย</span>
@@ -1420,7 +1442,15 @@ function _openZonePopup(id, z, areaSqm, latlng){
             <span style="font-weight:600;color:#0f172a;font-family:monospace;font-size:10px">${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}</span>
           </div>
         </div>
-        ${canDel?`<button class="pp-btn pp-del-zone-btn" style="width:100%;background:linear-gradient(135deg,#fee2e2,#fecaca);color:#dc2626;border:1.5px solid #fca5a5;border-radius:9px;padding:8px;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px" data-zoneid="${id}"><i class="fas fa-trash"></i> ลบโซนนี้</button>`:''}
+        <div style="display:flex;gap:6px">
+          <button onclick="toggleHideZone('${id}')"
+            style="flex:1;padding:8px 6px;border-radius:9px;border:1.5px solid ${isHidden?'#bbf7d0':'#e2e8f0'};background:${isHidden?'#f0fdf4':'#f8fafc'};color:${isHidden?'#16a34a':'#64748b'};font-family:'Kanit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px">
+            <i class="fas fa-${isHidden?'eye':'eye-slash'}"></i> ${isHidden?'แสดง':'ซ่อน'}โซน
+          </button>
+          ${canDel?`<button class="pp-btn pp-del-zone-btn"
+            style="flex:1;padding:8px 6px;border-radius:9px;border:1.5px solid #fca5a5;background:linear-gradient(135deg,#fee2e2,#fecaca);color:#dc2626;font-family:'Kanit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px"
+            data-zoneid="${id}"><i class="fas fa-trash"></i> ลบโซน</button>`:''}
+        </div>
       </div>
     `)
     .openOn(_map);
