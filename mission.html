@@ -286,7 +286,7 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <a href="index.html" class="topbar-back" onclick="return W.handleBack(event)"><i class="fas fa-arrow-left"></i></a>
+  <a href="index.html" class="topbar-back" onclick="return handleBack(event)"><i class="fas fa-arrow-left"></i></a>
   <div class="topbar-info">
     <div class="topbar-title" id="mission-title">กำลังโหลด...</div>
     <div class="topbar-sub" id="mission-area"></div>
@@ -316,13 +316,13 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
   <!-- SOS -->
   <div class="sos-bar">
     <button class="sos-btn" id="sos-btn"><i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน</button>
-    <button class="sos-cancel-btn" id="sos-cancel-btn" style="display:none" onclick="W.cancelSos()"><i class="fas fa-times-circle"></i> ยกเลิก SOS</button>
-    <button class="center-btn" onclick="W.centerMap()"><i class="fas fa-compress-arrows-alt"></i> ดูทีม</button>
+    <button class="sos-cancel-btn" id="sos-cancel-btn" style="display:none" onclick="cancelSos()"><i class="fas fa-times-circle"></i> ยกเลิก SOS</button>
+    <button class="center-btn" onclick="centerMap()"><i class="fas fa-compress-arrows-alt"></i> ดูทีม</button>
   </div>
 
   <!-- MEMBER PANEL -->
   <div class="member-panel">
-    <div class="member-panel-hdr" id="mem-hdr" onclick="W.togglePanel()">
+    <div class="member-panel-hdr" id="mem-hdr" onclick="togglePanel()">
       <div class="panel-title"><i class="fas fa-users" style="margin-right:5px"></i>สมาชิกในทีม</div>
       <div style="display:flex;align-items:center;gap:7px">
         <span id="online-count" style="font-size:10px;color:rgba(255,255,255,0.7)">0 ออนไลน์</span>
@@ -338,101 +338,98 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 
     <!-- Floating toolbar -->
     <div class="map-toolbar">
-      <div class="mtool" id="btn-draw" onclick="W.toggleDraw()"><i class="fas fa-draw-polygon"></i><span class="mtool-tip">วาดโซน</span></div>
-      <div class="mtool" id="btn-pin" onclick="W.togglePinPicker()"><i class="fas fa-map-pin"></i><span class="mtool-tip">ปักหมุด</span></div>
-      <div class="mtool trail-on" id="btn-trail" onclick="W.toggleTrail()"><i class="fas fa-route"></i><span class="mtool-tip">ซ่อนเส้นทาง</span></div>
-      <div class="mtool" id="btn-zones" onclick="W.toggleZones()"><i class="fas fa-layer-group"></i><span class="mtool-tip">โซน</span></div>
-      <div class="mtool" id="btn-grid" onclick="W.toggleGridPicker()"><i class="fas fa-th"></i><span class="mtool-tip">กริด</span></div>
+      <div class="mtool" id="btn-draw" onclick="toggleDraw()"><i class="fas fa-draw-polygon"></i><span class="mtool-tip">วาดโซน</span></div>
+      <div class="mtool" id="btn-pin" onclick="togglePinPicker()"><i class="fas fa-map-pin"></i><span class="mtool-tip">ปักหมุด</span></div>
+      <div class="mtool trail-on" id="btn-trail" onclick="toggleTrail()"><i class="fas fa-route"></i><span class="mtool-tip">ซ่อนเส้นทาง</span></div>
+      <div class="mtool" id="btn-zones" onclick="toggleZones()"><i class="fas fa-layer-group"></i><span class="mtool-tip">โซน</span></div>
+      <div class="mtool" id="btn-grid" onclick="toggleGridPicker()"><i class="fas fa-th"></i><span class="mtool-tip">กริด</span></div>
     </div>
 
     <!-- Grid picker -->
-    <div class="pin-picker" id="grid-picker" style="min-width:215px;max-height:82vh;overflow-y:auto">
-      <div class="pin-picker-title"><i class="fas fa-th" style="margin-right:4px"></i>กริดค้นหา</div>
+    <div class="pin-picker" id="grid-picker" style="min-width:200px">
+      <div class="pin-picker-title"><i class="fas fa-th" style="margin-right:4px"></i>กริดค้นหา <span id="grid-count-badge" style="font-size:10px;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:1px 7px;margin-left:4px;font-weight:700"></span></div>
 
-      <div style="font-size:10px;color:var(--text-muted);font-weight:700;margin-bottom:5px">ขนาดมาตรฐาน</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px">
-        <button class="dmbtn" onclick="W.startGridDraw(100)" style="font-size:11px;padding:7px 6px"><i class="fas fa-th" style="color:#1d4ed8;margin-right:3px"></i>100 ม.</button>
-        <button class="dmbtn" onclick="W.startGridDraw(250)" style="font-size:11px;padding:7px 6px"><i class="fas fa-th-large" style="color:#16a34a;margin-right:3px"></i>250 ม.</button>
-        <button class="dmbtn" onclick="W.startGridDraw(500)" style="font-size:11px;padding:7px 6px"><i class="fas fa-border-all" style="color:#d97706;margin-right:3px"></i>500 ม.</button>
-        <button class="dmbtn" onclick="W.startGridDraw(1000)" style="font-size:11px;padding:7px 6px"><i class="fas fa-border-outer" style="color:#7c3aed;margin-right:3px"></i>1 กม.</button>
+      <!-- preset sizes -->
+      <div style="font-size:10px;color:var(--text-muted);padding:2px 0 5px;font-weight:600">ขนาดมาตรฐาน</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px">
+        <button class="dmbtn" style="font-size:11px;padding:6px 8px" onclick="startGridDraw(100)"><i class="fas fa-th" style="color:#1d4ed8;margin-right:4px"></i>100 ม.</button>
+        <button class="dmbtn" style="font-size:11px;padding:6px 8px" onclick="startGridDraw(250)"><i class="fas fa-th-large" style="color:#16a34a;margin-right:4px"></i>250 ม.</button>
+        <button class="dmbtn" style="font-size:11px;padding:6px 8px" onclick="startGridDraw(500)"><i class="fas fa-border-all" style="color:#d97706;margin-right:4px"></i>500 ม.</button>
+        <button class="dmbtn" style="font-size:11px;padding:6px 8px" onclick="startGridDraw(1000)"><i class="fas fa-border-outer" style="color:#7c3aed;margin-right:4px"></i>1 กม.</button>
       </div>
 
-      <div style="font-size:10px;color:var(--text-muted);font-weight:700;margin-bottom:5px">กำหนดขนาดเอง</div>
-      <div style="display:flex;gap:5px;margin-bottom:10px;align-items:center">
+      <!-- custom size -->
+      <div style="font-size:10px;color:var(--text-muted);padding:2px 0 5px;font-weight:600">กำหนดเอง</div>
+      <div style="display:flex;gap:5px;margin-bottom:8px">
         <input id="grid-custom-size" type="number" min="10" max="10000" value="200"
-          style="flex:1;padding:7px 9px;border:1.5px solid var(--border);border-radius:9px;font-size:12px;font-family:'Sarabun',sans-serif;outline:none;color:#0f172a"
+          style="flex:1;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'Sarabun',sans-serif;outline:none"
           placeholder="ระยะ (ม.)">
-        <span style="font-size:11px;color:#64748b;white-space:nowrap">ม.</span>
-        <button class="dmbtn" onclick="W.startGridDrawCustom()" style="padding:7px 10px;font-size:11px;flex-shrink:0">
-          <i class="fas fa-pencil-ruler" style="color:#2563eb;margin-right:3px"></i>วาด
+        <button class="dmbtn" style="padding:6px 10px;font-size:11px;white-space:nowrap" onclick="startGridDrawCustom()">
+          <i class="fas fa-pencil-ruler" style="color:#2563eb"></i> วาด
         </button>
       </div>
 
-      <div id="grid-draw-hint" style="display:none;margin-bottom:8px;padding:6px 9px;background:#eff6ff;border-radius:8px;border-left:3px solid #2563eb;font-size:10px;color:#1d4ed8;font-weight:600">
-        <i class="fas fa-hand-pointer" style="margin-right:5px"></i><span id="grid-hint-text">ลากบนแผนที่</span>
-        <button onclick="W.cancelGridDraw()" style="float:right;border:none;background:none;color:#ef4444;font-size:11px;cursor:pointer;padding:0;line-height:1">ยกเลิก</button>
+      <!-- draw hint -->
+      <div id="grid-draw-hint" style="display:none;font-size:10px;color:#2563eb;background:#eff6ff;border-radius:7px;padding:5px 8px;margin-bottom:6px;border-left:3px solid #2563eb">
+        <i class="fas fa-hand-pointer" style="margin-right:4px"></i><span id="grid-hint-text">ลากบนแผนที่เพื่อเลือกพื้นที่</span>
       </div>
 
-      <div id="grid-list-wrap" style="display:none">
-        <div style="font-size:10px;color:var(--text-muted);font-weight:700;margin-bottom:4px">กริดที่มีอยู่</div>
-        <div id="grid-list"></div>
-      </div>
-
-      <div style="border-top:1px solid var(--border-light);margin:6px 0"></div>
+      <div style="border-top:1px solid var(--border-light);margin:4px 0 6px"></div>
+      <button id="btn-grid-vis" class="draw-cancel" style="flex:1;border-color:#dbeafe;color:#2563eb;background:#eff6ff;margin-bottom:4px;width:100%;justify-content:center;display:flex;gap:5px;align-items:center" onclick="toggleGridVisibility()"><i class="fas fa-eye-slash"></i> ซ่อนกริด (เฉพาะคุณ)</button>
       <div style="display:flex;gap:6px">
-        <button class="draw-cancel" style="flex:1;color:#ef4444;border-color:#fecaca" onclick="W.clearAllGrids()"><i class="fas fa-trash"></i> ลบทั้งหมด</button>
-        <button class="draw-cancel" style="flex:1" onclick="W.closeGridPicker()"><i class="fas fa-times"></i> ปิด</button>
+        <button class="draw-cancel" style="flex:1" onclick="clearAllGrids()"><i class="fas fa-trash"></i> ลบทั้งหมด</button>
+        <button class="draw-cancel" style="flex:1;border-color:#e2e8f0;color:#64748b" onclick="closeGridPicker()"><i class="fas fa-times"></i> ปิด</button>
       </div>
     </div>
 
     <!-- Draw toolbar -->
     <div class="draw-tb" id="draw-tb">
       <div class="draw-tb-title"><i class="fas fa-draw-polygon" style="margin-right:5px"></i>วาดโซน</div>
-      <button class="dmbtn" id="dm-free" onclick="W.setDrawMode('free')"><i class="fas fa-pen"></i> Freehand</button>
-      <button class="dmbtn rect" id="dm-rect" onclick="W.setDrawMode('rect')"><i class="fas fa-vector-square"></i> สี่เหลี่ยม</button>
-      <button class="dmbtn circle" id="dm-circle" onclick="W.setDrawMode('circle')"><i class="fas fa-circle-notch"></i> วงกลม</button>
+      <button class="dmbtn" id="dm-free" onclick="setDrawMode('free')"><i class="fas fa-pen"></i> Freehand</button>
+      <button class="dmbtn rect" id="dm-rect" onclick="setDrawMode('rect')"><i class="fas fa-vector-square"></i> สี่เหลี่ยม</button>
+      <button class="dmbtn circle" id="dm-circle" onclick="setDrawMode('circle')"><i class="fas fa-circle-notch"></i> วงกลม</button>
       <div class="draw-hint" id="draw-hint">เลือกโหมดแล้วลากบนแผนที่</div>
-      <button class="draw-cancel" onclick="W.cancelDraw()"><i class="fas fa-times"></i> ยกเลิก</button>
+      <button class="draw-cancel" onclick="cancelDraw()"><i class="fas fa-times"></i> ยกเลิก</button>
     </div>
 
     <!-- Pin picker -->
     <div class="pin-picker" id="pin-picker">
       <div class="pin-picker-title"><i class="fas fa-map-pin" style="margin-right:4px"></i>เลือกประเภทหมุด</div>
-      <button class="pin-type-btn" onclick="W.startPin('safe')"><div class="pin-ico" style="background:#dcfce7;color:#16a34a"><i class="fas fa-check-circle"></i></div>ฉันปลอดภัย</button>
-      <button class="pin-type-btn" onclick="W.startPin('clue')"><div class="pin-ico" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-search"></i></div>พบร่องรอย</button>
-      <button class="pin-type-btn" onclick="W.startPin('danger')"><div class="pin-ico" style="background:#fee2e2;color:#dc2626"><i class="fas fa-exclamation-triangle"></i></div>พื้นที่อันตราย</button>
-      <button class="pin-type-btn" onclick="W.startPin('rally')"><div class="pin-ico" style="background:#fef3c7;color:#d97706"><i class="fas fa-flag"></i></div>จุดรวมพล</button>
-      <button class="pin-type-btn" onclick="W.startPin('note')"><div class="pin-ico" style="background:#f5f3ff;color:#7c3aed"><i class="fas fa-sticky-note"></i></div>หมายเหตุ</button>
-      <button class="draw-cancel" onclick="W.closePinPicker()"><i class="fas fa-times"></i> ปิด</button>
+      <button class="pin-type-btn" onclick="startPin('safe')"><div class="pin-ico" style="background:#dcfce7;color:#16a34a"><i class="fas fa-check-circle"></i></div>ฉันปลอดภัย</button>
+      <button class="pin-type-btn" onclick="startPin('clue')"><div class="pin-ico" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-search"></i></div>พบร่องรอย</button>
+      <button class="pin-type-btn" onclick="startPin('danger')"><div class="pin-ico" style="background:#fee2e2;color:#dc2626"><i class="fas fa-exclamation-triangle"></i></div>พื้นที่อันตราย</button>
+      <button class="pin-type-btn" onclick="startPin('rally')"><div class="pin-ico" style="background:#fef3c7;color:#d97706"><i class="fas fa-flag"></i></div>จุดรวมพล</button>
+      <button class="pin-type-btn" onclick="startPin('note')"><div class="pin-ico" style="background:#f5f3ff;color:#7c3aed"><i class="fas fa-sticky-note"></i></div>หมายเหตุ</button>
+      <button class="draw-cancel" onclick="closePinPicker()"><i class="fas fa-times"></i> ปิด</button>
     </div>
   </div>
 
   <!-- BOTTOM BAR -->
   <div class="bottom-bar">
-    <button class="chat-fab" id="chat-fab" onclick="W.openChat()">
+    <button class="chat-fab" id="chat-fab" onclick="openChat()">
       <i class="fas fa-comments"></i>
       <div class="chat-badge" id="chat-badge"></div>
     </button>
-    <button class="leave-btn" onclick="W.confirmLeave()"><i class="fas fa-sign-out-alt"></i> ออกจากภารกิจ</button>
-    <button class="end-btn" id="end-btn" style="display:none" onclick="W.showEndModal()"><i class="fas fa-flag-checkered"></i> จบภารกิจ</button>
+    <button class="leave-btn" onclick="confirmLeave()"><i class="fas fa-sign-out-alt"></i> ออกจากภารกิจ</button>
+    <button class="end-btn" id="end-btn" style="display:none" onclick="showEndModal()"><i class="fas fa-flag-checkered"></i> จบภารกิจ</button>
   </div>
 </div>
 
 <!-- CHAT PANEL -->
 <div class="chat-panel" id="chat-panel">
   <div class="chat-hdr">
-    <button class="chat-close" onclick="W.closeChat()"><i class="fas fa-arrow-down"></i></button>
+    <button class="chat-close" onclick="closeChat()"><i class="fas fa-arrow-down"></i></button>
     <div class="chat-hdr-title"><i class="fas fa-comments" style="margin-right:6px;opacity:0.8"></i>แชทในทีม</div>
     <span class="topbar-live">LIVE</span>
   </div>
   <div class="chat-msgs" id="chat-msgs"><div class="chat-sys">ยังไม่มีข้อความ</div></div>
   <div class="chat-input-bar">
-    <button class="chat-act" onclick="W.sendLocation()" title="ส่งพิกัด"><i class="fas fa-map-marker-alt" style="color:#22c55e"></i></button>
+    <button class="chat-act" onclick="sendLocation()" title="ส่งพิกัด"><i class="fas fa-map-marker-alt" style="color:#22c55e"></i></button>
     <button class="chat-act" onclick="document.getElementById('chat-img-input').click()" title="แนบรูป"><i class="fas fa-image" style="color:#3b82f6"></i></button>
-    <input type="file" id="chat-img-input" accept="image/*" multiple style="display:none" onchange="W.sendPhotos(event)">
+    <input type="file" id="chat-img-input" accept="image/*" multiple style="display:none" onchange="sendPhotos(event)">
     <textarea class="chat-input" id="chat-input" placeholder="พิมพ์ข้อความ..." rows="1"
-      oninput="W.autoResize(this)" onkeydown="W.chatKey(event)"></textarea>
-    <button class="chat-send" onclick="W.sendMsg()"><i class="fas fa-paper-plane"></i></button>
+      oninput="autoResize(this)" onkeydown="chatKey(event)"></textarea>
+    <button class="chat-send" onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button>
   </div>
 </div>
 
@@ -440,8 +437,8 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 <div class="toast" id="toast"></div>
 
 <!-- LIGHTBOX -->
-<div id="lightbox" onclick="W.closeLB()">
-  <button id="lb-close" onclick="W.closeLB()"><i class="fas fa-times"></i></button>
+<div id="lightbox" onclick="closeLB()">
+  <button id="lb-close" onclick="closeLB()"><i class="fas fa-times"></i></button>
   <img id="lb-img" src="" alt="">
 </div>
 
@@ -450,7 +447,7 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
   <div class="modal" style="max-width:400px">
     <div class="modal-hdr">
       <div class="modal-title"><i class="fas fa-draw-polygon" style="color:var(--primary-light);margin-right:6px"></i>ตั้งชื่อโซน</div>
-      <button class="btn-close" onclick="W.cancelZone()"><i class="fas fa-times"></i></button>
+      <button class="btn-close" onclick="cancelZone()"><i class="fas fa-times"></i></button>
     </div>
     <div class="form-group">
       <label>ชื่อโซน<span class="req">*</span></label>
@@ -459,19 +456,19 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
     <div class="form-group">
       <label>สี</label>
       <div class="color-row" id="zone-colors">
-        <div class="cswatch sel" style="background:#3b82f6" data-c="#3b82f6" onclick="W.pickColor(this)"></div>
-        <div class="cswatch" style="background:#ef4444" data-c="#ef4444" onclick="W.pickColor(this)"></div>
-        <div class="cswatch" style="background:#10b981" data-c="#10b981" onclick="W.pickColor(this)"></div>
-        <div class="cswatch" style="background:#f59e0b" data-c="#f59e0b" onclick="W.pickColor(this)"></div>
-        <div class="cswatch" style="background:#8b5cf6" data-c="#8b5cf6" onclick="W.pickColor(this)"></div>
-        <div class="cswatch" style="background:#ec4899" data-c="#ec4899" onclick="W.pickColor(this)"></div>
-        <div class="cswatch" style="background:#06b6d4" data-c="#06b6d4" onclick="W.pickColor(this)"></div>
-        <div class="cswatch" style="background:#84cc16" data-c="#84cc16" onclick="W.pickColor(this)"></div>
+        <div class="cswatch sel" style="background:#3b82f6" data-c="#3b82f6" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#ef4444" data-c="#ef4444" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#10b981" data-c="#10b981" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#f59e0b" data-c="#f59e0b" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#8b5cf6" data-c="#8b5cf6" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#ec4899" data-c="#ec4899" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#06b6d4" data-c="#06b6d4" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#84cc16" data-c="#84cc16" onclick="pickColor(this)"></div>
       </div>
     </div>
     <div class="btn-row">
-      <button class="btn btn-primary btn-block" onclick="W.saveZone()"><i class="fas fa-save"></i> บันทึกโซน</button>
-      <button class="btn btn-secondary" onclick="W.cancelZone()" style="min-width:70px">ยกเลิก</button>
+      <button class="btn btn-primary btn-block" onclick="saveZone()"><i class="fas fa-save"></i> บันทึกโซน</button>
+      <button class="btn btn-secondary" onclick="cancelZone()" style="min-width:70px">ยกเลิก</button>
     </div>
   </div>
 </div>
@@ -481,7 +478,7 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
   <div class="modal" style="max-width:420px">
     <div class="modal-hdr">
       <div class="modal-title" id="pin-modal-title"><i class="fas fa-map-pin" style="margin-right:6px"></i>เพิ่มหมุด</div>
-      <button class="btn-close" onclick="W.closeModal('modal-pin')"><i class="fas fa-times"></i></button>
+      <button class="btn-close" onclick="closeModal('modal-pin')"><i class="fas fa-times"></i></button>
     </div>
     <div class="form-group">
       <label>รายละเอียด</label>
@@ -490,15 +487,15 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
     <div class="form-group" style="margin-bottom:0">
       <label>รูปภาพ <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(ไม่บังคับ)</span></label>
       <div class="photo-area" onclick="document.getElementById('pin-img-input').click()">
-        <input type="file" id="pin-img-input" accept="image/*" onchange="W.handlePinImg(event)">
+        <input type="file" id="pin-img-input" accept="image/*" onchange="handlePinImg(event)">
         <i class="fas fa-image" style="font-size:22px;color:var(--primary-light);opacity:0.5;margin-bottom:4px"></i>
         <div style="font-size:12px;color:var(--text-muted)">แตะเพื่อแนบรูป</div>
       </div>
       <div class="photo-grid" id="pin-img-preview"></div>
     </div>
     <div class="btn-row" style="margin-top:14px">
-      <button class="btn btn-success btn-block" onclick="W.confirmPin()"><i class="fas fa-map-pin"></i> ปักหมุด</button>
-      <button class="btn btn-secondary" onclick="W.closeModal('modal-pin')" style="min-width:70px">ยกเลิก</button>
+      <button class="btn btn-success btn-block" onclick="confirmPin()"><i class="fas fa-map-pin"></i> ปักหมุด</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-pin')" style="min-width:70px">ยกเลิก</button>
     </div>
   </div>
 </div>
@@ -508,7 +505,7 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
   <div class="modal" style="max-width:420px">
     <div class="modal-hdr">
       <div class="modal-title" id="pinv-title"></div>
-      <button class="btn-close" onclick="W.closeModal('modal-pin-view')"><i class="fas fa-times"></i></button>
+      <button class="btn-close" onclick="closeModal('modal-pin-view')"><i class="fas fa-times"></i></button>
     </div>
     <div id="pinv-body"></div>
     <div class="btn-row" style="margin-top:12px" id="pinv-actions"></div>
@@ -520,7 +517,7 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
   <div class="modal" style="display:flex;flex-direction:column;padding:0;overflow:hidden;max-width:520px">
     <div class="modal-hdr" style="padding:15px 18px 12px;border-bottom:1px solid var(--border-light);margin-bottom:0;flex-shrink:0">
       <div class="modal-title"><i class="fas fa-flag-checkered" style="color:#7c3aed;margin-right:6px"></i>จบภารกิจ</div>
-      <button class="btn-close" onclick="W.closeModal('modal-end')"><i class="fas fa-times"></i></button>
+      <button class="btn-close" onclick="closeModal('modal-end')"><i class="fas fa-times"></i></button>
     </div>
     <div style="flex:1;overflow-y:auto;padding:14px 18px">
       <div style="background:#faf5ff;border:1.5px solid #d8b4fe;border-radius:11px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#6b21a8">
@@ -533,7 +530,7 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
       <div class="form-group" style="margin-bottom:0">
         <label>รูปภาพ <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(ไม่บังคับ, สูงสุด 5)</span></label>
         <div class="photo-area" onclick="document.getElementById('end-img-input').click()">
-          <input type="file" id="end-img-input" accept="image/*" multiple onchange="W.handleEndImgs(event)">
+          <input type="file" id="end-img-input" accept="image/*" multiple onchange="handleEndImgs(event)">
           <i class="fas fa-cloud-upload-alt" style="font-size:24px;color:var(--primary-light);opacity:0.5;margin-bottom:5px"></i>
           <div style="font-size:12px;color:var(--text-muted)">แตะเพื่อเลือกรูป</div>
         </div>
@@ -542,8 +539,8 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
     </div>
     <div style="flex-shrink:0;padding:10px 18px 14px;border-top:1px solid var(--border-light)">
       <div class="btn-row">
-        <button class="btn btn-purple btn-block" id="end-confirm-btn" onclick="W.endMission()"><i class="fas fa-flag-checkered"></i> ยืนยันจบภารกิจ</button>
-        <button class="btn btn-secondary" onclick="W.closeModal('modal-end')" style="min-width:70px">ยกเลิก</button>
+        <button class="btn btn-purple btn-block" id="end-confirm-btn" onclick="endMission()"><i class="fas fa-flag-checkered"></i> ยืนยันจบภารกิจ</button>
+        <button class="btn btn-secondary" onclick="closeModal('modal-end')" style="min-width:70px">ยกเลิก</button>
       </div>
     </div>
   </div>
@@ -587,7 +584,10 @@ let _fPts=[], _fLine=null, _rStart=null, _rRect=null, _cCtr=null, _cCirc=null;
 let _pendingZone=null, _zoneColor='#3b82f6';
 let _pendingPinType=null, _pendingPinLL=null, _pendingPinPhoto=null;
 let _endPhotos=[];
-let _gridLayers=[], _gridOn=false, _gridDrawing=false, _gridSize=100, _gridStart=null, _gridRect=null;
+let _gridLayers=[], _gridOn=false;
+let _gridDrawing=false, _gridSize=100, _gridStart=null, _gridRect=null, _gridDrawLayer=null;
+let _unGrids=null; // Firebase listener for shared grids
+let _gridVisible=true; // local visibility toggle
 let _memberNames={}; // uid -> display name cache
 let _memberColors={}; // uid -> color cache
 
@@ -601,26 +601,26 @@ const PIN_CFG={
 };
 
 // ─── Expose to inline onclick ────────────────────────────
-const W = window;
-W.handleBack=handleBack; W.cancelSos=cancelSos; W.centerMap=centerMap;
-W.togglePanel=togglePanel; W.toggleDraw=toggleDraw; W.setDrawMode=setDrawMode;
-W.cancelDraw=cancelDraw; W.saveZone=saveZone; W.cancelZone=cancelZone; W.pickColor=pickColor;
-W.togglePinPicker=togglePinPicker; W.closePinPicker=closePinPicker;
-W.startPin=startPin; W.confirmPin=confirmPin; W.handlePinImg=handlePinImg;
-W.toggleTrail=toggleTrail; W.toggleZones=toggleZones;
-W.openChat=openChat; W.closeChat=closeChat; W.sendMsg=sendMsg;
-W.sendLocation=sendLocation; W.sendPhotos=sendPhotos;
-W.chatKey=chatKey; W.autoResize=autoResize;
-W.showEndModal=showEndModal; W.endMission=endMission;
-W.handleEndImgs=handleEndImgs; W.confirmLeave=confirmLeave;
-W.closeModal=closeModal; W.openLB=openLB; W.closeLB=closeLB;
-W.flyTo=(la,ln)=>_map?.flyTo([la,ln],17,{animate:true,duration:0.8});
-W.toggleGridPicker=toggleGridPicker; W.closeGridPicker=closeGridPicker;
-W.addGrid=addGrid; W.clearAllGrids=clearAllGrids;
-W.startGridDraw=startGridDraw; W.startGridDrawCustom=startGridDrawCustom;
-W.cancelGridDraw=cancelGridDraw; W.deleteGrid=deleteGrid;
-W.showNav=showNav; W.delZone=delZone; W.delPin=delPin;
-W.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
+// expose functions to global window scope
+window.handleBack=handleBack; window.cancelSos=cancelSos; window.centerMap=centerMap;
+window.togglePanel=togglePanel; window.toggleDraw=toggleDraw; window.setDrawMode=setDrawMode;
+window.cancelDraw=cancelDraw; window.saveZone=saveZone; window.cancelZone=cancelZone; window.pickColor=pickColor;
+window.togglePinPicker=togglePinPicker; window.closePinPicker=closePinPicker;
+window.startPin=startPin; window.confirmPin=confirmPin; window.handlePinImg=handlePinImg;
+window.toggleTrail=toggleTrail; window.toggleZones=toggleZones;
+window.openChat=openChat; window.closeChat=closeChat; window.sendMsg=sendMsg;
+window.sendLocation=sendLocation; window.sendPhotos=sendPhotos;
+window.chatKey=chatKey; window.autoResize=autoResize;
+window.showEndModal=showEndModal; window.endMission=endMission;
+window.handleEndImgs=handleEndImgs; window.confirmLeave=confirmLeave;
+window.closeModal=closeModal; window.openLB=openLB; window.closeLB=closeLB;
+window.flyTo=(la,ln)=>_map?.flyTo([la,ln],17,{animate:true,duration:0.8});
+window.toggleGridPicker=toggleGridPicker; window.closeGridPicker=closeGridPicker;
+window.addGrid=addGrid; window.clearAllGrids=clearAllGrids;
+window.startGridDraw=startGridDraw; window.startGridDrawCustom=startGridDrawCustom; window.cancelGridDraw=cancelGridDraw;
+window.toggleGridVisibility=toggleGridVisibility; window.deleteGrid=deleteGrid;
+window.showNav=showNav; window.delZone=delZone; window.delPin=delPin;
+window.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
 
 // ─── Init ────────────────────────────────────────────────
 addEventListener('DOMContentLoaded', async () => {
@@ -650,7 +650,10 @@ addEventListener('DOMContentLoaded', async () => {
 
     setTimeout(()=>{
       initMap(); startGps(); listenLoc(); listenStatus();
-      listenChat(); listenPins(); listenZones(); listenTrails(); bindSos(); heartbeat();
+      listenChat(); listenPins(); listenZones(); listenTrails();
+      // listenGrids ต้องรันหลัง initMap เสร็จ — delay เล็กน้อยให้ map พร้อม
+      setTimeout(()=>listenGrids(), 50);
+      bindSos(); heartbeat();
     },150);
   } catch(e) { errScreen('เกิดข้อผิดพลาด', e.message||String(e)); }
 });
@@ -724,7 +727,7 @@ function startGps(){
     set(locR,{lat:la,lng:ln,heading:hd||0,speed:Math.round(s*3.6),status:st,ts:Date.now()}).catch(()=>{});
     restPut(la,ln,sp,hd);
     update(memR,{status:st,lastSeen:Date.now()}).catch(()=>{});
-    if(_map&&!W._centered){_map.setView([la,ln],16);W._centered=true;}
+    if(_map&&!window._centered){_map.setView([la,ln],16);window._centered=true;}
   },e=>{if(e.code===1)toast('กรุณาอนุญาต GPS','error');},{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
   _bgInt=setInterval(()=>{
     if(!_gps){clearInterval(_bgInt);return;}
@@ -738,9 +741,7 @@ function startGps(){
       const tRef=ref(db,`search_missions/${missionId}/trails/${user.id}`);
       get(tRef).then(s=>{
         const raw=s.val();
-        const prev=raw&&!Array.isArray(raw)
-          ?raw
-          :{points:Array.isArray(raw)?raw:[],name:user.name||user.id,color:null,leftAt:null};
+        const prev=raw&&!Array.isArray(raw)?raw:{points:Array.isArray(raw)?raw:[],name:user.name||user.id,color:null,leftAt:null};
         prev.points.push([+la.toFixed(6),+ln.toFixed(6),Date.now()]);
         if(prev.points.length>500) prev.points.splice(0,prev.points.length-500);
         prev.name=user.name||user.id;
@@ -756,15 +757,15 @@ function stopGps(){
   if(_wid!=null){navigator.geolocation.clearWatch(_wid);_wid=null;}
   if(_bgInt!=null){clearInterval(_bgInt);_bgInt=null;}
   if(_trailInt!=null){clearInterval(_trailInt);_trailInt=null;}
-  W._centered=false;
+  window._centered=false;
 }
 function restPut(la,ln,sp,hd){
   if(!_gps||!la||(_sosOn&&Date.now()<_sosExp)) return;
   try{
     const s=sp||0, st=s>0.5?'moving':'online';
-    set(ref(db,`search_missions/${missionId}/locations/${user.id}`),
-      {lat:la,lng:ln,heading:hd||0,speed:Math.round(s*3.6),status:st,ts:Date.now()}).catch(()=>{});
-    set(ref(db,`search_missions/${missionId}/members/${user.id}/lastSeen`),Date.now()).catch(()=>{});
+    const b=FB.databaseURL, p=JSON.stringify({lat:la,lng:ln,heading:hd||0,speed:Math.round(s*3.6),status:st,ts:Date.now()});
+    fetch(`${b}/search_missions/${missionId}/locations/${user.id}.json`,{method:'PUT',body:p}).catch(()=>{});
+    fetch(`${b}/search_missions/${missionId}/members/${user.id}/lastSeen.json`,{method:'PUT',body:JSON.stringify(Date.now())}).catch(()=>{});
   }catch(e){}
 }
 
@@ -780,7 +781,7 @@ function listenStatus(){
   if(_unStatus){_unStatus();_unStatus=null;}
   _unStatus=onValue(ref(db,`search_missions/${missionId}/status`),s=>{
     if(s.val()==='closed'){
-      [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails].forEach(f=>f&&f());
+      [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails,_unGrids].forEach(f=>f&&f());
       stopGps(); toast('ภารกิจสิ้นสุดแล้ว','info');
       setTimeout(()=>location.replace('index.html?tab=search-mission'),2000);
     }
@@ -922,12 +923,7 @@ function listenTrails(){
       if(Array.isArray(val)){
         _trailData[uid]={points:val,name:_memberNames[uid]||uid.slice(-6),color:null,leftAt:null};
       } else {
-        _trailData[uid]={
-          points:val.points||[],
-          name:val.name||_memberNames[uid]||uid.slice(-6),
-          color:val.color||null,
-          leftAt:val.leftAt||null
-        };
+        _trailData[uid]={points:val.points||[],name:val.name||_memberNames[uid]||uid.slice(-6),color:val.color||null,leftAt:val.leftAt||null};
         if(val.name) _memberNames[uid]=val.name;
         if(val.color) _memberColors[uid]=val.color;
       }
@@ -954,31 +950,40 @@ function drawTrailLayers(){
     const c=(Array.isArray(data)?null:data.color)||_memberColors[uid]||(idx>=0?gc(idx):gc(0));
     const name=(Array.isArray(data)?null:data.name)||_memberNames[uid]||uid.slice(-6);
     const line=L.polyline(pts.map(p=>[p[0],p[1]]),{
-      color:hasLeft?'#94a3b8':c, weight:hasLeft?2.5:4,
-      opacity:hasLeft?0.45:0.9, dashArray:hasLeft?'6,9':'10,6'
+      color: hasLeft?'#94a3b8':c,
+      weight: hasLeft?2.5:4,
+      opacity: hasLeft?0.45:0.9,
+      dashArray: hasLeft?'6,9':'10,6'
     }).addTo(_map);
-    const dist=calcTotalDist(pts);
     if(hasLeft){
+      const dist=calcTotalDist(pts);
       const leftTime=new Date(data.leftAt).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
       const startTime=pts[0][2]?new Date(pts[0][2]).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}):'-';
-      line.bindPopup(`<div style="min-width:180px">
-        <div class="pp-title" style="color:#64748b;margin-bottom:8px">
-          <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${c};margin-right:6px;vertical-align:middle"></span>${esc(name)}
+      line.bindPopup(`
+        <div style="min-width:180px">
+          <div class="pp-title" style="color:#64748b;margin-bottom:8px">
+            <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${c};margin-right:6px;vertical-align:middle"></span>
+            ${esc(name)}
+          </div>
+          <div class="pp-row"><i class="fas fa-sign-out-alt" style="color:#ef4444;margin-right:5px;width:14px"></i>ออกจากภารกิจ <b>${leftTime} น.</b></div>
+          <div class="pp-row"><i class="fas fa-play-circle" style="color:#22c55e;margin-right:5px;width:14px"></i>เริ่มเดิน <b>${startTime} น.</b></div>
+          <div class="pp-row"><i class="fas fa-route" style="color:#3b82f6;margin-right:5px;width:14px"></i>ระยะทางรวม <b>${fmtD(dist)}</b></div>
+          <div class="pp-row"><i class="fas fa-map-marker-alt" style="color:#f59e0b;margin-right:5px;width:14px"></i>จุดบันทึก <b>${pts.length} จุด</b></div>
+          <div style="margin-top:7px;padding:5px 8px;background:#f8fafc;border-radius:7px;border-left:3px solid #94a3b8;font-size:10px;color:#94a3b8">ออกจากภารกิจแล้ว — เส้นทางย้อนหลัง</div>
         </div>
-        <div class="pp-row"><i class="fas fa-sign-out-alt" style="color:#ef4444;margin-right:5px;width:14px"></i>ออกจากภารกิจ <b>${leftTime} น.</b></div>
-        <div class="pp-row"><i class="fas fa-play-circle" style="color:#22c55e;margin-right:5px;width:14px"></i>เริ่มเดิน <b>${startTime} น.</b></div>
-        <div class="pp-row"><i class="fas fa-route" style="color:#3b82f6;margin-right:5px;width:14px"></i>ระยะทางรวม <b>${fmtD(dist)}</b></div>
-        <div class="pp-row"><i class="fas fa-map-marker-alt" style="color:#f59e0b;margin-right:5px;width:14px"></i>จุดบันทึก <b>${pts.length} จุด</b></div>
-        <div style="margin-top:6px;padding:4px 8px;background:#f8fafc;border-radius:6px;border-left:3px solid #94a3b8;font-size:10px;color:#94a3b8">ออกจากภารกิจแล้ว</div>
-      </div>`);
+      `);
     } else {
-      line.bindPopup(`<div>
-        <div class="pp-title" style="color:${c}">
-          <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${c};margin-right:6px;vertical-align:middle"></span>${esc(name)}
+      const dist=calcTotalDist(pts);
+      line.bindPopup(`
+        <div>
+          <div class="pp-title" style="color:${c}">
+            <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${c};margin-right:6px;vertical-align:middle"></span>
+            ${esc(name)}
+          </div>
+          <div class="pp-row"><i class="fas fa-route" style="color:${c};margin-right:5px;width:14px"></i>ระยะทางรวม <b>${fmtD(dist)}</b></div>
+          <div class="pp-row"><i class="fas fa-map-marker-alt" style="color:${c};margin-right:5px;width:14px"></i>จุดบันทึก <b>${pts.length} จุด</b></div>
         </div>
-        <div class="pp-row"><i class="fas fa-route" style="color:${c};margin-right:5px;width:14px"></i>ระยะทางรวม <b>${fmtD(dist)}</b></div>
-        <div class="pp-row"><i class="fas fa-map-marker-alt" style="color:${c};margin-right:5px;width:14px"></i>จุดบันทึก <b>${pts.length} จุด</b></div>
-      </div>`);
+      `);
     }
     _trailLayers[uid]=line;
   });
@@ -998,7 +1003,7 @@ function renderTrailLegend(){
     const name=(Array.isArray(data)?null:data.name)||_memberNames[uid]||uid.slice(-6);
     const dist=pts.length>1?calcTotalDist(pts):0;
     return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;opacity:${hasLeft?0.65:1}">
-      <div style="width:18px;height:4px;border-radius:2px;background:${hasLeft?'#94a3b8':c};flex-shrink:0"></div>
+      <div style="width:18px;height:4px;border-radius:2px;background:${hasLeft?'#94a3b8':c};flex-shrink:0;${hasLeft?'border-top:2px dashed #94a3b8':''}"></div>
       <div style="flex:1;min-width:0">
         <div style="font-size:10px;font-weight:700;font-family:'Kanit',sans-serif;color:${hasLeft?'#94a3b8':'#0f172a'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}${hasLeft?'<span style="font-size:8px;background:#f1f5f9;color:#94a3b8;border-radius:3px;padding:1px 4px;margin-left:3px">ออกแล้ว</span>':''}</div>
         <div style="font-size:9px;color:#94a3b8">${fmtD(dist)}</div>
@@ -1046,8 +1051,8 @@ function renderMemPanel(locs,mems){
         <div class="mstatus">${stLbl(st)}${spd} · ${ls}</div>
       </div>
       <div class="mactions">
-        ${lo?`<button class="mbtn" onclick="W.flyTo(${lo.lat},${lo.lng})"><i class="fas fa-crosshairs"></i></button>`:''}
-        ${!self&&lo?.lat?`<button class="mbtn" style="color:#10b981;border-color:#10b981" onclick="W.showNav(${lo.lat},${lo.lng},'${(me.name||'').replace(/'/g,'')}')"><i class="fas fa-directions"></i></button>`:''}
+        ${lo?`<button class="mbtn" onclick="window.flyTo(${lo.lat},${lo.lng})"><i class="fas fa-crosshairs"></i></button>`:''}
+        ${!self&&lo?.lat?`<button class="mbtn" style="color:#10b981;border-color:#10b981" onclick="window.showNav(${lo.lat},${lo.lng},'${(me.name||'').replace(/'/g,'')}')"><i class="fas fa-directions"></i></button>`:''}
       </div>
     </div>`;
   }).join('')||'<div style="padding:12px;text-align:center;color:var(--text-muted);font-size:11px">ยังไม่มีสมาชิก</div>';
@@ -1138,30 +1143,6 @@ function getLL(e){
   return null;
 }
 function setupDrawEvents(){
-  // ─── Grid area draw events ─────────────────────────────
-  _map.on('mousedown touchstart',eg=>{
-    if(!_gridDrawing) return;
-    const ll=eg.latlng; if(!ll) return;
-    _gridStart=ll;
-    if(_gridRect){_gridRect.remove();_gridRect=null;}
-    _gridRect=L.rectangle([ll,ll],{color:'#2563eb',weight:2,fillColor:'#3b82f6',fillOpacity:0.07,dashArray:'6,4',interactive:false}).addTo(_map);
-    eg.originalEvent?.preventDefault();
-  });
-  _map.on('mousemove touchmove',eg=>{
-    if(!_gridDrawing||!_gridStart) return;
-    const ll=eg.latlng; if(!ll) return;
-    _gridRect?.setBounds(L.latLngBounds(_gridStart,ll));
-  });
-  _map.on('mouseup touchend',eg=>{
-    if(!_gridDrawing||!_gridStart) return;
-    const ll=eg.latlng||_gridStart;
-    const b=L.latLngBounds(_gridStart,ll);
-    if(_gridRect){_gridRect.remove();_gridRect=null;}
-    cancelGridDraw();
-    if(Math.abs(b.getNorth()-b.getSouth())<0.0001||Math.abs(b.getEast()-b.getWest())<0.0001) return;
-    addGrid(_gridSize,b.getSouthWest(),b.getNorthEast());
-  });
-
   _map.on('mousedown touchstart',e=>{
     if(!_drawOn||!_drawMode) return;
     const ll=getLL(e); if(!ll) return;
@@ -1176,6 +1157,33 @@ function setupDrawEvents(){
     if(_drawMode==='rect'&&_rStart){const b=L.latLngBounds(_rStart,ll);if(_rRect){_rRect.setBounds(b);}else{_rRect=L.rectangle(b,{color:_zoneColor,weight:2,fillOpacity:0.2,dashArray:'6,3'}).addTo(_map);}}
     if(_drawMode==='circle'&&_cCtr){const r=_cCtr.distanceTo(ll);if(_cCirc){_cCirc.setRadius(r);}else{_cCirc=L.circle(_cCtr,{radius:r,color:_zoneColor,weight:2,fillOpacity:0.15,dashArray:'6,3'}).addTo(_map);}}
   });
+  // ── Grid area draw events ──────────────────────────────
+  _map.on('mousedown touchstart',eg=>{
+    if(!_gridDrawing) return;
+    const ll=getLL(eg); if(!ll) return;
+    _gridStart=ll;
+    if(_gridRect){_gridRect.remove();_gridRect=null;}
+    _gridRect=L.rectangle([ll,ll],{color:'#2563eb',weight:2,fillColor:'#3b82f6',fillOpacity:0.08,dashArray:'6,4'}).addTo(_map);
+  });
+  _map.on('mousemove touchmove',eg=>{
+    if(!_gridDrawing||!_gridStart) return;
+    const ll=getLL(eg); if(!ll) return;
+    _gridRect?.setBounds(L.latLngBounds(_gridStart,ll));
+  });
+  _map.on('mouseup touchend',eg=>{
+    if(!_gridDrawing||!_gridStart) return;
+    const ll=getLL(eg)||_gridStart;
+    const b=L.latLngBounds(_gridStart,ll);
+    if(b.getNorth()===b.getSouth()||b.getEast()===b.getWest()){cancelGridDraw();return;}
+    if(_gridRect){_gridRect.remove();_gridRect=null;}
+    _map.dragging.enable();
+    _map.getContainer().style.cursor='';
+    _gridDrawing=false;
+    document.getElementById('grid-draw-hint').style.display='none';
+    addGrid(_gridSize, b.getSouthWest(), b.getNorthEast());
+    _gridStart=null;
+  });
+
   _map.on('mouseup touchend',e=>{
     if(!_drawOn||!_drawMode) return;
     const ll=getLL(e)||(e.changedTouches?_map.containerPointToLatLng(L.point(e.changedTouches[0].clientX-_map.getContainer().getBoundingClientRect().left,e.changedTouches[0].clientY-_map.getContainer().getBoundingClientRect().top)):null);
@@ -1213,17 +1221,60 @@ function renderZones(zones){
   if(!_zonesOn) return;
   Object.entries(zones).forEach(([id,z])=>{
     const s=z.shape,c=z.color||'#3b82f6',canDel=z.createdBy===user.id||user.role==='admin';
-    let layer=null;
-    if(s.type==='polygon') layer=L.polygon(s.latlngs.map(p=>[p.lat,p.lng]),{color:c,weight:2.5,fillOpacity:0.15});
-    else if(s.type==='rectangle') layer=L.rectangle([[s.sw.lat,s.sw.lng],[s.ne.lat,s.ne.lng]],{color:c,weight:2.5,fillOpacity:0.15});
-    else if(s.type==='circle') layer=L.circle([s.center.lat,s.center.lng],{radius:s.radius,color:c,weight:2.5,fillOpacity:0.15});
+    let layer=null, areaSqm=0;
+    if(s.type==='polygon'){
+      layer=L.polygon(s.latlngs.map(p=>[p.lat,p.lng]),{color:c,weight:2.5,fillOpacity:0.15});
+      // คำนวณพื้นที่ polygon (Shoelace + Haversine)
+      const pts=s.latlngs;
+      let a=0;
+      for(let i=0;i<pts.length;i++){
+        const j=(i+1)%pts.length;
+        const xi=pts[i].lng*(Math.PI/180)*6371000*Math.cos(pts[i].lat*(Math.PI/180));
+        const yi=pts[i].lat*(Math.PI/180)*6371000;
+        const xj=pts[j].lng*(Math.PI/180)*6371000*Math.cos(pts[j].lat*(Math.PI/180));
+        const yj=pts[j].lat*(Math.PI/180)*6371000;
+        a+=xi*yj-xj*yi;
+      }
+      areaSqm=Math.abs(a/2);
+    } else if(s.type==='rectangle'){
+      layer=L.rectangle([[s.sw.lat,s.sw.lng],[s.ne.lat,s.ne.lng]],{color:c,weight:2.5,fillOpacity:0.15});
+      areaSqm=calcRectArea(s.sw.lat,s.sw.lng,s.ne.lat,s.ne.lng);
+    } else if(s.type==='circle'){
+      layer=L.circle([s.center.lat,s.center.lng],{radius:s.radius,color:c,weight:2.5,fillOpacity:0.15});
+      areaSqm=Math.PI*s.radius*s.radius;
+    }
     if(!layer) return;
     layer.addTo(_map);
+
+    // ── Popup with area ──────────────────────────────────
+    const areaStr=areaSqm>0?fmtArea(areaSqm):'—';
+    const shapeIcon=s.type==='circle'?'⭕':s.type==='polygon'?'🔷':'⬛';
+    const shapeLabel=s.type==='circle'?'วงกลม':s.type==='polygon'?'ฟรีแฮนด์':'สี่เหลี่ยม';
+    const extraInfo=s.type==='circle'?`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9"><span style="color:#94a3b8">รัศมี</span><span style="font-weight:700;color:#0f172a">${s.radius>=1000?(s.radius/1000).toFixed(1)+'กม.':s.radius+'ม.'}</span></div>`
+      :s.type==='rectangle'?`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9"><span style="color:#94a3b8">กว้าง × ยาว</span><span style="font-weight:700;color:#0f172a">${fmtD(Math.round((s.ne.lng-s.sw.lng)*111320*Math.cos((s.sw.lat+s.ne.lat)/2*Math.PI/180)))} × ${fmtD(Math.round((s.ne.lat-s.sw.lat)*111320))}</span></div>`:'';
+
     layer.bindPopup(`
-      <div class="pp-title" style="color:${c}"><i class="fas fa-draw-polygon" style="margin-right:5px"></i>${z.name}</div>
-      <div class="pp-row">สร้างโดย: ${z.createdByName||'-'}</div>
-      ${s.radius?`<div class="pp-row">รัศมี: ${s.radius>=1000?(s.radius/1000).toFixed(1)+'กม.':s.radius+'ม.'}</div>`:''}
-      ${canDel?`<button class="pp-btn pp-del-zone-btn" style="background:#fee2e2;color:#dc2626" data-zoneid="${id}"><i class="fas fa-trash"></i> ลบโซน</button>`:''}
+      <div style="min-width:200px;font-family:'Sarabun',sans-serif">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div style="width:32px;height:32px;border-radius:9px;background:${c}18;border:2px solid ${c}44;display:flex;align-items:center;justify-content:center;font-size:15px">${shapeIcon}</div>
+          <div>
+            <div style="font-family:'Kanit',sans-serif;font-size:14px;font-weight:800;color:${c}">${z.name}</div>
+            <div style="font-size:10px;color:#94a3b8">${shapeLabel}</div>
+          </div>
+        </div>
+        <div style="background:${c}0d;border:1px solid ${c}33;border-radius:9px;padding:8px 10px;margin-bottom:8px;text-align:center">
+          <div style="font-family:'Kanit',sans-serif;font-size:20px;font-weight:800;color:${c}">${areaStr}</div>
+          <div style="font-size:9px;color:${c}99;font-weight:600;margin-top:1px">พื้นที่โซน</div>
+        </div>
+        <div style="font-size:11px;color:#475569;margin-bottom:6px">
+          ${extraInfo}
+          <div style="display:flex;justify-content:space-between;padding:3px 0">
+            <span style="color:#94a3b8">สร้างโดย</span>
+            <span style="font-weight:700;color:#0f172a">${z.createdByName||'-'}</span>
+          </div>
+        </div>
+        ${canDel?`<button class="pp-btn pp-del-zone-btn" style="width:100%;background:linear-gradient(135deg,#fee2e2,#fecaca);color:#dc2626;border:1.5px solid #fca5a5;border-radius:9px;padding:8px;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px" data-zoneid="${id}"><i class="fas fa-trash"></i> ลบโซน</button>`:''}
+      </div>
     `);
     _zoneLayers[id]=layer;
   });
@@ -1397,7 +1448,7 @@ async function endMission(){
     await update(ref(db,`search_missions/${missionId}`),{status:'closed',closedAt:Date.now(),closedBy:user.id,closedByName:user.name||user.id,summary:sum,memberSnapshot:ms,...(ph.length&&{photos:ph})});
     await remove(ref(db,`search_missions/${missionId}/locations`)).catch(()=>{});
     toast('จบภารกิจสำเร็จ ✅','success');stopGps();_gps=false;
-    [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails].forEach(f=>f&&f());
+    [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails,_unGrids].forEach(f=>f&&f());
     localStorage.removeItem('sm_active_mission');
     setTimeout(()=>location.replace('index.html?tab=search-mission'),1200);
   }catch(e){toast('เกิดข้อผิดพลาด: '+e.message,'error');setEndLoading(false);}
@@ -1406,13 +1457,13 @@ function setEndLoading(on){const b=document.getElementById('end-confirm-btn');if
 function confirmLeave(){
   if(!confirm('ยืนยันออกจากภารกิจ?\nระบบจะหยุดส่งตำแหน่งของคุณ')) return;
   _gps=false;stopGps();
-  [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails].forEach(f=>f&&f());
-  // stamp leftAt so trail remains visible after leaving
+  [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails,_unGrids].forEach(f=>f&&f());
+  // stamp leftAt so others can still see trail with info
+  const myColor=_memberColors[user.id]||null;
+  const myName=user.name||user.id;
   get(ref(db,`search_missions/${missionId}/trails/${user.id}`)).then(s=>{
     const raw=s.val();
     if(raw){
-      const myColor=_memberColors[user.id]||null;
-      const myName=user.name||user.id;
       const prev=Array.isArray(raw)?{points:raw,name:myName,color:myColor,leftAt:Date.now()}:{...raw,name:myName,color:myColor,leftAt:Date.now()};
       set(ref(db,`search_missions/${missionId}/trails/${user.id}`),prev).catch(()=>{});
     }
@@ -1423,114 +1474,291 @@ function confirmLeave(){
 }
 
 // ══════════════════════════════════════════════════════════
-// ─── GRID SYSTEM ──────────────────────────────────────────
+// ─── GRID SYSTEM (Firebase realtime, deletable, hideable) ─
 // ══════════════════════════════════════════════════════════
+
+// ── Firebase realtime listener ────────────────────────────
+function listenGrids(){
+  if(_unGrids){_unGrids();_unGrids=null;}
+  _unGrids = onValue(ref(db,`search_missions/${missionId}/grids`), snap => {
+    renderGrids(snap.val() || {});
+  });
+}
+
+// ── คำนวณพื้นที่สี่เหลี่ยม (ตร.ม.) ──────────────────────
+function calcRectArea(swLat, swLng, neLat, neLng){
+  const latM = (neLat - swLat) * 111320;
+  const midLat = (swLat + neLat) / 2;
+  const lngM = (neLng - swLng) * 111320 * Math.cos(midLat * Math.PI / 180);
+  return Math.abs(latM * lngM);
+}
+function fmtArea(sqm){
+  if(sqm >= 1e6) return (sqm/1e6).toFixed(2) + ' กม.²';
+  if(sqm >= 10000) return (sqm/10000).toFixed(1) + ' ไร่';
+  return Math.round(sqm) + ' ม.²';
+}
+
+// ── นับจำนวนช่องกริด ──────────────────────────────────────
+function countGridCells(sizeMeters, swLat, swLng, neLat, neLng){
+  const midLat = (swLat + neLat) / 2;
+  const latDeg = sizeMeters / 111320;
+  const lngDeg = sizeMeters / (111320 * Math.cos(midLat * Math.PI / 180));
+  const rows = Math.ceil((neLat - swLat) / latDeg);
+  const cols = Math.ceil((neLng - swLng) / lngDeg);
+  return Math.max(1, rows) * Math.max(1, cols);
+}
+
+// ── Render all grids from Firebase snapshot ───────────────
+function renderGrids(gridsData){
+  if(!_map) return; // map ยังไม่พร้อม — ข้าม (listener จะยิงอีกครั้งเมื่อ reconnect)
+
+  // ลบ layer เดิมทั้งหมดออกจากแผนที่
+  _gridLayers.forEach(g => {
+    g.lines.forEach(l => { try{ l.remove(); }catch(e){} });
+    g.labels.forEach(l => { try{ l.remove(); }catch(e){} });
+    try{ g.boundary.remove(); }catch(e){}
+    try{ g.clickZone.remove(); }catch(e){}
+  });
+  _gridLayers = [];
+
+  const ids = Object.keys(gridsData);
+  ids.forEach(gridId => {
+    const gd = gridsData[gridId];
+    if(!gd || gd.swLat==null) return;
+    _renderGridLocally(
+      gridId, gd.size,
+      L.latLng(gd.swLat, gd.swLng),
+      L.latLng(gd.neLat, gd.neLng),
+      gd.createdBy, gd.createdByName, gd.createdAt
+    );
+  });
+
+  _gridOn = ids.length > 0;
+  document.getElementById('btn-grid').classList.toggle('active', _gridOn);
+
+  // อัปเดต badge จำนวนกริดใน picker
+  const badge = document.getElementById('grid-count-badge');
+  if(badge) badge.textContent = ids.length > 0 ? `${ids.length} กริด` : '';
+
+  _applyGridVisibility();
+}
+
+// ── วาดกริด 1 ชุดบนแผนที่ ────────────────────────────────
+function _renderGridLocally(gridId, sizeMeters, sw, ne, createdBy, createdByName, createdAt){
+  if(!_map) return;
+  const midLat = (sw.lat + ne.lat) / 2;
+  const latDeg = sizeMeters / 111320;
+  const lngDeg = sizeMeters / (111320 * Math.cos(midLat * Math.PI / 180));
+  const color  = '#3b82f6';
+  const lines  = [];
+
+  // เส้นแนวตั้ง (lng)
+  for(let lng = Math.floor(sw.lng/lngDeg)*lngDeg; lng <= ne.lng+lngDeg; lng += lngDeg){
+    lines.push(L.polyline([[sw.lat,lng],[ne.lat,lng]],{
+      color, weight:1.2, opacity:0.55, dashArray:'4,4', interactive:false
+    }).addTo(_map));
+  }
+  // เส้นแนวนอน (lat)
+  for(let lat = Math.floor(sw.lat/latDeg)*latDeg; lat <= ne.lat+latDeg; lat += latDeg){
+    lines.push(L.polyline([[lat,sw.lng],[lat,ne.lng]],{
+      color, weight:1.2, opacity:0.55, dashArray:'4,4', interactive:false
+    }).addTo(_map));
+  }
+
+  // กรอบขอบ
+  const boundary = L.rectangle([[sw.lat,sw.lng],[ne.lat,ne.lng]],{
+    color:'#2563eb', weight:2, fill:false, opacity:0.7, interactive:false
+  }).addTo(_map);
+
+  // ป้ายชื่อช่อง A1 B2 ...
+  const labels = [];
+  let row = 0;
+  for(let lat = Math.floor(sw.lat/latDeg)*latDeg; lat <= ne.lat; lat += latDeg, row++){
+    let col = 0;
+    for(let lng = Math.floor(sw.lng/lngDeg)*lngDeg; lng <= ne.lng; lng += lngDeg, col++){
+      const cellLabel = `${String.fromCharCode(65+row)}${col+1}`;
+      const m = L.marker([lat+latDeg/2, lng+lngDeg/2], {
+        icon: L.divIcon({
+          html:`<div style="background:rgba(37,99,235,0.08);color:#1d4ed8;font-size:9px;font-weight:800;font-family:'Kanit',sans-serif;border:1px solid rgba(37,99,235,0.2);border-radius:4px;padding:1px 4px;white-space:nowrap;pointer-events:none">${cellLabel}</div>`,
+          className:'', iconAnchor:[0,0]
+        }),
+        interactive: false
+      }).addTo(_map);
+      labels.push(m);
+    }
+  }
+
+  // ── Popup info ───────────────────────────────────────────
+  const canDel    = createdBy === user.id || user.role === 'admin';
+  const sizeLabel = sizeMeters >= 1000 ? (sizeMeters/1000)+'กม.' : sizeMeters+'ม.';
+  const totalArea = calcRectArea(sw.lat, sw.lng, ne.lat, ne.lng);
+  const cellArea  = sizeMeters * sizeMeters;
+  const cellCount = countGridCells(sizeMeters, sw.lat, sw.lng, ne.lat, ne.lng);
+  const widthM    = Math.round((ne.lng - sw.lng) * 111320 * Math.cos(midLat*Math.PI/180));
+  const heightM   = Math.round((ne.lat - sw.lat) * 111320);
+  const timeStr   = createdAt ? new Date(createdAt).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) : '-';
+
+  const clickZone = L.rectangle([[sw.lat,sw.lng],[ne.lat,ne.lng]], {
+    color:'transparent', weight:0, fillColor:'#3b82f6', fillOpacity:0.03
+  }).addTo(_map);
+
+  clickZone.on('click', function(e){
+    L.DomEvent.stopPropagation(e);
+    const popHtml = `
+      <div style="min-width:210px;font-family:'Sarabun',sans-serif">
+        <div style="font-family:'Kanit',sans-serif;font-size:14px;font-weight:800;color:#0a2463;margin-bottom:10px;display:flex;align-items:center;gap:7px">
+          <div style="width:30px;height:30px;border-radius:9px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-size:15px">🔲</div>
+          กริด ${sizeLabel}
+        </div>
+
+        <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:9px;padding:9px 11px;margin-bottom:9px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+            <div style="text-align:center;padding:6px 4px;background:#fff;border-radius:7px;border:1px solid #e0f2fe">
+              <div style="font-family:'Kanit',sans-serif;font-size:16px;font-weight:800;color:#0369a1">${fmtArea(totalArea)}</div>
+              <div style="font-size:9px;color:#7dd3fc;font-weight:600;margin-top:1px">พื้นที่รวม</div>
+            </div>
+            <div style="text-align:center;padding:6px 4px;background:#fff;border-radius:7px;border:1px solid #e0f2fe">
+              <div style="font-family:'Kanit',sans-serif;font-size:16px;font-weight:800;color:#0369a1">${cellCount}</div>
+              <div style="font-size:9px;color:#7dd3fc;font-weight:600;margin-top:1px">จำนวนช่อง</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size:11px;color:#475569;margin-bottom:5px">
+          <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9">
+            <span style="color:#94a3b8">ขนาดช่อง</span>
+            <span style="font-weight:700;color:#0f172a">${sizeLabel} × ${sizeLabel}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9">
+            <span style="color:#94a3b8">พื้นที่ต่อช่อง</span>
+            <span style="font-weight:700;color:#0f172a">${fmtArea(cellArea)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9">
+            <span style="color:#94a3b8">กว้าง × ยาว</span>
+            <span style="font-weight:700;color:#0f172a">${fmtD(widthM)} × ${fmtD(heightM)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9">
+            <span style="color:#94a3b8">สร้างโดย</span>
+            <span style="font-weight:700;color:#0f172a">${esc(createdByName||createdBy||'?')}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0">
+            <span style="color:#94a3b8">เวลา</span>
+            <span style="font-weight:700;color:#0f172a">${timeStr}</span>
+          </div>
+        </div>
+
+        ${canDel ? `
+        <button onclick="deleteGrid('${gridId}')" style="width:100%;margin-top:6px;padding:9px;border-radius:9px;background:linear-gradient(135deg,#fee2e2,#fecaca);border:1.5px solid #fca5a5;color:#dc2626;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+          <i class="fas fa-trash"></i> ลบกริดนี้ (ทุกคนจะไม่เห็น)
+        </button>` :
+        `<div style="font-size:10px;color:#94a3b8;text-align:center;margin-top:6px;padding:5px;background:#f8fafc;border-radius:7px">เฉพาะผู้สร้างหรือ Admin ลบได้</div>`}
+      </div>
+    `;
+    clickZone.bindPopup(popHtml, {maxWidth:260}).openPopup(e.latlng);
+  });
+
+  _gridLayers.push({gridId, lines, labels, boundary, clickZone, size: sizeMeters});
+}
+
+// ── ซ่อน/แสดงกริด (local เท่านั้น) ──────────────────────
+function _applyGridVisibility(){
+  _gridLayers.forEach(g => {
+    g.lines.forEach(l => { try{ l.setStyle({opacity: _gridVisible ? 0.55 : 0}); }catch(e){} });
+    g.labels.forEach(l => { try{ l.setOpacity(_gridVisible ? 1 : 0); }catch(e){} });
+    try{ g.boundary.setStyle({opacity: _gridVisible ? 0.7 : 0}); }catch(e){}
+    try{ g.clickZone.setStyle({fillOpacity: _gridVisible ? 0.03 : 0}); }catch(e){}
+  });
+}
+
+function toggleGridVisibility(){
+  _gridVisible = !_gridVisible;
+  _applyGridVisibility();
+  const btn = document.getElementById('btn-grid-vis');
+  if(btn){
+    btn.innerHTML = _gridVisible
+      ? '<i class="fas fa-eye-slash"></i> ซ่อนกริด (เฉพาะคุณ)'
+      : '<i class="fas fa-eye"></i> แสดงกริด';
+  }
+  toast(_gridVisible ? 'แสดงกริดแล้ว ✅' : 'ซ่อนกริดแล้ว (เฉพาะหน้าจอคุณ)', 'info');
+}
+
+// ── ลบกริดชุดนึงออกจาก Firebase ──────────────────────────
+function deleteGrid(gridId){
+  if(!confirm('ลบกริดนี้?\nทุกคนในภารกิจจะไม่เห็นกริดนี้อีกต่อไป')) return;
+  _map && _map.closePopup();
+  remove(ref(db, `search_missions/${missionId}/grids/${gridId}`))
+    .then(()  => toast('ลบกริดแล้ว ✅','info'))
+    .catch(e  => toast('ลบไม่สำเร็จ: '+e.message,'error'));
+}
+
+// ── UI picker ─────────────────────────────────────────────
 function toggleGridPicker(){
-  const p=document.getElementById('grid-picker');
+  const p = document.getElementById('grid-picker');
   document.getElementById('pin-picker').classList.remove('show');
   document.getElementById('btn-pin').classList.remove('active');
-  const show=p.classList.toggle('show');
-  document.getElementById('btn-grid').classList.toggle('active',show||_gridLayers.length>0);
-  if(show) renderGridList();
+  const show = p.classList.toggle('show');
+  document.getElementById('btn-grid').classList.toggle('active', show || _gridLayers.length > 0);
 }
 function closeGridPicker(){
   document.getElementById('grid-picker').classList.remove('show');
-  document.getElementById('btn-grid').classList.toggle('active',_gridLayers.length>0);
+  document.getElementById('btn-grid').classList.toggle('active', _gridLayers.length > 0);
 }
-function startGridDraw(size){ _gridSize=size; _enterGridDrawMode(); }
+
+// ── เริ่มโหมดวาดกริด ─────────────────────────────────────
+function startGridDraw(size){ _gridSize = size; _startGridDrawMode(); }
 function startGridDrawCustom(){
-  const v=parseInt(document.getElementById('grid-custom-size').value)||200;
-  _gridSize=Math.max(10,Math.min(10000,v));
-  _enterGridDrawMode();
+  const v = parseInt(document.getElementById('grid-custom-size').value) || 200;
+  _gridSize = Math.max(10, Math.min(10000, v));
+  _startGridDrawMode();
 }
-function _enterGridDrawMode(){
+function _startGridDrawMode(){
   document.getElementById('grid-picker').classList.remove('show');
-  _gridDrawing=true; _gridStart=null;
-  if(_gridRect){_gridRect.remove();_gridRect=null;}
+  _gridDrawing = true; _gridStart = null;
+  if(_gridRect){ _gridRect.remove(); _gridRect = null; }
   _map.dragging.disable();
-  _map.getContainer().style.cursor='crosshair';
-  const lbl=_gridSize>=1000?(_gridSize/1000)+'กม.':_gridSize+'ม.';
-  document.getElementById('grid-draw-hint').style.display='block';
-  document.getElementById('grid-hint-text').textContent=`ลากเลือกพื้นที่ — กริด ${lbl}`;
+  _map.getContainer().style.cursor = 'crosshair';
+  document.getElementById('grid-draw-hint').style.display = 'block';
+  document.getElementById('grid-hint-text').textContent =
+    `วาดพื้นที่สำหรับกริด ${_gridSize>=1000?_gridSize/1000+'กม.':_gridSize+'ม.'} — ลากเพื่อเลือก`;
   document.getElementById('btn-grid').classList.add('active');
-  toast(`ลากบนแผนที่เพื่อวางกริด ${lbl}`,'info');
+  toast(`ลากบนแผนที่เพื่อกำหนดพื้นที่กริด ${_gridSize>=1000?_gridSize/1000+'กม.':_gridSize+'ม.'}`, 'info');
 }
 function cancelGridDraw(){
-  _gridDrawing=false; _gridStart=null;
-  if(_gridRect){_gridRect.remove();_gridRect=null;}
-  _map.dragging.enable();
-  _map.getContainer().style.cursor='';
-  document.getElementById('grid-draw-hint').style.display='none';
-  document.getElementById('btn-grid').classList.toggle('active',_gridLayers.length>0);
+  _gridDrawing = false; _gridStart = null;
+  if(_gridRect){ _gridRect.remove(); _gridRect = null; }
+  _map.dragging.enable(); _map.getContainer().style.cursor = '';
+  document.getElementById('grid-draw-hint').style.display = 'none';
+  document.getElementById('btn-grid').classList.toggle('active', _gridLayers.length > 0);
 }
-function addGrid(sizeMeters,sw,ne){
+
+// ── บันทึกกริดลง Firebase (shared ทุกคนเห็น) ─────────────
+function addGrid(sizeMeters, sw, ne){
   if(!_map) return;
-  if(!sw||!ne){sw=_map.getBounds().getSouthWest();ne=_map.getBounds().getNorthEast();}
-  const midLat=(sw.lat+ne.lat)/2;
-  const latDeg=sizeMeters/111320;
-  const lngDeg=sizeMeters/(111320*Math.cos(midLat*Math.PI/180));
-  const color='#3b82f6';
-  const lines=[];
-  lines.push(L.rectangle([[sw.lat,sw.lng],[ne.lat,ne.lng]],{color:'#2563eb',weight:2,fill:false,opacity:0.7,dashArray:'8,4'}).addTo(_map));
-  for(let lng=Math.floor(sw.lng/lngDeg)*lngDeg;lng<=ne.lng;lng+=lngDeg)
-    lines.push(L.polyline([[sw.lat,lng],[ne.lat,lng]],{color,weight:1,opacity:0.45,dashArray:'4,4'}).addTo(_map));
-  for(let lat=Math.floor(sw.lat/latDeg)*latDeg;lat<=ne.lat;lat+=latDeg)
-    lines.push(L.polyline([[lat,sw.lng],[lat,ne.lng]],{color,weight:1,opacity:0.45,dashArray:'4,4'}).addTo(_map));
-  const labels=[];
-  let row=0;
-  for(let lat=Math.floor(sw.lat/latDeg)*latDeg;lat<ne.lat;lat+=latDeg,row++){
-    let col=0;
-    for(let lng=Math.floor(sw.lng/lngDeg)*lngDeg;lng<ne.lng;lng+=lngDeg,col++){
-      const lbl=`${String.fromCharCode(65+row)}${col+1}`;
-      labels.push(L.marker([lat+latDeg/2,lng+lngDeg/2],{
-        icon:L.divIcon({html:`<div style="background:rgba(37,99,235,0.10);color:#1d4ed8;font-size:10px;font-weight:800;font-family:'Kanit',sans-serif;border:1px solid rgba(37,99,235,0.25);border-radius:4px;padding:2px 5px;white-space:nowrap;pointer-events:none">${lbl}</div>`,className:'',iconAnchor:[0,0]}),
-        interactive:false
-      }).addTo(_map));
-    }
-  }
-  _gridLayers.push({lines,labels,size:sizeMeters,sw,ne});
-  _gridOn=true;
-  document.getElementById('btn-grid').classList.add('active');
-  renderGridList();
-  const lbl=sizeMeters>=1000?(sizeMeters/1000)+'กม.':sizeMeters+'ม.';
-  toast(`กริด ${lbl} ✅ — รวม ${_gridLayers.length} กริด`,'success');
+  if(!sw||!ne){ sw = _map.getBounds().getSouthWest(); ne = _map.getBounds().getNorthEast(); }
+  const gridData = {
+    size: sizeMeters,
+    swLat: +sw.lat.toFixed(7), swLng: +sw.lng.toFixed(7),
+    neLat: +ne.lat.toFixed(7), neLng: +ne.lng.toFixed(7),
+    createdBy: user.id,
+    createdByName: user.name || user.id,
+    createdAt: Date.now()
+  };
+  push(ref(db, `search_missions/${missionId}/grids`), gridData)
+    .then(() => toast(`กริด ${sizeMeters>=1000?sizeMeters/1000+'กม.':sizeMeters+'ม.'} ✅ ทุกคนเห็นแล้ว`, 'success'))
+    .catch(e => toast('บันทึกกริดไม่สำเร็จ: '+e.message, 'error'));
 }
-function deleteGrid(idx){
-  if(idx<0||idx>=_gridLayers.length) return;
-  const g=_gridLayers[idx];
-  g.lines.forEach(l=>l.remove()); g.labels.forEach(l=>l.remove());
-  _gridLayers.splice(idx,1);
-  if(!_gridLayers.length){_gridOn=false;document.getElementById('btn-grid').classList.remove('active');}
-  renderGridList();
-  toast('ลบกริดแล้ว','info');
-}
+
+// ── ลบกริดทั้งหมดออกจาก Firebase ────────────────────────
 function clearAllGrids(){
-  _gridLayers.forEach(g=>{g.lines.forEach(l=>l.remove());g.labels.forEach(l=>l.remove());});
-  _gridLayers=[];_gridOn=false;
-  if(_gridRect){_gridRect.remove();_gridRect=null;}
-  _gridDrawing=false;
-  if(_map){_map.dragging.enable();_map.getContainer().style.cursor='';}
-  document.getElementById('btn-grid').classList.remove('active');
-  document.getElementById('grid-draw-hint').style.display='none';
-  renderGridList();
-  toast('ลบกริดทั้งหมดแล้ว','info');
-}
-function renderGridList(){
-  const wrap=document.getElementById('grid-list-wrap');
-  const list=document.getElementById('grid-list');
-  if(!wrap||!list) return;
-  if(!_gridLayers.length){wrap.style.display='none';return;}
-  wrap.style.display='block';
-  const COLS=['#2563eb','#9333ea','#f97316','#16a34a','#dc2626','#0891b2'];
-  list.innerHTML=_gridLayers.map((g,i)=>{
-    const sz=g.size>=1000?(g.size/1000)+'กม.':g.size+'ม.';
-    const c=COLS[i%COLS.length];
-    return `<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid #f1f5f9">
-      <div style="width:13px;height:13px;border:2px solid ${c};border-radius:3px;flex-shrink:0;background:${c}18"></div>
-      <div style="flex:1;font-size:11px;font-weight:700;font-family:'Kanit',sans-serif;color:#0f172a">กริด ${sz}<span style="font-size:9px;color:#94a3b8;margin-left:3px">#${i+1}</span></div>
-      <button onclick="W.deleteGrid(${i})" style="padding:3px 8px;border-radius:6px;border:1.5px solid #fca5a5;background:#fff;color:#ef4444;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:'Kanit',sans-serif"><i class="fas fa-times"></i></button>
-    </div>`;
-  }).join('');
+  if(_gridLayers.length === 0){ toast('ยังไม่มีกริด','info'); return; }
+  if(!confirm('ลบกริดทั้งหมด?\nทุกคนจะไม่เห็นกริดอีก')) return;
+  remove(ref(db, `search_missions/${missionId}/grids`))
+    .then(() => {
+      if(_gridRect){ _gridRect.remove(); _gridRect = null; }
+      document.getElementById('grid-draw-hint').style.display = 'none';
+      toast('ลบกริดทั้งหมดแล้ว', 'info');
+    })
+    .catch(e => toast('ลบไม่สำเร็จ: '+e.message, 'error'));
 }
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -1552,18 +1780,12 @@ function openLB(src){document.getElementById('lb-img').src=src;document.getEleme
 function closeLB(){document.getElementById('lightbox').classList.remove('open');}
 let _tT=null;
 function toast(msg,type='info'){const t=document.getElementById('toast'),icons={success:'check-circle',error:'exclamation-circle',info:'info-circle'};t.className=`toast ${type}`;t.innerHTML=`<i class="fas fa-${icons[type]||'info-circle'}"></i>${msg}`;requestAnimationFrame(()=>t.classList.add('show'));clearTimeout(_tT);_tT=setTimeout(()=>t.classList.remove('show'),3500);}
-W.showToast=toast;
+window.showToast=toast;
 function handleBack(e){e.preventDefault();if(confirm('กลับหน้าหลัก?\n(GPS จะยังทำงานอยู่ถ้าคุณยังอยู่ในภารกิจ)'))location.replace('index.html?tab=search-mission');return false;}
 function showNav(la,ln,name){const ex=document.getElementById('nav-sheet');if(ex)ex.remove();const el=document.createElement('div');el.id='nav-sheet';el.innerHTML=`<div class="sheet"><div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px"></div><div style="font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;color:#0a2463;margin-bottom:13px"><i class="fas fa-navigation" style="color:#2563eb;margin-right:7px"></i>นำทางไปหา ${name||'สมาชิก'}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><a href="https://www.google.com/maps/dir/?api=1&destination=${la},${ln}" target="_blank" style="display:flex;flex-direction:column;align-items:center;gap:7px;padding:13px;border-radius:13px;border:2px solid #4285f4;text-decoration:none;color:#4285f4;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700"><i class="fas fa-map-marked-alt" style="font-size:20px"></i>Google Maps</a><a href="https://waze.com/ul?ll=${la},${ln}&navigate=yes" target="_blank" style="display:flex;flex-direction:column;align-items:center;gap:7px;padding:13px;border-radius:13px;border:2px solid #33ccff;text-decoration:none;color:#00b5e6;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700"><i class="fas fa-route" style="font-size:20px"></i>Waze</a></div><button onclick="document.getElementById('nav-sheet').remove()" style="width:100%;padding:12px;border-radius:11px;background:#f1f5f9;border:none;font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:#64748b;cursor:pointer">ยกเลิก</button></div>`;el.addEventListener('click',e=>{if(e.target===el)el.remove();});document.body.appendChild(el);}
 
 // ─── Lifecycle ────────────────────────────────────────────
-function beacon(){
-  if(!_gps) return;
-  try{
-    update(ref(db,`search_missions/${missionId}/members/${user.id}`),
-      {status:(_sosOn&&Date.now()<_sosExp)?'sos':'online',lastSeen:Date.now(),bgActive:true}).catch(()=>{});
-  }catch(e){}
-}
+function beacon(){if(!_gps) return;try{const b=FB.databaseURL,p=JSON.stringify({status:(_sosOn&&Date.now()<_sosExp)?'sos':'online',lastSeen:Date.now(),bgActive:true});navigator.sendBeacon(`${b}/search_missions/${missionId}/members/${user.id}.json`,new Blob([p],{type:'application/json'}));}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)beacon();else if(_gps)startGps();});
 addEventListener('pagehide',()=>{if(_gps)beacon();});
 addEventListener('beforeunload',beacon);
