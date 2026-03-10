@@ -375,6 +375,7 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
       </div>
 
       <div style="border-top:1px solid var(--border-light);margin:4px 0 6px"></div>
+      <button id="btn-grid-vis" class="draw-cancel" style="flex:1;border-color:#dbeafe;color:#2563eb;background:#eff6ff;margin-bottom:4px;width:100%;justify-content:center;display:flex;gap:5px;align-items:center" onclick="toggleGridVisibility()"><i class="fas fa-eye-slash"></i> ซ่อนกริด (เฉพาะคุณ)</button>
       <div style="display:flex;gap:6px">
         <button class="draw-cancel" style="flex:1" onclick="clearAllGrids()"><i class="fas fa-trash"></i> ลบทั้งหมด</button>
         <button class="draw-cancel" style="flex:1;border-color:#e2e8f0;color:#64748b" onclick="closeGridPicker()"><i class="fas fa-times"></i> ปิด</button>
@@ -585,6 +586,8 @@ let _pendingPinType=null, _pendingPinLL=null, _pendingPinPhoto=null;
 let _endPhotos=[];
 let _gridLayers=[], _gridOn=false;
 let _gridDrawing=false, _gridSize=100, _gridStart=null, _gridRect=null, _gridDrawLayer=null;
+let _unGrids=null; // Firebase listener for shared grids
+let _gridVisible=true; // local visibility toggle
 let _memberNames={}; // uid -> display name cache
 let _memberColors={}; // uid -> color cache
 
@@ -615,6 +618,7 @@ W.flyTo=(la,ln)=>_map?.flyTo([la,ln],17,{animate:true,duration:0.8});
 W.toggleGridPicker=toggleGridPicker; W.closeGridPicker=closeGridPicker;
 W.addGrid=addGrid; W.clearAllGrids=clearAllGrids;
 W.startGridDraw=startGridDraw; W.startGridDrawCustom=startGridDrawCustom; W.cancelGridDraw=cancelGridDraw;
+W.toggleGridVisibility=toggleGridVisibility; W.deleteGrid=deleteGrid;
 W.showNav=showNav; W.delZone=delZone; W.delPin=delPin;
 W.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
 
@@ -646,7 +650,7 @@ addEventListener('DOMContentLoaded', async () => {
 
     setTimeout(()=>{
       initMap(); startGps(); listenLoc(); listenStatus();
-      listenChat(); listenPins(); listenZones(); listenTrails(); bindSos(); heartbeat();
+      listenChat(); listenPins(); listenZones(); listenTrails(); listenGrids(); bindSos(); heartbeat();
     },150);
   } catch(e) { errScreen('เกิดข้อผิดพลาด', e.message||String(e)); }
 });
@@ -774,7 +778,7 @@ function listenStatus(){
   if(_unStatus){_unStatus();_unStatus=null;}
   _unStatus=onValue(ref(db,`search_missions/${missionId}/status`),s=>{
     if(s.val()==='closed'){
-      [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails].forEach(f=>f&&f());
+      [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails,_unGrids].forEach(f=>f&&f());
       stopGps(); toast('ภารกิจสิ้นสุดแล้ว','info');
       setTimeout(()=>location.replace('index.html?tab=search-mission'),2000);
     }
@@ -1398,7 +1402,7 @@ async function endMission(){
     await update(ref(db,`search_missions/${missionId}`),{status:'closed',closedAt:Date.now(),closedBy:user.id,closedByName:user.name||user.id,summary:sum,memberSnapshot:ms,...(ph.length&&{photos:ph})});
     await remove(ref(db,`search_missions/${missionId}/locations`)).catch(()=>{});
     toast('จบภารกิจสำเร็จ ✅','success');stopGps();_gps=false;
-    [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails].forEach(f=>f&&f());
+    [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails,_unGrids].forEach(f=>f&&f());
     localStorage.removeItem('sm_active_mission');
     setTimeout(()=>location.replace('index.html?tab=search-mission'),1200);
   }catch(e){toast('เกิดข้อผิดพลาด: '+e.message,'error');setEndLoading(false);}
@@ -1407,7 +1411,7 @@ function setEndLoading(on){const b=document.getElementById('end-confirm-btn');if
 function confirmLeave(){
   if(!confirm('ยืนยันออกจากภารกิจ?\nระบบจะหยุดส่งตำแหน่งของคุณ')) return;
   _gps=false;stopGps();
-  [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails].forEach(f=>f&&f());
+  [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails,_unGrids].forEach(f=>f&&f());
   // stamp leftAt so others can still see trail with info
   const myColor=_memberColors[user.id]||null;
   const myName=user.name||user.id;
@@ -1424,8 +1428,135 @@ function confirmLeave(){
 }
 
 // ══════════════════════════════════════════════════════════
-// ─── GRID SYSTEM ──────────────────────────────────────────
+// ─── GRID SYSTEM (Firebase-synced, deletable, hideable) ───
 // ══════════════════════════════════════════════════════════
+
+// ── Firebase listener ─────────────────────────────────────
+function listenGrids(){
+  if(_unGrids){_unGrids();_unGrids=null;}
+  _unGrids=onValue(ref(db,`search_missions/${missionId}/grids`),s=>{
+    renderGrids(s.val()||{});
+  });
+}
+
+// ── Render all grids from Firebase data ───────────────────
+function renderGrids(gridsData){
+  // Remove all existing local grid layers
+  _gridLayers.forEach(g=>{
+    g.lines.forEach(l=>_map&&l.remove());
+    g.labels.forEach(l=>_map&&l.remove());
+    if(g.boundary) g.boundary.remove();
+    if(g.clickZone) g.clickZone.remove();
+  });
+  _gridLayers=[];
+
+  const ids=Object.keys(gridsData);
+  ids.forEach(gridId=>{
+    const gd=gridsData[gridId];
+    if(!gd) return;
+    const sw=L.latLng(gd.swLat,gd.swLng);
+    const ne=L.latLng(gd.neLat,gd.neLng);
+    _renderGridLocally(gridId,gd.size,sw,ne,gd.createdBy,gd.createdByName);
+  });
+
+  _gridOn=ids.length>0;
+  document.getElementById('btn-grid').classList.toggle('active',_gridOn);
+  _applyGridVisibility();
+}
+
+// ── Draw one grid locally (returns layer group) ───────────
+function _renderGridLocally(gridId,sizeMeters,sw,ne,createdBy,createdByName){
+  if(!_map) return;
+  const midLat=(sw.lat+ne.lat)/2;
+  const latDeg=sizeMeters/111320;
+  const lngDeg=sizeMeters/(111320*Math.cos(midLat*Math.PI/180));
+  const color='#3b82f6';
+  const lines=[];
+
+  for(let lng=Math.floor(sw.lng/lngDeg)*lngDeg;lng<=ne.lng+lngDeg;lng+=lngDeg){
+    lines.push(L.polyline([[sw.lat,lng],[ne.lat,lng]],{color,weight:1.2,opacity:0.55,dashArray:'4,4',interactive:false}).addTo(_map));
+  }
+  for(let lat=Math.floor(sw.lat/latDeg)*latDeg;lat<=ne.lat+latDeg;lat+=latDeg){
+    lines.push(L.polyline([[lat,sw.lng],[lat,ne.lng]],{color,weight:1.2,opacity:0.55,dashArray:'4,4',interactive:false}).addTo(_map));
+  }
+
+  // boundary
+  const boundary=L.rectangle([[sw.lat,sw.lng],[ne.lat,ne.lng]],{color:'#2563eb',weight:2,fill:false,opacity:0.7,interactive:false}).addTo(_map);
+
+  // cell labels
+  const labels=[];
+  let row=0;
+  for(let lat=Math.floor(sw.lat/latDeg)*latDeg;lat<=ne.lat;lat+=latDeg,row++){
+    let col=0;
+    for(let lng=Math.floor(sw.lng/lngDeg)*lngDeg;lng<=ne.lng;lng+=lngDeg,col++){
+      const cellLabel=`${String.fromCharCode(65+row)}${col+1}`;
+      const m=L.marker([lat+latDeg/2,lng+lngDeg/2],{
+        icon:L.divIcon({html:`<div style="background:rgba(37,99,235,0.1);color:#1d4ed8;font-size:10px;font-weight:800;font-family:'Kanit',sans-serif;border:1px solid rgba(37,99,235,0.25);border-radius:4px;padding:2px 5px;white-space:nowrap">${cellLabel}</div>`,className:'',iconAnchor:[0,0]}),
+        interactive:false
+      }).addTo(_map);
+      labels.push(m);
+    }
+  }
+
+  // Clickable invisible overlay for popup/delete
+  const canDel=createdBy===user.id||user.role==='admin';
+  const sizeLabel=sizeMeters>=1000?sizeMeters/1000+'กม.':sizeMeters+'ม.';
+  const clickZone=L.rectangle([[sw.lat,sw.lng],[ne.lat,ne.lng]],{
+    color:'transparent',weight:0,fillColor:'#3b82f6',fillOpacity:0.04
+  }).addTo(_map);
+
+  clickZone.on('click',function(e){
+    L.DomEvent.stopPropagation(e);
+    const popHtml=`
+      <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:#0a2463;margin-bottom:6px">
+        <i class="fas fa-th" style="color:#2563eb;margin-right:5px"></i>กริด ${sizeLabel}
+      </div>
+      <div style="font-size:11px;color:#64748b;margin-bottom:8px">สร้างโดย: ${esc(createdByName||createdBy||'?')}</div>
+      ${canDel?`<div style="display:flex;gap:7px;margin-top:4px">
+        <button onclick="deleteGrid('${gridId}')" style="flex:1;padding:7px;border-radius:8px;background:#fee2e2;border:none;color:#dc2626;font-family:'Sarabun',sans-serif;font-size:12px;font-weight:700;cursor:pointer"><i class="fas fa-trash"></i> ลบกริดนี้</button>
+      </div>`:'<div style="font-size:11px;color:#94a3b8">เฉพาะผู้สร้างเท่านั้นที่ลบได้</div>'}
+    `;
+    clickZone.bindPopup(popHtml,{maxWidth:240}).openPopup(e.latlng);
+  });
+
+  _gridLayers.push({gridId,lines,labels,boundary,clickZone,size:sizeMeters});
+}
+
+// ── Apply local visibility to all rendered grid layers ────
+function _applyGridVisibility(){
+  _gridLayers.forEach(g=>{
+    const op=_gridVisible?1:0;
+    g.lines.forEach(l=>{ try{l.setStyle({opacity:_gridVisible?0.55:0});}catch(e){} });
+    g.labels.forEach(l=>{ try{l.setOpacity(op);}catch(e){} });
+    try{g.boundary.setStyle({opacity:_gridVisible?0.7:0});}catch(e){}
+    try{g.clickZone.setStyle({fillOpacity:_gridVisible?0.04:0});}catch(e){}
+  });
+}
+
+// ── Toggle local visibility ────────────────────────────────
+function toggleGridVisibility(){
+  _gridVisible=!_gridVisible;
+  _applyGridVisibility();
+  const btn=document.getElementById('btn-grid-vis');
+  if(btn){
+    btn.innerHTML=_gridVisible
+      ?'<i class="fas fa-eye-slash"></i> ซ่อนกริด'
+      :'<i class="fas fa-eye"></i> แสดงกริด';
+    btn.style.background=_gridVisible?'':'#f8fafc';
+    btn.style.color=_gridVisible?'':'#94a3b8';
+  }
+  toast(_gridVisible?'แสดงกริดแล้ว':'ซ่อนกริดแล้ว (เฉพาะหน้าจอคุณ)','info');
+}
+
+// ── Delete a specific grid from Firebase ─────────────────
+function deleteGrid(gridId){
+  if(!confirm('ลบกริดนี้? (ทุกคนจะไม่เห็นกริดนี้อีกต่อไป)')) return;
+  remove(ref(db,`search_missions/${missionId}/grids/${gridId}`))
+    .then(()=>toast('ลบกริดแล้ว ✅','info'))
+    .catch(e=>toast('ลบไม่สำเร็จ: '+e.message,'error'));
+}
+
+// ── UI: picker toggle ──────────────────────────────────────
 function toggleGridPicker(){
   const p=document.getElementById('grid-picker');
   document.getElementById('pin-picker').classList.remove('show');
@@ -1447,7 +1578,6 @@ function startGridDrawCustom(){
   _startGridDrawMode();
 }
 function _startGridDrawMode(){
-  // close picker, enter draw mode
   document.getElementById('grid-picker').classList.remove('show');
   _gridDrawing=true;
   _gridStart=null;
@@ -1467,48 +1597,34 @@ function cancelGridDraw(){
   document.getElementById('grid-draw-hint').style.display='none';
   document.getElementById('btn-grid').classList.toggle('active',_gridLayers.length>0);
 }
+
+// ── Save grid to Firebase (shared) ────────────────────────
 function addGrid(sizeMeters, sw, ne){
   if(!_map) return;
   if(!sw||!ne){sw=_map.getBounds().getSouthWest();ne=_map.getBounds().getNorthEast();}
-  const midLat=(sw.lat+ne.lat)/2;
-  const latDeg=sizeMeters/111320;
-  const lngDeg=sizeMeters/(111320*Math.cos(midLat*Math.PI/180));
-  const color='#3b82f6';
-  const lines=[];
-  for(let lng=Math.floor(sw.lng/lngDeg)*lngDeg;lng<=ne.lng+lngDeg;lng+=lngDeg){
-    lines.push(L.polyline([[sw.lat,lng],[ne.lat,lng]],{color,weight:1.2,opacity:0.55,dashArray:'4,4'}).addTo(_map));
-  }
-  for(let lat=Math.floor(sw.lat/latDeg)*latDeg;lat<=ne.lat+latDeg;lat+=latDeg){
-    lines.push(L.polyline([[lat,sw.lng],[lat,ne.lng]],{color,weight:1.2,opacity:0.55,dashArray:'4,4'}).addTo(_map));
-  }
-  // boundary highlight
-  const boundary=L.rectangle([[sw.lat,sw.lng],[ne.lat,ne.lng]],{color:'#2563eb',weight:2,fill:false,opacity:0.7}).addTo(_map);
-  lines.push(boundary);
-  const labels=[];
-  let row=0;
-  for(let lat=Math.floor(sw.lat/latDeg)*latDeg;lat<=ne.lat;lat+=latDeg,row++){
-    let col=0;
-    for(let lng=Math.floor(sw.lng/lngDeg)*lngDeg;lng<=ne.lng;lng+=lngDeg,col++){
-      const cellLabel=`${String.fromCharCode(65+row)}${col+1}`;
-      const m=L.marker([lat+latDeg/2,lng+lngDeg/2],{
-        icon:L.divIcon({html:`<div style="background:rgba(37,99,235,0.1);color:#1d4ed8;font-size:10px;font-weight:800;font-family:'Kanit',sans-serif;border:1px solid rgba(37,99,235,0.25);border-radius:4px;padding:2px 5px;white-space:nowrap">${cellLabel}</div>`,className:'',iconAnchor:[0,0]}),
-        interactive:false
-      }).addTo(_map);
-      labels.push(m);
-    }
-  }
-  _gridLayers.push({lines,labels,size:sizeMeters});
-  _gridOn=true;
-  document.getElementById('btn-grid').classList.add('active');
-  toast(`กริด ${sizeMeters>=1000?sizeMeters/1000+'กม.':sizeMeters+'ม.'} ✅ — ${_gridLayers.length} กริด`,'success');
+  const gridData={
+    size:sizeMeters,
+    swLat:sw.lat, swLng:sw.lng,
+    neLat:ne.lat, neLng:ne.lng,
+    createdBy:user.id,
+    createdByName:user.name||user.id,
+    createdAt:Date.now()
+  };
+  push(ref(db,`search_missions/${missionId}/grids`),gridData)
+    .then(()=>toast(`กริด ${sizeMeters>=1000?sizeMeters/1000+'กม.':sizeMeters+'ม.'} ✅ — ทุกคนเห็นแล้ว`,'success'))
+    .catch(e=>toast('บันทึกกริดไม่สำเร็จ: '+e.message,'error'));
 }
+
+// ── Clear ALL grids from Firebase ─────────────────────────
 function clearAllGrids(){
-  _gridLayers.forEach(g=>{g.lines.forEach(l=>l.remove());g.labels.forEach(l=>l.remove());});
-  _gridLayers=[];_gridOn=false;
-  if(_gridRect){_gridRect.remove();_gridRect=null;}
-  document.getElementById('btn-grid').classList.remove('active');
-  document.getElementById('grid-draw-hint').style.display='none';
-  toast('ลบกริดทั้งหมดแล้ว','info');
+  if(!confirm('ลบกริดทั้งหมด? (ทุกคนจะไม่เห็นกริดอีก)')) return;
+  remove(ref(db,`search_missions/${missionId}/grids`))
+    .then(()=>{
+      if(_gridRect){_gridRect.remove();_gridRect=null;}
+      document.getElementById('grid-draw-hint').style.display='none';
+      toast('ลบกริดทั้งหมดแล้ว','info');
+    })
+    .catch(e=>toast('ลบไม่สำเร็จ: '+e.message,'error'));
 }
 
 // ─── Helpers ─────────────────────────────────────────────
