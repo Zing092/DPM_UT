@@ -739,7 +739,7 @@ function listenLoc(){
   let L={},M={};
   function rr(){renderMarkers(L,M);renderMemPanel(L,M);}
   _unLoc=onValue(ref(db,`search_missions/${missionId}/locations`),s=>{L=s.val()||{};rr();});
-  _unMem=onValue(ref(db,`search_missions/${missionId}/members`),s=>{M=s.val()||{};rr();});
+  _unMem=onValue(ref(db,`search_missions/${missionId}/members`),s=>{M=s.val()||{};syncMemberColors(M);rr();});
 }
 function listenStatus(){
   if(_unStatus){_unStatus();_unStatus=null;}
@@ -924,13 +924,22 @@ function listenTrails(){
     drawTrailLayers();
   });
 }
+// Called whenever members update — build a stable uid->color map
+function syncMemberColors(mems){
+  Object.keys(mems).forEach((uid,i)=>{
+    if(!_memberColors[uid]) _memberColors[uid]=gc(i);
+  });
+}
 function drawTrailLayers(){
   if(!_map) return;
   Object.values(_trailLayers).forEach(l=>l.remove()); _trailLayers={};
   if(!_trailOn) return;
-  Object.entries(_trailData).forEach(([uid,pts],i)=>{
+  // use stable member order for color assignment
+  const memberUids=Object.keys(_memberColors);
+  Object.entries(_trailData).forEach(([uid,pts])=>{
     if(!pts||pts.length<2) return;
-    const c=_memberColors[uid]||gc(i);
+    const idx=memberUids.indexOf(uid);
+    const c=_memberColors[uid]||(idx>=0?gc(idx):gc(0));
     _trailLayers[uid]=L.polyline(pts.map(p=>[p[0],p[1]]),{color:c,weight:4,opacity:0.9,dashArray:'10,6'}).addTo(_map);
   });
   renderTrailLegend();
