@@ -668,6 +668,18 @@ function initMap(){
       _map.closePopup();
     }
   });
+
+  // Event delegation for pin modal buttons (W. not available in innerHTML)
+  document.addEventListener('click',e=>{
+    const delPin=e.target.closest('.pp-del-pin-btn');
+    if(delPin){ const id=delPin.dataset.pinid; if(id&&confirm('ลบหมุดนี้?')){remove(ref(db,`search_missions/${missionId}/pins/${id}`));closeModal('modal-pin-view');toast('ลบหมุดแล้ว','info');} return; }
+    const lbImg=e.target.closest('.pp-lb-img');
+    if(lbImg){ openLB(lbImg.dataset.src); return; }
+    const lbImgChat=e.target.closest('.chat-img-lb');
+    if(lbImgChat){ openLB(lbImgChat.dataset.src); return; }
+    const rmPhoto=e.target.closest('.pp-rm-photo');
+    if(rmPhoto){ const i=parseInt(rmPhoto.dataset.i); _endPhotos.splice(i,1); renderEndPrev(); }
+  });
 }
 
 // ─── GPS ─────────────────────────────────────────────────
@@ -773,98 +785,110 @@ function shadeColor(hex,pct){
 function mkIcon(lbl,color,status,fullName){
   color=color||'#3b82f6'; status=status||'online';
   const isSos=status==='sos', isOff=status==='offline', isMov=status==='moving';
-  const dark=shadeColor(color,-50), light=shadeColor(color,60);
 
-  // colour scheme per status
-  const fill  = isSos?'#ef4444': isOff?'#94a3b8': color;
-  const dark2 = isSos?'#991b1b': isOff?'#64748b': dark;
-  const light2= isSos?'#fca5a5': isOff?'#cbd5e1': light;
-  const glow  = isSos?'rgba(239,68,68,0.55)': isOff?'transparent': color+'66';
+  // per-status colour palette
+  const suit  = isSos?'#dc2626': isOff?'#94a3b8': color;
+  const dark  = isSos?'#7f1d1d': isOff?'#475569': shadeColor(color,-55);
+  const mid   = isSos?'#ef4444': isOff?'#64748b': shadeColor(color,-20);
+  const lite  = isSos?'#fca5a5': isOff?'#e2e8f0': shadeColor(color,70);
+  const hlt   = isSos?'#fff1f2': isOff?'#f8fafc': shadeColor(color,90);
+  const glow  = isSos?'rgba(220,38,38,0.6)': isOff?'transparent': color+'55';
 
-  // status indicator dot
-  const dotColor = isSos?'#fbbf24': isMov?'#4ade80': isOff?'#475569':'#86efac';
-  const dotAnim  = isSos?'animation="blink 0.5s infinite"': isMov?'animation="blink 1s infinite"':'';
+  // dot status
+  const dotC  = isSos?'#fbbf24': isMov?'#4ade80': isOff?'#64748b':'#86efac';
+  const dotAn = (isSos||isMov)?`style="animation:blink ${isSos?'0.5':'1'}s infinite"`:'';
 
-  // moving person legs animation class
-  const legClass = isMov ? 'mk-walk' : '';
+  // SOS pulse ring
+  const sosRing = isSos ? `<div style="position:absolute;inset:-8px;border-radius:50%;border:2.5px solid rgba(220,38,38,0.5);animation:sos-pulse 0.8s ease-in-out infinite;pointer-events:none"></div>` : '';
 
-  // SOS pulsing ring
-  const sosRing = isSos ? `
-    <div style="position:absolute;inset:-7px;border-radius:50%;
-      border:2.5px solid rgba(239,68,68,0.6);
-      animation:sos-pulse 0.8s ease-in-out infinite;pointer-events:none"></div>` : '';
+  // spinning ring when moving
+  const moveRing = isMov ? `<div style="position:absolute;inset:-5px;border-radius:50%;border:2px dashed ${color}aa;animation:spin 2.5s linear infinite;pointer-events:none"></div>` : '';
 
-  // spinning dashed ring when moving
-  const moveRing = isMov ? `
-    <div style="position:absolute;inset:-5px;border-radius:50%;
-      border:2px dashed ${color};opacity:0.65;
-      animation:spin 2.5s linear infinite;pointer-events:none"></div>` : '';
+  // ── SVG firefighter character ──────────────────────────
+  // Helmet stripe colors per suit
+  const helmetStripe = isSos?'#fbbf24': isOff?'#94a3b8':'#fbbf24';
 
-  // SVG person — minimal, clean, vibrant
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
-    <defs>
-      <radialGradient id="bg_${lbl}" cx="50%" cy="40%" r="55%">
-        <stop offset="0%" stop-color="${light2}"/>
-        <stop offset="100%" stop-color="${dark2}"/>
-      </radialGradient>
-      <radialGradient id="body_${lbl}" cx="40%" cy="30%" r="65%">
-        <stop offset="0%" stop-color="${light2}"/>
-        <stop offset="100%" stop-color="${fill}"/>
-      </radialGradient>
-      <filter id="glow_${lbl}" x="-30%" y="-30%" width="160%" height="160%">
-        <feGaussianBlur stdDeviation="2.5" result="blur"/>
-        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter>
-    </defs>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56">
+  <defs>
+    <radialGradient id="hg${lbl}" cx="40%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="${lite}"/>
+      <stop offset="100%" stop-color="${mid}"/>
+    </radialGradient>
+    <radialGradient id="bg_c${lbl}" cx="45%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="${lite}"/>
+      <stop offset="100%" stop-color="${dark}"/>
+    </radialGradient>
+    <radialGradient id="sk${lbl}" cx="45%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffe0c8"/>
+      <stop offset="100%" stop-color="#f4a97a"/>
+    </radialGradient>
+    <filter id="sh${lbl}">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.25)"/>
+    </filter>
+  </defs>
 
-    <!-- drop shadow -->
-    <ellipse cx="20" cy="38" rx="9" ry="2.5" fill="rgba(0,0,0,0.18)"/>
+  <!-- ── BODY / SUIT ── -->
+  <!-- torso -->
+  <rect x="17" y="33" width="22" height="16" rx="5" fill="url(#bg_c${lbl})" filter="url(#sh${lbl})"/>
+  <!-- suit centre stripe -->
+  <rect x="26" y="33" width="4" height="16" rx="2" fill="${dark}" opacity="0.35"/>
+  <!-- shoulder pads -->
+  <rect x="13" y="33" width="8" height="7" rx="3" fill="${mid}"/>
+  <rect x="35" y="33" width="8" height="7" rx="3" fill="${mid}"/>
+  <!-- reflective stripes on torso -->
+  <rect x="17" y="38" width="22" height="3" rx="1.5" fill="${helmetStripe}" opacity="0.85"/>
+  <!-- arms -->
+  <rect x="9"  y="34" width="7"  height="13" rx="3.5" fill="url(#bg_c${lbl})"/>
+  <rect x="40" y="34" width="7"  height="13" rx="3.5" fill="url(#bg_c${lbl})"/>
+  <!-- gloves -->
+  <rect x="9"  y="44" width="7"  height="5" rx="2.5" fill="${dark}"/>
+  <rect x="40" y="44" width="7"  height="5" rx="2.5" fill="${dark}"/>
 
-    <!-- pin teardrop body -->
-    <path d="M20 2 C10 2 4 9 4 17 C4 27 20 38 20 38 C20 38 36 27 36 17 C36 9 30 2 20 2Z"
-      fill="url(#bg_${lbl})" filter="url(#glow_${lbl})"/>
+  <!-- ── NECK ── -->
+  <rect x="24" y="29" width="8" height="6" rx="3" fill="url(#sk${lbl})"/>
 
-    <!-- inner white circle -->
-    <circle cx="20" cy="17" r="12" fill="white" opacity="0.92"/>
+  <!-- ── HEAD ── -->
+  <ellipse cx="28" cy="25" rx="11" ry="12" fill="url(#sk${lbl})" filter="url(#sh${lbl})"/>
+  <!-- ear left -->
+  <ellipse cx="17" cy="25" rx="3" ry="4" fill="url(#sk${lbl})"/>
+  <!-- ear right -->
+  <ellipse cx="39" cy="25" rx="3" ry="4" fill="url(#sk${lbl})"/>
 
-    <!-- person figure inside circle -->
-    <!-- head -->
-    <circle cx="20" cy="11" r="3.2" fill="url(#body_${lbl})"/>
-    <!-- body -->
-    <path d="M20 14.5 L20 21" stroke="${fill}" stroke-width="2.5" stroke-linecap="round"/>
-    <!-- arms ${isMov?'swinging':'static'} -->
-    ${isMov
-      ? `<path d="M20 16.5 L14.5 15" stroke="${fill}" stroke-width="2" stroke-linecap="round" class="arm-l"/>
-         <path d="M20 16.5 L25.5 18" stroke="${fill}" stroke-width="2" stroke-linecap="round" class="arm-r"/>`
-      : `<path d="M20 16.5 L14 19" stroke="${fill}" stroke-width="2" stroke-linecap="round"/>
-         <path d="M20 16.5 L26 19" stroke="${fill}" stroke-width="2" stroke-linecap="round"/>`
-    }
-    <!-- legs ${isMov?'walking':'standing'} -->
-    ${isMov
-      ? `<path d="M20 21 L16 26.5" stroke="${fill}" stroke-width="2.2" stroke-linecap="round" class="leg-l"/>
-         <path d="M20 21 L24 26.5" stroke="${fill}" stroke-width="2.2" stroke-linecap="round" class="leg-r"/>`
-      : `<path d="M20 21 L17 27" stroke="${fill}" stroke-width="2.2" stroke-linecap="round"/>
-         <path d="M20 21 L23 27" stroke="${fill}" stroke-width="2.2" stroke-linecap="round"/>`
-    }
-    ${isSos
-      ? `<!-- SOS cross -->
-         <circle cx="20" cy="17" r="12" fill="rgba(239,68,68,0.12)"/>
-         <text x="20" y="21" text-anchor="middle" font-size="10" font-weight="900"
-           font-family="Arial,sans-serif" fill="#dc2626">!</text>`
-      : ''
-    }
+  <!-- ── MASK / RESPIRATOR ── -->
+  <rect x="19" y="27" width="18" height="10" rx="5" fill="${dark}" opacity="0.9"/>
+  <!-- mask lenses -->
+  <ellipse cx="23.5" cy="31" rx="3.5" ry="3" fill="#1e3a5f" opacity="0.85"/>
+  <ellipse cx="32.5" cy="31" rx="3.5" ry="3" fill="#1e3a5f" opacity="0.85"/>
+  <!-- lens shine -->
+  <ellipse cx="22" cy="29.5" rx="1.2" ry="0.9" fill="white" opacity="0.55"/>
+  <ellipse cx="31" cy="29.5" rx="1.2" ry="0.9" fill="white" opacity="0.55"/>
+  <!-- mask bridge -->
+  <rect x="25.5" y="30" width="5" height="2" rx="1" fill="${dark}"/>
 
-    <!-- status dot -->
-    <circle cx="30" cy="8" r="4" fill="${dotColor}" stroke="white" stroke-width="1.5"
-      ${isSos||isMov?'style="animation:blink '+(isSos?'0.5':'1')+'s infinite"':''}/>
-  </svg>`;
+  <!-- ── HELMET ── -->
+  <!-- brim front -->
+  <rect x="14" y="14" width="28" height="4" rx="2" fill="${dark}"/>
+  <!-- dome -->
+  <path d="M16 18 Q17 7 28 6 Q39 7 40 18Z" fill="url(#hg${lbl})" filter="url(#sh${lbl})"/>
+  <!-- helmet stripe -->
+  <path d="M17 14 Q17 10 28 9.5 Q39 10 39 14" stroke="${helmetStripe}" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.9"/>
+  <!-- badge on helmet -->
+  <circle cx="28" cy="11" r="3.5" fill="${helmetStripe}" opacity="0.95"/>
+  <path d="M28 8.5 L28.9 10.8 L31.4 10.8 L29.4 12.3 L30.2 14.5 L28 13 L25.8 14.5 L26.6 12.3 L24.6 10.8 L27.1 10.8Z" fill="${dark}" transform="scale(0.55) translate(22,8)"/>
+
+  <!-- ── STATUS DOT ── -->
+  <circle cx="43" cy="10" r="5" fill="${dotC}" stroke="white" stroke-width="1.8" ${dotAn}/>
+
+  ${isSos?`<!-- SOS text -->
+  <rect x="19" y="27" width="18" height="10" rx="5" fill="rgba(220,38,38,0.7)"/>
+  <text x="28" y="35" text-anchor="middle" font-size="7" font-weight="900" font-family="Arial" fill="white" letter-spacing="0.5">SOS</text>`:''}
+</svg>`;
 
   return L.divIcon({
-    html:`<div style="position:relative;width:40px;height:40px;filter:drop-shadow(0 3px 8px ${glow})">
-      ${sosRing}${moveRing}
-      ${svg}
+    html:`<div style="position:relative;width:56px;height:56px;filter:drop-shadow(0 4px 8px ${glow})">
+      ${sosRing}${moveRing}${svg}
     </div>`,
-    className:'',iconSize:[40,40],iconAnchor:[20,38]
+    className:'',iconSize:[56,56],iconAnchor:[28,52]
   });
 }
 
@@ -1205,11 +1229,11 @@ function showPinDetail(id,p){
     </div>
     ${p.detail?`<div style="background:#f8fafc;border-radius:9px;padding:10px 12px;font-size:13px;color:var(--text-primary);margin-bottom:10px;border-left:3px solid ${pt.color}">${esc(p.detail)}</div>`:''}
     <div style="font-size:11px;color:var(--text-muted);font-family:monospace;background:#f1f5f9;border-radius:7px;padding:6px 10px;margin-bottom:${p.photo?'10px':'0'}">📍 ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}</div>
-    ${p.photo?`<img src="${p.photo}" style="width:100%;border-radius:10px;cursor:pointer;max-height:200px;object-fit:cover" onclick="W.openLB('${p.photo}')">`:''}
+    ${p.photo?`<img src="${p.photo}" style="width:100%;border-radius:10px;cursor:pointer;max-height:200px;object-fit:cover" class="pp-lb-img" data-src="${p.photo}">`:''}
   `;
   document.getElementById('pinv-actions').innerHTML=`
     <a href="https://www.google.com/maps?q=${p.lat},${p.lng}" target="_blank" class="btn btn-primary" style="flex:1;justify-content:center"><i class="fas fa-map-marked-alt"></i> Google Maps</a>
-    ${canDel?`<button class="btn btn-danger" onclick="W.delPin('${id}')"><i class="fas fa-trash"></i></button>`:''}
+    ${canDel?`<button class="btn btn-danger pp-del-pin-btn" data-pinid="${id}"><i class="fas fa-trash"></i></button>`:''}
   `;
   openModal('modal-pin-view');
 }
@@ -1258,7 +1282,7 @@ function renderChat(msgs){
   el.innerHTML=msgs.map(([id,m])=>{
     const mine=m.senderId===user.id, time=new Date(m.ts).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
     let bub='';
-    if(m.type==='image') bub=`<div class="chat-img-wrap" onclick="W.openLB('${m.image}')"><img src="${m.image}" loading="lazy"></div>`;
+    if(m.type==='image') bub=`<div class="chat-img-wrap chat-img-lb" data-src="${m.image}"><img src="${m.image}" loading="lazy"></div>`;
     else if(m.type==='location') bub=`<div class="chat-loc-card" onclick="window.open('https://www.google.com/maps?q=${m.lat},${m.lng}','_blank')"><div class="chat-loc-icon"><i class="fas fa-map-marker-alt"></i></div><div><div class="chat-loc-coords">${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}</div><div class="chat-loc-label">📍 กดเปิด Google Maps</div></div></div>`;
     else bub=`<div class="chat-bubble">${esc(m.text||'')}</div>`;
     return `<div class="chat-msg ${mine?'mine':'theirs'}">
@@ -1282,7 +1306,7 @@ async function addEndImgs(files){
 }
 function renderEndPrev(){
   const g=document.getElementById('end-img-preview');if(!g) return;
-  g.innerHTML=_endPhotos.map((p,i)=>p.loading?`<div class="photo-item" style="display:flex;align-items:center;justify-content:center"><i class="fas fa-spinner fa-spin"></i></div>`:`<div class="photo-item"><img src="${p.url}"><button class="photo-rm" onclick="W.rmEndPhoto(${i})"><i class="fas fa-times"></i></button></div>`).join('');
+  g.innerHTML=_endPhotos.map((p,i)=>p.loading?`<div class="photo-item" style="display:flex;align-items:center;justify-content:center"><i class="fas fa-spinner fa-spin"></i></div>`:`<div class="photo-item"><img src="${p.url}"><button class="photo-rm pp-rm-photo" data-i="${i}"><i class="fas fa-times"></i></button></div>`).join('');
 }
 async function endMission(){
   const sum=document.getElementById('end-summary')?.value?.trim();if(!sum){toast('กรุณากรอกสรุปผล','error');return;}
