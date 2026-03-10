@@ -650,7 +650,11 @@ function toggleHideGrid(gridId, btn){
     g.lines.forEach(l=>{ try{ l.setStyle({opacity: hide?0:0.55}); }catch(e){} });
     g.labels.forEach(l=>{ try{ l.setOpacity(hide?0:1); }catch(e){} });
     try{ g.boundary.setStyle({opacity: hide?0:0.7}); }catch(e){}
-    try{ g.clickZone.setStyle({fillOpacity: hide?0:0.03}); }catch(e){}
+    // remove clickZone ออกจากแผนที่เมื่อซ่อน → ไม่รับ pointer events เลย
+    try{
+      if(hide){ g.clickZone.remove(); }
+      else { g.clickZone.addTo(_map); }
+    }catch(e){}
   }
   _map?.closePopup();
   toast(_hiddenGrids.has(gridId)?'ซ่อนกริดนี้แล้ว (เฉพาะคุณ)':'แสดงกริดนี้แล้ว','info');
@@ -2270,7 +2274,11 @@ function _renderGridLocally(gridId, sizeMeters, sw, ne, createdBy, createdByName
     lines.forEach(l=>{ try{ l.setStyle({opacity:0}); }catch(e){} });
     labels.forEach(l=>{ try{ l.setOpacity(0); }catch(e){} });
     try{ boundary.setStyle({opacity:0}); }catch(e){}
-    try{ clickZone.setStyle({fillOpacity:0}); }catch(e){}
+    try{ clickZone.remove(); }catch(e){} // remove ออกจากแผนที่ → ไม่รับ events
+  }
+  // apply global grid visibility
+  if(!_gridVisible){
+    try{ clickZone.remove(); }catch(e){}
   }
 }
 
@@ -2280,7 +2288,11 @@ function _applyGridVisibility(){
     g.lines.forEach(l => { try{ l.setStyle({opacity: _gridVisible ? 0.55 : 0}); }catch(e){} });
     g.labels.forEach(l => { try{ l.setOpacity(_gridVisible ? 1 : 0); }catch(e){} });
     try{ g.boundary.setStyle({opacity: _gridVisible ? 0.7 : 0}); }catch(e){}
-    try{ g.clickZone.setStyle({fillOpacity: _gridVisible ? 0.03 : 0}); }catch(e){}
+    // remove/add clickZone แทนการแค่เปลี่ยน opacity → ไม่รับ pointer events เมื่อซ่อน
+    try{
+      if(_gridVisible){ g.clickZone.addTo(_map); }
+      else { g.clickZone.remove(); }
+    }catch(e){}
   });
 }
 
