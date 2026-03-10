@@ -765,6 +765,7 @@ function renderTrails(mems){
   if(!_map||!_trailOn) return;
   Object.values(_trailLayers).forEach(l=>l.remove()); _trailLayers={};
   get(ref(db,`search_missions/${missionId}/trails`)).then(s=>{
+    if(!_trailOn){Object.values(_trailLayers).forEach(l=>l.remove());_trailLayers={};return;}
     const trails=s.val()||{};
     Object.entries(trails).forEach(([uid,pts],i)=>{
       if(!pts||pts.length<2) return;
@@ -780,8 +781,13 @@ function toggleTrail(){
   const tip=btn.querySelector('.mtool-tip');
   if(tip) tip.textContent=_trailOn?'ซ่อนเส้นทาง':'แสดงเส้นทาง';
   btn.blur();
-  if(!_trailOn){Object.values(_trailLayers).forEach(l=>l.remove());_trailLayers={};}
-  else get(ref(db,`search_missions/${missionId}/members`)).then(s=>renderTrails(s.val()||{}));
+  if(!_trailOn){
+    // remove immediately and schedule another removal to catch any pending async renders
+    Object.values(_trailLayers).forEach(l=>l.remove());_trailLayers={};
+    setTimeout(()=>{Object.values(_trailLayers).forEach(l=>l.remove());_trailLayers={};},600);
+  } else {
+    get(ref(db,`search_missions/${missionId}/members`)).then(s=>renderTrails(s.val()||{}));
+  }
   toast(_trailOn?'แสดงเส้นทางการเดิน ✅':'ซ่อนเส้นทางการเดิน','info');
 }
 
