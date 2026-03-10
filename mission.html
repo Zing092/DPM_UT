@@ -650,11 +650,7 @@ function toggleHideGrid(gridId, btn){
     g.lines.forEach(l=>{ try{ l.setStyle({opacity: hide?0:0.55}); }catch(e){} });
     g.labels.forEach(l=>{ try{ l.setOpacity(hide?0:1); }catch(e){} });
     try{ g.boundary.setStyle({opacity: hide?0:0.7}); }catch(e){}
-    try{
-      g.clickZone.setStyle({fillOpacity: hide?0.001:0.03});
-      const el = g.clickZone.getElement ? g.clickZone.getElement() : null;
-      if(el) el.style.pointerEvents = hide ? 'none' : '';
-    }catch(e){}
+    try{ g.clickZone.setStyle({fillOpacity: hide?0:0.03}); }catch(e){}
   }
   _map?.closePopup();
   toast(_hiddenGrids.has(gridId)?'ซ่อนกริดนี้แล้ว (เฉพาะคุณ)':'แสดงกริดนี้แล้ว','info');
@@ -780,11 +776,12 @@ function initMap(){
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_map);
   _map.setView([15.7,100.0],13);
 
-  // Custom panes: gridPane (200) < zonePane (300) < pinPane (400)
-  // ทำให้ Zone อยู่บน Grid clickZone เสมอ → คลิกในโซนได้ popup โซน ไม่ใช่กริด
-  _map.createPane('gridPane');  _map.getPane('gridPane').style.zIndex  = 200;
-  _map.createPane('zonePane');  _map.getPane('zonePane').style.zIndex  = 300;
-  _map.createPane('pinPane');   _map.getPane('pinPane').style.zIndex   = 400;
+  // Custom panes: gridPane (200) < zonePane (300) < gridClickPane (350) < pinPane (400)
+  // gridClickPane อยู่เหนือ zonePane → clickZone ของกริดรับ click ก่อนโซน → stopPropagation ทำงานได้
+  _map.createPane('gridPane');      _map.getPane('gridPane').style.zIndex      = 200;
+  _map.createPane('zonePane');      _map.getPane('zonePane').style.zIndex      = 300;
+  _map.createPane('gridClickPane'); _map.getPane('gridClickPane').style.zIndex = 350;
+  _map.createPane('pinPane');       _map.getPane('pinPane').style.zIndex       = 400;
 
   setupDrawEvents();
 
@@ -1611,7 +1608,6 @@ function _latlngInZone(latlng, z){
 
 // ── Map-level click handler สำหรับโซน ───────────────────
 let _mapZoneClickBound = false;
-let _lastClickWasGrid = false; // flag: กริดถูกคลิกก่อนหน้า → skip zone handler
 function _bindMapZoneClick(){
   if(_mapZoneClickBound) return;
   _mapZoneClickBound = true;
@@ -1620,17 +1616,6 @@ function _bindMapZoneClick(){
     if(_drawOn || _gridDrawing) return;
 
     const latlng = ev.latlng;
-
-    // ถ้าจุดคลิกอยู่ในกริดที่มองเห็นอยู่ → ให้ clickZone ของกริดจัดการ ไม่แสดง zone popup
-    const inGrid = _gridLayers.some(g => {
-      if(!_gridVisible) return false;
-      if(_hiddenGrids.has(g.gridId)) return false;
-      try {
-        const b = g.clickZone.getBounds();
-        return b && b.contains(latlng);
-      } catch(e){ return false; }
-    });
-    if(inGrid) return;
 
     // หาทุกโซนที่จุดคลิก ด้วย precise point-in-shape
     const hits = Object.entries(_zoneLayers)
@@ -2210,11 +2195,10 @@ function _renderGridLocally(gridId, sizeMeters, sw, ne, createdBy, createdByName
 
   const clickZone = L.rectangle([[sw.lat,sw.lng],[ne.lat,ne.lng]], {
     color:'transparent', weight:0, fillColor:'#3b82f6', fillOpacity:0.03,
-    pane:'gridPane'
+    pane:'gridClickPane'
   }).addTo(_map);
 
   clickZone.on('click', function(e){
-    _lastClickWasGrid = true; // บอก map zone handler ว่านี่คือ grid click
     L.DomEvent.stopPropagation(e);
     const popHtml = `
       <div style="min-width:210px;font-family:'Sarabun',sans-serif">
@@ -2286,11 +2270,7 @@ function _renderGridLocally(gridId, sizeMeters, sw, ne, createdBy, createdByName
     lines.forEach(l=>{ try{ l.setStyle({opacity:0}); }catch(e){} });
     labels.forEach(l=>{ try{ l.setOpacity(0); }catch(e){} });
     try{ boundary.setStyle({opacity:0}); }catch(e){}
-    try{
-      clickZone.setStyle({fillOpacity:0.001});
-      const el = clickZone.getElement ? clickZone.getElement() : null;
-      if(el) el.style.pointerEvents = 'none';
-    }catch(e){}
+    try{ clickZone.setStyle({fillOpacity:0}); }catch(e){}
   }
 }
 
@@ -2300,13 +2280,7 @@ function _applyGridVisibility(){
     g.lines.forEach(l => { try{ l.setStyle({opacity: _gridVisible ? 0.55 : 0}); }catch(e){} });
     g.labels.forEach(l => { try{ l.setOpacity(_gridVisible ? 1 : 0); }catch(e){} });
     try{ g.boundary.setStyle({opacity: _gridVisible ? 0.7 : 0}); }catch(e){}
-    // ใช้ fillOpacity น้อยมาก (0.001) แทน 0 เพื่อให้ clickZone ยังรับ pointer events
-    // และซ่อน visual ด้วย CSS pointer-events เฉพาะเมื่อซ่อน
-    try{
-      g.clickZone.setStyle({fillOpacity: _gridVisible ? 0.03 : 0.001});
-      const el = g.clickZone.getElement ? g.clickZone.getElement() : null;
-      if(el) el.style.pointerEvents = _gridVisible ? '' : 'none';
-    }catch(e){}
+    try{ g.clickZone.setStyle({fillOpacity: _gridVisible ? 0.03 : 0}); }catch(e){}
   });
 }
 
