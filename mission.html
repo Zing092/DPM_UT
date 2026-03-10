@@ -265,6 +265,12 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 /* sos marker */
 @keyframes sos-pulse{0%{transform:scale(1);opacity:1;}50%{transform:scale(1.4);opacity:0.5;}100%{transform:scale(1);opacity:1;}}
 @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+@keyframes walk-leg{0%,100%{transform-origin:top center;transform:rotate(-20deg);}50%{transform:rotate(20deg);}}
+@keyframes walk-arm{0%,100%{transform-origin:top center;transform:rotate(20deg);}50%{transform:rotate(-20deg);}}
+.mk-walk .leg-l{animation:walk-leg 0.5s ease-in-out infinite;}
+.mk-walk .leg-r{animation:walk-leg 0.5s ease-in-out infinite reverse;}
+.mk-walk .arm-l{animation:walk-arm 0.5s ease-in-out infinite;}
+.mk-walk .arm-r{animation:walk-arm 0.5s ease-in-out infinite reverse;}
 .sos-pulse{animation:sos-pulse 0.8s ease-in-out infinite;}
 
 /* lightbox */
@@ -755,67 +761,6 @@ function heartbeat(){
 
 // ─── Markers ─────────────────────────────────────────────
 function gc(i){return COLORS[i%COLORS.length];}
-function mkIcon(lbl,color,status,fullName){
-  color=color||'#3b82f6'; status=status||'online';
-  const isSos=status==='sos', isOff=status==='offline', isMov=status==='moving';
-
-  // ── colour tokens ──────────────────────────────────────
-  const C = isSos ? {
-    bg1:'#ff2d2d', bg2:'#a50000',
-    ring1:'rgba(255,45,45,0.55)', ring2:'rgba(255,45,45,0.2)',
-    border:'rgba(255,180,180,0.9)', glow:'rgba(220,38,38,0.7)'
-  } : isOff ? {
-    bg1:'#8896aa', bg2:'#4b5a6b',
-    ring1:'rgba(100,116,139,0.4)', ring2:'rgba(100,116,139,0.15)',
-    border:'rgba(255,255,255,0.6)', glow:'transparent'
-  } : {
-    bg1:color, bg2:shadeColor(color,-40),
-    ring1:color+'88', ring2:color+'28',
-    border:'rgba(255,255,255,0.95)', glow:color+'55'
-  };
-
-  // ── inner badge ────────────────────────────────────────
-  const abbr = isSos ? '🆘' : lbl.slice(0,2).toUpperCase();
-  const movingRing = isMov ? `
-    <div style="position:absolute;inset:-6px;border-radius:50%;
-      border:2.5px dashed ${color};opacity:0.7;
-      animation:spin 3s linear infinite;pointer-events:none"></div>` : '';
-  const onlineDot = (!isSos && !isOff) ? `
-    <div style="position:absolute;bottom:0px;right:0px;width:12px;height:12px;
-      border-radius:50%;background:${isMov?'#22c55e':'#34d399'};
-      border:2.5px solid #fff;
-      box-shadow:0 0 0 2px ${isMov?'rgba(34,197,94,0.5)':'rgba(52,211,153,0.4)'};
-      ${isMov?'animation:blink 1s infinite':''}"></div>` : '';
-  const sosPulseRing = isSos ? `
-    <div style="position:absolute;inset:-8px;border-radius:50%;
-      background:rgba(220,38,38,0.18);animation:sos-pulse 0.8s ease-in-out infinite;
-      pointer-events:none"></div>` : '';
-
-  return L.divIcon({
-    html:`
-<div style="position:relative;width:44px;height:44px;filter:drop-shadow(0 3px 6px ${C.glow})">
-  ${sosPulseRing}
-  <!-- outer glow ring -->
-  <div style="position:absolute;inset:-4px;border-radius:50%;
-    background:radial-gradient(circle,${C.ring1} 0%,${C.ring2} 55%,transparent 72%);
-    pointer-events:none"></div>
-  <!-- main circle -->
-  <div class="${isSos?'sos-pulse':''}"
-    style="width:44px;height:44px;border-radius:50%;
-      background:linear-gradient(145deg,${C.bg1},${C.bg2});
-      display:flex;align-items:center;justify-content:center;
-      color:#fff;font-size:13px;font-weight:900;
-      font-family:'Kanit',sans-serif;letter-spacing:0.5px;
-      border:3px solid ${C.border};
-      box-shadow:0 2px 0 ${C.bg2},0 4px 10px rgba(0,0,0,0.25),inset 0 1px 1px rgba(255,255,255,0.35)">
-    ${abbr}
-  </div>
-  ${movingRing}${onlineDot}
-</div>`,
-    className:'',iconSize:[44,44],iconAnchor:[22,22]
-  });
-}
-// darken a hex color by pct (negative = darken)
 function shadeColor(hex,pct){
   if(!hex||typeof hex!=='string') return '#334155';
   hex=hex.replace('#','');
@@ -824,6 +769,103 @@ function shadeColor(hex,pct){
   let [r,g,b]=[0,2,4].map(i=>parseInt(hex.slice(i,i+2),16));
   r=Math.max(0,Math.min(255,r+pct)); g=Math.max(0,Math.min(255,g+pct)); b=Math.max(0,Math.min(255,b+pct));
   return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+function mkIcon(lbl,color,status,fullName){
+  color=color||'#3b82f6'; status=status||'online';
+  const isSos=status==='sos', isOff=status==='offline', isMov=status==='moving';
+  const dark=shadeColor(color,-50), light=shadeColor(color,60);
+
+  // colour scheme per status
+  const fill  = isSos?'#ef4444': isOff?'#94a3b8': color;
+  const dark2 = isSos?'#991b1b': isOff?'#64748b': dark;
+  const light2= isSos?'#fca5a5': isOff?'#cbd5e1': light;
+  const glow  = isSos?'rgba(239,68,68,0.55)': isOff?'transparent': color+'66';
+
+  // status indicator dot
+  const dotColor = isSos?'#fbbf24': isMov?'#4ade80': isOff?'#475569':'#86efac';
+  const dotAnim  = isSos?'animation="blink 0.5s infinite"': isMov?'animation="blink 1s infinite"':'';
+
+  // moving person legs animation class
+  const legClass = isMov ? 'mk-walk' : '';
+
+  // SOS pulsing ring
+  const sosRing = isSos ? `
+    <div style="position:absolute;inset:-7px;border-radius:50%;
+      border:2.5px solid rgba(239,68,68,0.6);
+      animation:sos-pulse 0.8s ease-in-out infinite;pointer-events:none"></div>` : '';
+
+  // spinning dashed ring when moving
+  const moveRing = isMov ? `
+    <div style="position:absolute;inset:-5px;border-radius:50%;
+      border:2px dashed ${color};opacity:0.65;
+      animation:spin 2.5s linear infinite;pointer-events:none"></div>` : '';
+
+  // SVG person — minimal, clean, vibrant
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
+    <defs>
+      <radialGradient id="bg_${lbl}" cx="50%" cy="40%" r="55%">
+        <stop offset="0%" stop-color="${light2}"/>
+        <stop offset="100%" stop-color="${dark2}"/>
+      </radialGradient>
+      <radialGradient id="body_${lbl}" cx="40%" cy="30%" r="65%">
+        <stop offset="0%" stop-color="${light2}"/>
+        <stop offset="100%" stop-color="${fill}"/>
+      </radialGradient>
+      <filter id="glow_${lbl}" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="2.5" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+
+    <!-- drop shadow -->
+    <ellipse cx="20" cy="38" rx="9" ry="2.5" fill="rgba(0,0,0,0.18)"/>
+
+    <!-- pin teardrop body -->
+    <path d="M20 2 C10 2 4 9 4 17 C4 27 20 38 20 38 C20 38 36 27 36 17 C36 9 30 2 20 2Z"
+      fill="url(#bg_${lbl})" filter="url(#glow_${lbl})"/>
+
+    <!-- inner white circle -->
+    <circle cx="20" cy="17" r="12" fill="white" opacity="0.92"/>
+
+    <!-- person figure inside circle -->
+    <!-- head -->
+    <circle cx="20" cy="11" r="3.2" fill="url(#body_${lbl})"/>
+    <!-- body -->
+    <path d="M20 14.5 L20 21" stroke="${fill}" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- arms ${isMov?'swinging':'static'} -->
+    ${isMov
+      ? `<path d="M20 16.5 L14.5 15" stroke="${fill}" stroke-width="2" stroke-linecap="round" class="arm-l"/>
+         <path d="M20 16.5 L25.5 18" stroke="${fill}" stroke-width="2" stroke-linecap="round" class="arm-r"/>`
+      : `<path d="M20 16.5 L14 19" stroke="${fill}" stroke-width="2" stroke-linecap="round"/>
+         <path d="M20 16.5 L26 19" stroke="${fill}" stroke-width="2" stroke-linecap="round"/>`
+    }
+    <!-- legs ${isMov?'walking':'standing'} -->
+    ${isMov
+      ? `<path d="M20 21 L16 26.5" stroke="${fill}" stroke-width="2.2" stroke-linecap="round" class="leg-l"/>
+         <path d="M20 21 L24 26.5" stroke="${fill}" stroke-width="2.2" stroke-linecap="round" class="leg-r"/>`
+      : `<path d="M20 21 L17 27" stroke="${fill}" stroke-width="2.2" stroke-linecap="round"/>
+         <path d="M20 21 L23 27" stroke="${fill}" stroke-width="2.2" stroke-linecap="round"/>`
+    }
+    ${isSos
+      ? `<!-- SOS cross -->
+         <circle cx="20" cy="17" r="12" fill="rgba(239,68,68,0.12)"/>
+         <text x="20" y="21" text-anchor="middle" font-size="10" font-weight="900"
+           font-family="Arial,sans-serif" fill="#dc2626">!</text>`
+      : ''
+    }
+
+    <!-- status dot -->
+    <circle cx="30" cy="8" r="4" fill="${dotColor}" stroke="white" stroke-width="1.5"
+      ${isSos||isMov?'style="animation:blink '+(isSos?'0.5':'1')+'s infinite"':''}/>
+  </svg>`;
+
+  return L.divIcon({
+    html:`<div style="position:relative;width:40px;height:40px;filter:drop-shadow(0 3px 8px ${glow})">
+      ${sosRing}${moveRing}
+      ${svg}
+    </div>`,
+    className:'',iconSize:[40,40],iconAnchor:[20,38]
+  });
 }
 
 function renderMarkers(locs,mems){
