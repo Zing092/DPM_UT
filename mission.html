@@ -376,30 +376,40 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 .btn-info.active{background:rgba(59,130,246,0.45);border-color:#60a5fa;color:#bfdbfe;}
 
 /* ── MISSION INFO DRAWER ── */
+/* ── MISSION INFO BOTTOM SHEET ── */
+.mid-overlay{position:fixed;inset:0;z-index:2100;display:none;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:opacity 0.3s;}
+.mid-overlay.show{display:block;}
 .mission-info-drawer{
-  position:fixed;top:var(--topbar-total);left:0;right:0;z-index:101;
-  background:linear-gradient(160deg,#0a1628 0%,#0a2463 100%);
-  transform:translateY(-110%);transition:transform 0.38s cubic-bezier(0.16,1,0.3,1);
-  box-shadow:0 12px 40px rgba(0,0,0,0.5);
-  border-bottom-left-radius:20px;border-bottom-right-radius:20px;
-  border-bottom:1px solid rgba(255,255,255,0.08);
+  position:fixed;bottom:0;left:0;right:0;z-index:2200;
+  background:#fff;
+  border-radius:24px 24px 0 0;
+  transform:translateY(100%);
+  transition:transform 0.4s cubic-bezier(0.16,1,0.3,1);
+  box-shadow:0 -8px 40px rgba(0,0,0,0.2);
+  max-height:80vh;overflow-y:auto;
 }
 .mission-info-drawer.open{transform:translateY(0);}
-.mid-body{padding:18px 18px 8px;display:flex;flex-direction:column;gap:14px;}
-.mid-row{display:flex;align-items:flex-start;gap:12px;}
-.mid-icon{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.1);
-  display:flex;align-items:center;justify-content:center;font-size:14px;color:rgba(255,255,255,0.75);flex-shrink:0;}
-.mid-label{font-size:10px;color:rgba(255,255,255,0.4);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px;}
-.mid-value{font-size:14px;color:#fff;font-weight:600;line-height:1.5;}
-.mid-value.title{font-family:'Kanit',sans-serif;font-size:18px;font-weight:800;}
-.mid-hr{height:1px;background:rgba(255,255,255,0.07);margin:0 18px;}
-.mid-close{margin:10px 18px 16px;padding:11px;border:1px solid rgba(255,255,255,0.13);border-radius:12px;
-  background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.75);font-size:13px;font-weight:700;
+.mid-handle{width:40px;height:4px;background:#e2e8f0;border-radius:2px;margin:14px auto 0;}
+.mid-header{padding:16px 20px 12px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f1f5f9;}
+.mid-header-icon{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#0a2463,#2563eb);
+  display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;flex-shrink:0;}
+.mid-header-title{font-family:'Kanit',sans-serif;font-size:16px;font-weight:800;color:#0a2463;}
+.mid-header-sub{font-size:11px;color:#94a3b8;margin-top:1px;}
+.mid-header-close{margin-left:auto;width:32px;height:32px;border-radius:50%;background:#f1f5f9;border:none;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;color:#64748b;font-size:14px;transition:all 0.2s;}
+.mid-header-close:hover{background:#e2e8f0;color:#0f172a;}
+.mid-body{padding:16px 20px 20px;display:flex;flex-direction:column;gap:12px;}
+.mid-card{background:#f8faff;border:1px solid #e8eeff;border-radius:14px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;}
+.mid-icon{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#eff6ff,#dbeafe);
+  display:flex;align-items:center;justify-content:center;font-size:14px;color:#2563eb;flex-shrink:0;}
+.mid-label{font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;}
+.mid-value{font-size:14px;color:#0f172a;font-weight:600;line-height:1.5;}
+.mid-value.title{font-family:'Kanit',sans-serif;font-size:17px;font-weight:800;color:#0a2463;}
+.mid-close{margin:4px 20px 20px;padding:13px;border:none;border-radius:14px;
+  background:linear-gradient(135deg,#0a2463,#2563eb);color:#fff;font-size:14px;font-weight:700;
   font-family:'Kanit',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
-  transition:background 0.2s;width:calc(100% - 36px);}
-.mid-close:hover{background:rgba(255,255,255,0.13);}
-.mid-overlay{position:fixed;top:var(--topbar-total);left:0;right:0;bottom:0;z-index:100;display:none;background:rgba(0,0,0,0.25);}
-.mid-overlay.show{display:block;}
+  transition:all 0.2s;width:calc(100% - 40px);box-shadow:0 4px 16px rgba(37,99,235,0.35);}
+.mid-close:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(37,99,235,0.45);}
 </style>
 </head>
 <body>
@@ -2753,33 +2763,41 @@ addEventListener('freeze',beacon);
 addEventListener('resume',()=>{if(_gps){stopGps();startGps();}});
 </script>
 
-<!-- MISSION INFO DRAWER -->
+<!-- MISSION INFO BOTTOM SHEET -->
 <div class="mid-overlay" id="mid-overlay" onclick="closeMissionInfo()"></div>
 <div class="mission-info-drawer" id="mission-info-drawer">
+  <div class="mid-handle"></div>
+  <div class="mid-header">
+    <div class="mid-header-icon"><i class="fas fa-clipboard-list"></i></div>
+    <div>
+      <div class="mid-header-title">รายละเอียดภารกิจ</div>
+      <div class="mid-header-sub">ข้อมูลการค้นหา</div>
+    </div>
+    <button class="mid-header-close" onclick="closeMissionInfo()"><i class="fas fa-times"></i></button>
+  </div>
   <div class="mid-body">
-    <div class="mid-row">
+    <div class="mid-card">
       <div class="mid-icon"><i class="fas fa-search"></i></div>
       <div style="flex:1;min-width:0">
         <div class="mid-label">ชื่อภารกิจ</div>
         <div class="mid-value title" id="info-title">-</div>
       </div>
     </div>
-    <div class="mid-hr"></div>
-    <div class="mid-row">
+    <div class="mid-card">
       <div class="mid-icon"><i class="fas fa-map-marker-alt"></i></div>
       <div style="flex:1;min-width:0">
         <div class="mid-label">พื้นที่ / รายละเอียด</div>
         <div class="mid-value" id="info-area">-</div>
       </div>
     </div>
-    <div class="mid-row" id="info-creator-row" style="display:none">
+    <div class="mid-card" id="info-creator-row" style="display:none">
       <div class="mid-icon"><i class="fas fa-user-shield"></i></div>
       <div style="flex:1;min-width:0">
         <div class="mid-label">ผู้สร้างภารกิจ</div>
         <div class="mid-value" id="info-creator">-</div>
       </div>
     </div>
-    <div class="mid-row" id="info-date-row" style="display:none">
+    <div class="mid-card" id="info-date-row" style="display:none">
       <div class="mid-icon"><i class="fas fa-clock"></i></div>
       <div style="flex:1;min-width:0">
         <div class="mid-label">เริ่มภารกิจ</div>
@@ -2788,7 +2806,7 @@ addEventListener('resume',()=>{if(_gps){stopGps();startGps();}});
     </div>
   </div>
   <button class="mid-close" onclick="closeMissionInfo()">
-    <i class="fas fa-chevron-up"></i> ปิด
+    <i class="fas fa-times"></i> ปิด
   </button>
 </div>
 
