@@ -350,6 +350,39 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 .btn-fullscreen:hover{background:rgba(255,255,255,0.22);}
 :fullscreen .topbar,:-webkit-full-screen .topbar{padding-top:0!important;}
 :fullscreen body,:-webkit-full-screen body,:fullscreen .page-body,:-webkit-full-screen .page-body{overflow:hidden;}
+
+/* ── INFO BUTTON ── */
+.btn-info{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:#fff;font-size:15px;transition:all 0.2s;flex-shrink:0;}
+.btn-info:hover{background:rgba(255,255,255,0.25);}
+.btn-info.active{background:rgba(99,179,237,0.3);border-color:rgba(99,179,237,0.6);color:#93c5fd;}
+
+/* ── MISSION INFO DRAWER ── */
+.mission-info-drawer{
+  position:fixed;top:var(--topbar-h);left:0;right:0;z-index:1800;
+  background:linear-gradient(160deg,#0a1628 0%,#0a2463 100%);
+  transform:translateY(-110%);transition:transform 0.38s cubic-bezier(0.16,1,0.3,1);
+  box-shadow:0 12px 40px rgba(0,0,0,0.5);
+  border-bottom-left-radius:20px;border-bottom-right-radius:20px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+}
+.mission-info-drawer.open{transform:translateY(0);}
+.mid-body{padding:18px 18px 8px;display:flex;flex-direction:column;gap:14px;}
+.mid-row{display:flex;align-items:flex-start;gap:12px;}
+.mid-icon{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.1);
+  display:flex;align-items:center;justify-content:center;font-size:14px;color:rgba(255,255,255,0.75);flex-shrink:0;}
+.mid-label{font-size:10px;color:rgba(255,255,255,0.4);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px;}
+.mid-value{font-size:14px;color:#fff;font-weight:600;line-height:1.5;}
+.mid-value.title{font-family:'Kanit',sans-serif;font-size:18px;font-weight:800;}
+.mid-hr{height:1px;background:rgba(255,255,255,0.07);margin:0 18px;}
+.mid-close{margin:10px 18px 16px;padding:11px;border:1px solid rgba(255,255,255,0.13);border-radius:12px;
+  background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.75);font-size:13px;font-weight:700;
+  font-family:'Kanit',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:background 0.2s;width:calc(100% - 36px);}
+.mid-close:hover{background:rgba(255,255,255,0.13);}
+.mid-overlay{position:fixed;inset:0;z-index:1799;display:none;background:rgba(0,0,0,0.25);}
+.mid-overlay.show{display:block;}
 </style>
 </head>
 <body>
@@ -826,6 +859,22 @@ addEventListener('DOMContentLoaded', async () => {
     const areaEl=document.getElementById('mission-area'); if(areaEl) areaEl.textContent = m.area||'';
     document.getElementById('live-badge').style.display  = 'inline-flex';
     document.getElementById('mission-timer').style.display = 'block';
+    // ── ตั้งค่า info drawer ──
+    const infoTitle=document.getElementById('info-title');
+    const infoArea=document.getElementById('info-area');
+    if(infoTitle) infoTitle.textContent = m.title||'ภารกิจค้นหา';
+    if(infoArea)  infoArea.textContent  = m.area||'ไม่ระบุพื้นที่';
+    if(m.createdByName||m.createdBy){
+      const el=document.getElementById('info-creator');
+      if(el) el.textContent=m.createdByName||m.createdBy;
+      document.getElementById('info-creator-row')?.style.setProperty('display','flex');
+    }
+    if(m.createdAt){
+      const d=new Date(m.createdAt);
+      const el=document.getElementById('info-date');
+      if(el) el.textContent=`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()+543} เวลา ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} น.`;
+      document.getElementById('info-date-row')?.style.setProperty('display','flex');
+    }
     startTimer();
     if (m.createdBy===user.id || user.role==='admin')
       document.getElementById('end-btn').style.display = 'flex';
@@ -2605,7 +2654,7 @@ function showNav(la,ln,name){const ex=document.getElementById('nav-sheet');if(ex
 
 // ─── Window Exports (ต้องอยู่หลัง function declarations ทั้งหมด) ─────────
 window.handleBack=handleBack; window.cancelSos=cancelSos; window.centerMap=centerMap;
-window.toggleFullscreen=toggleFullscreen;
+window.toggleFullscreen=toggleFullscreen; window.toggleMissionInfo=toggleMissionInfo; window.closeMissionInfo=closeMissionInfo;
 window.toggleDraw=toggleDraw; window.setDrawMode=setDrawMode;
 window.cancelDraw=cancelDraw; window.saveZone=saveZone; window.cancelZone=cancelZone; window.pickColor=pickColor;
 window.togglePinPicker=togglePinPicker; window.closePinPicker=closePinPicker;
@@ -2628,6 +2677,29 @@ window.toggleGridVisibility=toggleGridVisibility; window.deleteGrid=deleteGrid;
 window.showNav=showNav; window.delZone=delZone; window.delPin=delPin;
 window.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
 window.showToast=toast;
+
+// ─── Mission Info Drawer ──────────────────────────────────
+function toggleMissionInfo(){
+  const drawer=document.getElementById('mission-info-drawer');
+  const overlay=document.getElementById('mid-overlay');
+  const btn=document.getElementById('btn-info');
+  const isOpen=drawer.classList.contains('open');
+  if(isOpen){
+    drawer.classList.remove('open');
+    overlay.classList.remove('show');
+    if(btn) btn.classList.remove('active');
+  } else {
+    drawer.classList.add('open');
+    overlay.classList.add('show');
+    if(btn) btn.classList.add('active');
+  }
+}
+function closeMissionInfo(){
+  document.getElementById('mission-info-drawer')?.classList.remove('open');
+  document.getElementById('mid-overlay')?.classList.remove('show');
+  document.getElementById('btn-info')?.classList.remove('active');
+  setTimeout(()=>{ if(_map) _map.invalidateSize(); },380);
+}
 
 // ─── Fullscreen ───────────────────────────────────────────
 function toggleFullscreen(){
@@ -2661,5 +2733,45 @@ addEventListener('beforeunload',beacon);
 addEventListener('freeze',beacon);
 addEventListener('resume',()=>{if(_gps){stopGps();startGps();}});
 </script>
+
+<!-- MISSION INFO DRAWER -->
+<div class="mid-overlay" id="mid-overlay" onclick="closeMissionInfo()"></div>
+<div class="mission-info-drawer" id="mission-info-drawer">
+  <div class="mid-body">
+    <div class="mid-row">
+      <div class="mid-icon"><i class="fas fa-search"></i></div>
+      <div style="flex:1;min-width:0">
+        <div class="mid-label">ชื่อภารกิจ</div>
+        <div class="mid-value title" id="info-title">-</div>
+      </div>
+    </div>
+    <div class="mid-hr"></div>
+    <div class="mid-row">
+      <div class="mid-icon"><i class="fas fa-map-marker-alt"></i></div>
+      <div style="flex:1;min-width:0">
+        <div class="mid-label">พื้นที่ / รายละเอียด</div>
+        <div class="mid-value" id="info-area">-</div>
+      </div>
+    </div>
+    <div class="mid-row" id="info-creator-row" style="display:none">
+      <div class="mid-icon"><i class="fas fa-user-shield"></i></div>
+      <div style="flex:1;min-width:0">
+        <div class="mid-label">ผู้สร้างภารกิจ</div>
+        <div class="mid-value" id="info-creator">-</div>
+      </div>
+    </div>
+    <div class="mid-row" id="info-date-row" style="display:none">
+      <div class="mid-icon"><i class="fas fa-clock"></i></div>
+      <div style="flex:1;min-width:0">
+        <div class="mid-label">เริ่มภารกิจ</div>
+        <div class="mid-value" id="info-date">-</div>
+      </div>
+    </div>
+  </div>
+  <button class="mid-close" onclick="closeMissionInfo()">
+    <i class="fas fa-chevron-up"></i> ปิด
+  </button>
+</div>
+
 </body>
 </html>
