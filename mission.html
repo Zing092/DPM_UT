@@ -1611,12 +1611,16 @@ function _latlngInZone(latlng, z){
 
 // ── Map-level click handler สำหรับโซน ───────────────────
 let _mapZoneClickBound = false;
+let _lastClickWasGrid = false; // flag: กริดถูกคลิกก่อนหน้า → skip zone handler
 function _bindMapZoneClick(){
   if(_mapZoneClickBound) return;
   _mapZoneClickBound = true;
 
   _map.on('click', function(ev){
     if(_drawOn || _gridDrawing) return;
+    // ถ้ากริดถูกคลิก (clickZone.on('click') set flag ไว้) → skip zone popup
+    if(_lastClickWasGrid){ _lastClickWasGrid = false; return; }
+
     const latlng = ev.latlng;
 
     // หาทุกโซนที่จุดคลิก ด้วย precise point-in-shape
@@ -2201,6 +2205,7 @@ function _renderGridLocally(gridId, sizeMeters, sw, ne, createdBy, createdByName
   }).addTo(_map);
 
   clickZone.on('click', function(e){
+    _lastClickWasGrid = true; // บอก map zone handler ว่านี่คือ grid click
     L.DomEvent.stopPropagation(e);
     const popHtml = `
       <div style="min-width:210px;font-family:'Sarabun',sans-serif">
