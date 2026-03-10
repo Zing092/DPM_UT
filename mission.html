@@ -429,13 +429,13 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
           <div class="chk"></div>
         </button>
         <button class="layer-opt" id="layer-opt-topo" onclick="switchLayer('topo')">
-          <div class="layer-opt-icon"><img src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/13/3564/6415" alt="" onerror="this.style.background='#d4e9c4'"></div>
-          <div class="layer-opt-info"><div class="layer-opt-name">ภูมิประเทศ</div><div class="layer-opt-desc">Esri World Topo</div></div>
+          <div class="layer-opt-icon"><img src="https://tile.opentopomap.org/13/6415/3564.png" alt="" onerror="this.style.background='#d4e9c4'"></div>
+          <div class="layer-opt-info"><div class="layer-opt-name">ภูมิประเทศ</div><div class="layer-opt-desc">OpenTopoMap (เส้นชั้นความสูง)</div></div>
           <div class="chk"></div>
         </button>
         <button class="layer-opt" id="layer-opt-contour" onclick="switchLayer('contour')">
-          <div class="layer-opt-icon"><img src="https://tile.opentopomap.org/13/6415/3564.png" alt="" onerror="this.style.background='#e8dcc8'"></div>
-          <div class="layer-opt-info"><div class="layer-opt-name">เส้นชั้นความสูง</div><div class="layer-opt-desc">OpenTopoMap</div></div>
+          <div class="layer-opt-icon"><img src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/13/3564/6415" alt="" onerror="this.style.background='#e8dcc8'"></div>
+          <div class="layer-opt-info"><div class="layer-opt-name">Topo Map</div><div class="layer-opt-desc">Esri World Topo</div></div>
           <div class="chk"></div>
         </button>
       </div>
@@ -654,8 +654,8 @@ let _currentTileLayer=null, _activeLayerId='street';
 const TILE_LAYERS = {
   street:    { url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',    maxZoom:19, opts:{} },
   satellite: { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', maxZoom:19, opts:{subdomains:[]} },
-  topo:      { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', maxZoom:19, opts:{subdomains:[]} },
-  contour:   { url:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',      maxZoom:17, opts:{subdomains:['a','b','c']} },
+  topo:      { url:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',      maxZoom:17, opts:{subdomains:['a','b','c']} },
+  contour:   { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', maxZoom:19, opts:{subdomains:[]} },
 };
 let _wid=null, _bgInt=null, _trailInt=null, _timerInt=null;
 let _unLoc=null, _unMem=null, _unStatus=null, _unChat=null, _unPins=null, _unZones=null, _unTrails=null;
@@ -2380,7 +2380,7 @@ function switchLayer(id){
     el.classList.toggle('active', isActive);
     el.querySelector('.chk').innerHTML = isActive ? '<i class="fas fa-check"></i>' : '';
   });
-  const names = {street:'Street Map',satellite:'ดาวเทียม',topo:'ภูมิประเทศ',contour:'เส้นชั้นความสูง'};
+  const names = {street:'Street Map',satellite:'ดาวเทียม',topo:'ภูมิประเทศ (OpenTopo)',contour:'Esri Topo Map'};
   toast('เปลี่ยนเป็น '+names[id]+' ✅','info');
 }
 function toggleLayerPicker(){
