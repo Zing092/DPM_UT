@@ -574,15 +574,6 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
         <button class="draw-cancel" style="width:100%;border-color:#e2e8f0;color:#64748b;justify-content:center" onclick="closeZonePanel()"><i class="fas fa-times"></i> ปิด</button>
       </div>
     </div>
-    <div class="draw-tb" id="draw-tb">
-      <div class="draw-tb-title"><i class="fas fa-draw-polygon" style="margin-right:5px"></i>วาดโซน</div>
-      <button class="dmbtn" id="dm-free" onclick="setDrawMode('free')"><i class="fas fa-pen"></i> Freehand</button>
-      <button class="dmbtn rect" id="dm-rect" onclick="setDrawMode('rect')"><i class="fas fa-vector-square"></i> สี่เหลี่ยม</button>
-      <button class="dmbtn circle" id="dm-circle" onclick="setDrawMode('circle')"><i class="fas fa-circle-notch"></i> วงกลม</button>
-      <div class="draw-hint" id="draw-hint">เลือกโหมดแล้วลากบนแผนที่</div>
-      <button class="draw-cancel" onclick="cancelDraw()"><i class="fas fa-times"></i> ยกเลิก</button>
-    </div>
-
     <!-- Pin picker -->
     <div class="pin-picker" id="pin-picker">
       <div class="pin-picker-title"><i class="fas fa-map-pin" style="margin-right:4px"></i>เลือกประเภทหมุด</div>
@@ -592,6 +583,16 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
       <button class="pin-type-btn" onclick="startPin('rally')"><div class="pin-ico" style="background:#fef3c7;color:#d97706"><i class="fas fa-flag"></i></div>จุดรวมพล</button>
       <button class="pin-type-btn" onclick="startPin('note')"><div class="pin-ico" style="background:#f5f3ff;color:#7c3aed"><i class="fas fa-sticky-note"></i></div>หมายเหตุ</button>
       <button class="draw-cancel" onclick="closePinPicker()"><i class="fas fa-times"></i> ปิด</button>
+    </div>
+
+    <!-- Draw toolbar -->
+    <div class="draw-tb" id="draw-tb">
+      <div class="draw-tb-title"><i class="fas fa-draw-polygon" style="margin-right:5px"></i>วาดโซน</div>
+      <button class="dmbtn" id="dm-free" onclick="setDrawMode('free')"><i class="fas fa-pen"></i> Freehand</button>
+      <button class="dmbtn rect" id="dm-rect" onclick="setDrawMode('rect')"><i class="fas fa-vector-square"></i> สี่เหลี่ยม</button>
+      <button class="dmbtn circle" id="dm-circle" onclick="setDrawMode('circle')"><i class="fas fa-circle-notch"></i> วงกลม</button>
+      <div class="draw-hint" id="draw-hint">เลือกโหมดแล้วลากบนแผนที่</div>
+      <button class="draw-cancel" onclick="cancelDraw()"><i class="fas fa-times"></i> ยกเลิก</button>
     </div>
   </div>
 
