@@ -777,14 +777,8 @@ const PIN_CFG={
 };
 
 // ─── Expose to inline onclick ────────────────────────────
-// expose functions to global window scope
-window.handleBack=handleBack; window.cancelSos=cancelSos; window.centerMap=centerMap;
-window.togglePanel=togglePanel; window.toggleDraw=toggleDraw; window.setDrawMode=setDrawMode;
-window.cancelDraw=cancelDraw; window.saveZone=saveZone; window.cancelZone=cancelZone; window.pickColor=pickColor;
-window.togglePinPicker=togglePinPicker; window.closePinPicker=closePinPicker;
-window.startPin=startPin; window.confirmPin=confirmPin; window.handlePinImg=handlePinImg;
-window.toggleTrail=toggleTrail; window.toggleZones=toggleZones; window.toggleZonePanel=toggleZonePanel; window.closeZonePanel=closeZonePanel; window.toggleAllZonesVis=toggleAllZonesVis; window.zoneAction=zoneAction;
-window.toggleMapToolbar=toggleMapToolbar;
+// expose functions to global window scope — ต้องอยู่หลัง function declarations ทั้งหมด (ES module ไม่ hoist)
+
 
 function _ensureToolbarOpen(){
   const tb=document.getElementById('map-toolbar');
@@ -805,19 +799,6 @@ function toggleMapToolbar(){
     closeZonePanel();
   }
 }
-window.openChat=openChat; window.closeChat=closeChat; window.sendMsg=sendMsg;
-window.sendLocation=sendLocation; window.sendPhotos=sendPhotos;
-window.chatKey=chatKey; window.autoResize=autoResize;
-window.showEndModal=showEndModal; window.endMission=endMission;
-window.handleEndImgs=handleEndImgs; window.confirmLeave=confirmLeave;
-window.closeModal=closeModal; window.openLB=openLB; window.closeLB=closeLB;
-window.flyTo=(la,ln)=>_map?.flyTo([la,ln],17,{animate:true,duration:0.8});
-window.toggleGridPicker=toggleGridPicker; window.closeGridPicker=closeGridPicker;
-window.addGrid=addGrid; window.clearAllGrids=clearAllGrids;
-window.startGridDraw=startGridDraw; window.startGridDrawCustom=startGridDrawCustom; window.cancelGridDraw=cancelGridDraw;
-window.toggleGridVisibility=toggleGridVisibility; window.deleteGrid=deleteGrid;
-window.showNav=showNav; window.delZone=delZone; window.delPin=delPin;
-window.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
 
 // ─── Init ────────────────────────────────────────────────
 addEventListener('DOMContentLoaded', async () => {
@@ -2606,9 +2587,33 @@ function openLB(src){document.getElementById('lb-img').src=src;document.getEleme
 function closeLB(){document.getElementById('lightbox').classList.remove('open');}
 let _tT=null;
 function toast(msg,type='info'){const t=document.getElementById('toast'),icons={success:'check-circle',error:'exclamation-circle',info:'info-circle'};t.className=`toast ${type}`;t.innerHTML=`<i class="fas fa-${icons[type]||'info-circle'}"></i>${msg}`;requestAnimationFrame(()=>t.classList.add('show'));clearTimeout(_tT);_tT=setTimeout(()=>t.classList.remove('show'),3500);}
-window.showToast=toast;
 function handleBack(e){e.preventDefault();if(confirm('กลับหน้าหลัก?\n(GPS จะยังทำงานอยู่ถ้าคุณยังอยู่ในภารกิจ)'))location.replace('index.html?tab=search-mission');return false;}
 function showNav(la,ln,name){const ex=document.getElementById('nav-sheet');if(ex)ex.remove();const el=document.createElement('div');el.id='nav-sheet';el.innerHTML=`<div class="sheet"><div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px"></div><div style="font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;color:#0a2463;margin-bottom:13px"><i class="fas fa-navigation" style="color:#2563eb;margin-right:7px"></i>นำทางไปหา ${name||'สมาชิก'}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><a href="https://www.google.com/maps/dir/?api=1&destination=${la},${ln}" target="_blank" style="display:flex;flex-direction:column;align-items:center;gap:7px;padding:13px;border-radius:13px;border:2px solid #4285f4;text-decoration:none;color:#4285f4;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700"><i class="fas fa-map-marked-alt" style="font-size:20px"></i>Google Maps</a><a href="https://waze.com/ul?ll=${la},${ln}&navigate=yes" target="_blank" style="display:flex;flex-direction:column;align-items:center;gap:7px;padding:13px;border-radius:13px;border:2px solid #33ccff;text-decoration:none;color:#00b5e6;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700"><i class="fas fa-route" style="font-size:20px"></i>Waze</a></div><button onclick="document.getElementById('nav-sheet').remove()" style="width:100%;padding:12px;border-radius:11px;background:#f1f5f9;border:none;font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:#64748b;cursor:pointer">ยกเลิก</button></div>`;el.addEventListener('click',e=>{if(e.target===el)el.remove();});document.body.appendChild(el);}
+
+// ─── Window Exports (ต้องอยู่หลัง function declarations ทั้งหมด) ─────────
+window.handleBack=handleBack; window.cancelSos=cancelSos; window.centerMap=centerMap;
+window.toggleDraw=toggleDraw; window.setDrawMode=setDrawMode;
+window.cancelDraw=cancelDraw; window.saveZone=saveZone; window.cancelZone=cancelZone; window.pickColor=pickColor;
+window.togglePinPicker=togglePinPicker; window.closePinPicker=closePinPicker;
+window.startPin=startPin; window.confirmPin=confirmPin; window.handlePinImg=handlePinImg;
+window.toggleTrail=toggleTrail; window.toggleZones=toggleZones;
+window.toggleZonePanel=toggleZonePanel; window.closeZonePanel=closeZonePanel;
+window.toggleAllZonesVis=toggleAllZonesVis; window.zoneAction=zoneAction;
+window.toggleMapToolbar=toggleMapToolbar;
+window.openChat=openChat; window.closeChat=closeChat; window.sendMsg=sendMsg;
+window.sendLocation=sendLocation; window.sendPhotos=sendPhotos;
+window.chatKey=chatKey; window.autoResize=autoResize;
+window.showEndModal=showEndModal; window.endMission=endMission;
+window.handleEndImgs=handleEndImgs; window.confirmLeave=confirmLeave;
+window.closeModal=closeModal; window.openLB=openLB; window.closeLB=closeLB;
+window.flyTo=(la,ln)=>_map?.flyTo([la,ln],17,{animate:true,duration:0.8});
+window.toggleGridPicker=toggleGridPicker; window.closeGridPicker=closeGridPicker;
+window.addGrid=addGrid; window.clearAllGrids=clearAllGrids;
+window.startGridDraw=startGridDraw; window.startGridDrawCustom=startGridDrawCustom; window.cancelGridDraw=cancelGridDraw;
+window.toggleGridVisibility=toggleGridVisibility; window.deleteGrid=deleteGrid;
+window.showNav=showNav; window.delZone=delZone; window.delPin=delPin;
+window.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
+window.showToast=toast;
 
 // ─── Lifecycle ────────────────────────────────────────────
 function beacon(){if(!_gps) return;try{const b=FB.databaseURL,p=JSON.stringify({status:(_sosOn&&Date.now()<_sosExp)?'sos':'online',lastSeen:Date.now(),bgActive:true});navigator.sendBeacon(`${b}/search_missions/${missionId}/members/${user.id}.json`,new Blob([p],{type:'application/json'}));}catch(e){}}
