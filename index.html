@@ -5103,6 +5103,7 @@ function smRenderMissionList(missions) {
         <div class="sm-mission-stats">
           <div class="sm-stat-chip"><i class="fas fa-users"></i>${memberCount} คนเข้าร่วม</div>
           <div class="sm-stat-chip"><i class="fas fa-calendar-alt"></i>${smFormatDate(m.createdAt)}</div>
+          <div class="sm-stat-chip" style="background:#f0f4ff;color:#3730a3"><i class="fas fa-user-shield" style="color:#4f46e5"></i>${m.createdByName || m.createdBy || '-'}</div>
           ${isCreator ? '<div class="sm-stat-chip" style="background:#f5f3ff;color:#6d28d9"><i class="fas fa-crown" style="color:#7c3aed"></i>คุณเป็นผู้สร้าง</div>' : ''}
           ${isJoined && !isCreator ? '<div class="sm-stat-chip" style="background:#dcfce7;color:#166534"><i class="fas fa-check-circle" style="color:#16a34a"></i>เข้าร่วมแล้ว</div>' : ''}
         </div>
