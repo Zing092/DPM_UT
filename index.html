@@ -2742,9 +2742,18 @@ function showApp() {
   // Load data
   loadAllData();
   // Init form defaults
-  const now = new Date();
-  setThaiDate('m-date', now.toISOString().split('T')[0]);
-  document.getElementById('m-time').value = (String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0"));
+  const nowForm = new Date();
+  setThaiDate('m-date', nowForm.toISOString().split('T')[0]);
+  document.getElementById('m-time').value = (String(nowForm.getHours()).padStart(2,"0")+":"+String(nowForm.getMinutes()).padStart(2,"0"));
+  // Route to tab from URL param (e.g. returned from mission.html)
+  const urlTab = new URLSearchParams(location.search).get('tab');
+  if(urlTab === 'search-mission') {
+    setTimeout(() => {
+      const btn = document.getElementById('search-mission-nav-btn');
+      if(btn) btn.click();
+      history.replaceState(null,'',location.pathname);
+    }, 300);
+  }
 }
 
 // ===== LOAD DATA =====
@@ -5134,8 +5143,8 @@ window.smJoin = async function(missionId) {
     localStorage.setItem('sm_active_mission', missionId);
     showToast('เข้าร่วมภารกิจสำเร็จ! ✅', 'success');
     smUpdateMyMissionAlert();
-    // Auto-open tracking map
-    setTimeout(() => smOpenTrack(missionId), 400);
+    // Open dedicated mission page
+    setTimeout(() => { location.href = 'mission.html?id=' + missionId; }, 400);
   } catch(e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
 };
 
@@ -5184,31 +5193,8 @@ window.smLeaveConfirm = function() {
 window.smOpenTrack = async function(missionId) {
   _smActiveMissionId = missionId;
   localStorage.setItem('sm_active_mission', missionId);
-  const snap = await get(ref(db, `search_missions/${missionId}`));
-  const mission = snap.val();
-  if(!mission) { showToast('ไม่พบภารกิจ', 'error'); return; }
-
-  document.getElementById('sm-view-list').style.display = 'none';
-  document.getElementById('sm-view-track').style.display = 'block';
-  document.getElementById('sm-track-title').textContent = mission.title || 'ภารกิจค้นหา';
-  document.getElementById('sm-track-area').textContent = mission.area || '';
-
-  // Show "จบภารกิจ" button for creator or admin
-  const creatorDiv = document.getElementById('sm-creator-actions');
-  if (creatorDiv) {
-    const canEnd = mission.createdBy === S.user?.id || S.user?.role === 'admin';
-    creatorDiv.style.display = canEnd ? 'block' : 'none';
-  }
-
-  setTimeout(() => {
-    smInitTrackMap();
-    smStartGps(missionId);
-    smListenLocations(missionId);
-    // bind SOS button หลัง view แสดงผล
-    const btn = document.getElementById('sm-sos-btn');
-    if(btn) btn._sosBound = false; // reset เพื่อให้ bind ใหม่
-    if(typeof smBindSosBtn === 'function') smBindSosBtn();
-  }, 200);
+  // Open dedicated mission tracking page
+  location.href = 'mission.html?id=' + missionId;
 };
 
 window.smBackToList = function() {
@@ -5223,7 +5209,8 @@ window.smBackToList = function() {
 };
 
 window.smGoToTrack = function() {
-  if(_smActiveMissionId) smOpenTrack(_smActiveMissionId);
+  const mid = _smActiveMissionId || localStorage.getItem('sm_active_mission');
+  if(mid) location.href = 'mission.html?id=' + mid;
 };
 
 // ── Tracking Map Init ──────────────────────────────────────
