@@ -256,6 +256,8 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 .leaflet-popup-content-wrapper{border-radius:14px!important;box-shadow:var(--shadow-lg)!important;font-family:'Sarabun',sans-serif!important;}
 .pp-title{font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:var(--primary);margin-bottom:4px;}
 .pp-row{font-size:12px;color:var(--text-secondary);margin-bottom:2px;}
+.trail-name-tip{background:#fff!important;border:1.5px solid #e2e8f0!important;border-radius:7px!important;padding:3px 8px!important;box-shadow:0 2px 8px rgba(0,0,0,0.12)!important;}
+.trail-name-tip::before{display:none!important;}
 .pp-btn{margin-top:7px;width:100%;padding:6px;border:none;border-radius:7px;background:#eff6ff;color:#2563eb;font-size:11px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;}
 
 /* nav sheet */
@@ -978,29 +980,34 @@ function drawTrailLayers(){
     const name=(Array.isArray(data)?null:data.name)||_memberNames[uid]||uid.slice(-6);
     const dist=calcTotalDist(pts);
 
-    // เส้นหลัก
+    // เส้นหลัก — ใช้สีสมาชิกเสมอ (ไม่เปลี่ยนเป็นเทา)
     const line=L.polyline(pts.map(p=>[p[0],p[1]]),{
-      color: hasLeft?'#94a3b8':c,
-      weight: hasLeft?2.5:4,
-      opacity: hasLeft?0.5:0.85,
-      dashArray: hasLeft?'8,10':null,
+      color: c,
+      weight: hasLeft ? 3.5 : 4,
+      opacity: hasLeft ? 0.8 : 0.9,
+      dashArray: hasLeft ? '10,7' : null,  // เส้นประ = ออกแล้ว, ทึบ = กำลังทำงาน
       pane:'gridPane'
     }).addTo(_map);
 
-    // จุดเริ่มต้น (▶)
+    // จุดเริ่มต้น — วงกลมสีสมาชิก ขอบขาว
     const startPt=pts[0];
     const startMarker=L.circleMarker([startPt[0],startPt[1]],{
-      radius:5, color:'#fff', weight:2, fillColor:hasLeft?'#94a3b8':c, fillOpacity:1, pane:'gridPane'
+      radius: 7, color:'#fff', weight: 2.5,
+      fillColor: c, fillOpacity: 1, pane:'gridPane'
     }).addTo(_map);
 
-    // จุดสุดท้าย (■ หรือ ✖)
+    // จุดสุดท้าย — ใหญ่กว่า มีสีแตกต่างชัดเจน
     const endPt=pts[pts.length-1];
     const endMarker=L.circleMarker([endPt[0],endPt[1]],{
-      radius: hasLeft?6:7,
-      color:'#fff', weight:2,
-      fillColor: hasLeft?'#ef4444':c,
-      fillOpacity:1, pane:'gridPane'
+      radius: hasLeft ? 9 : 8,
+      color: '#fff', weight: 3,
+      fillColor: hasLeft ? '#ef4444' : c,  // แดง = ออกแล้ว
+      fillOpacity: 1, pane:'gridPane'
     }).addTo(_map);
+
+    // ป้ายชื่อบนจุดสุดท้าย (tooltip)
+    endMarker.bindTooltip(`<div style="font-family:'Kanit',sans-serif;font-size:11px;font-weight:700;color:${hasLeft?'#ef4444':c};white-space:nowrap">${esc(name)}${hasLeft?' (ออกแล้ว)':''}</div>`,
+      {permanent:false, direction:'top', className:'trail-name-tip', offset:[0,-8]});
 
     // ── Popup รายละเอียด ──────────────────────────────────
     const startTime=startPt[2]?new Date(startPt[2]).toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'-';
@@ -1017,7 +1024,7 @@ function drawTrailLayers(){
             <i class="fas fa-${hasLeft?'user-slash':'walking'}" style="color:${hasLeft?'#94a3b8':c}"></i>
           </div>
           <div style="flex:1">
-            <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:800;color:${hasLeft?'#64748b':c}">${esc(name)}</div>
+            <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:800;color:${c}">${esc(name)}</div>
             <div style="font-size:10px;color:#94a3b8;margin-top:1px">${hasLeft?'<span style="background:#fee2e2;color:#ef4444;border-radius:4px;padding:1px 6px;font-weight:700">ออกจากภารกิจแล้ว</span>':'<span style="background:#dcfce7;color:#16a34a;border-radius:4px;padding:1px 6px;font-weight:700">กำลังปฏิบัติงาน</span>'}</div>
           </div>
         </div>
@@ -1093,11 +1100,11 @@ function renderTrailLegend(){
     return `<div onclick="window._zoomTrail('${uid}')"
       style="display:flex;align-items:center;gap:7px;padding:6px 5px;border-radius:8px;cursor:pointer;transition:background 0.15s;margin-bottom:2px"
       onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-      <div style="width:26px;height:26px;border-radius:50%;background:${hasLeft?'#f1f5f9':c+'22'};border:2px solid ${hasLeft?'#94a3b8':c};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <i class="fas fa-${hasLeft?'user-slash':'walking'}" style="font-size:10px;color:${hasLeft?'#94a3b8':c}"></i>
+      <div style="width:26px;height:26px;border-radius:50%;background:${hasLeft?c+'22':c+'22'};border:2px solid ${c};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="fas fa-${hasLeft?'user-slash':'walking'}" style="font-size:10px;color:${c}"></i>
       </div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:10px;font-weight:700;font-family:'Kanit',sans-serif;color:${hasLeft?'#94a3b8':'#0f172a'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</div>
+        <div style="font-size:10px;font-weight:700;font-family:'Kanit',sans-serif;color:${c};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</div>
         <div style="font-size:9px;color:#94a3b8;display:flex;gap:4px;align-items:center">
           <span>${fmtD(dist)}</span>
           ${leftTime?`<span style="background:#fee2e2;color:#ef4444;border-radius:3px;padding:0 3px;font-size:8px">ออก ${leftTime}</span>`:'<span style="background:#dcfce7;color:#16a34a;border-radius:3px;padding:0 3px;font-size:8px">กำลังทำงาน</span>'}
