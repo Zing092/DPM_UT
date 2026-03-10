@@ -650,7 +650,11 @@ function toggleHideGrid(gridId, btn){
     g.lines.forEach(l=>{ try{ l.setStyle({opacity: hide?0:0.55}); }catch(e){} });
     g.labels.forEach(l=>{ try{ l.setOpacity(hide?0:1); }catch(e){} });
     try{ g.boundary.setStyle({opacity: hide?0:0.7}); }catch(e){}
-    try{ g.clickZone.setStyle({fillOpacity: hide?0:0.03}); }catch(e){}
+    try{
+      g.clickZone.setStyle({fillOpacity: hide?0.001:0.03});
+      const el = g.clickZone.getElement ? g.clickZone.getElement() : null;
+      if(el) el.style.pointerEvents = hide ? 'none' : '';
+    }catch(e){}
   }
   _map?.closePopup();
   toast(_hiddenGrids.has(gridId)?'ซ่อนกริดนี้แล้ว (เฉพาะคุณ)':'แสดงกริดนี้แล้ว','info');
@@ -2268,7 +2272,11 @@ function _renderGridLocally(gridId, sizeMeters, sw, ne, createdBy, createdByName
     lines.forEach(l=>{ try{ l.setStyle({opacity:0}); }catch(e){} });
     labels.forEach(l=>{ try{ l.setOpacity(0); }catch(e){} });
     try{ boundary.setStyle({opacity:0}); }catch(e){}
-    try{ clickZone.setStyle({fillOpacity:0}); }catch(e){}
+    try{
+      clickZone.setStyle({fillOpacity:0.001});
+      const el = clickZone.getElement ? clickZone.getElement() : null;
+      if(el) el.style.pointerEvents = 'none';
+    }catch(e){}
   }
 }
 
@@ -2278,7 +2286,13 @@ function _applyGridVisibility(){
     g.lines.forEach(l => { try{ l.setStyle({opacity: _gridVisible ? 0.55 : 0}); }catch(e){} });
     g.labels.forEach(l => { try{ l.setOpacity(_gridVisible ? 1 : 0); }catch(e){} });
     try{ g.boundary.setStyle({opacity: _gridVisible ? 0.7 : 0}); }catch(e){}
-    try{ g.clickZone.setStyle({fillOpacity: _gridVisible ? 0.03 : 0}); }catch(e){}
+    // ใช้ fillOpacity น้อยมาก (0.001) แทน 0 เพื่อให้ clickZone ยังรับ pointer events
+    // และซ่อน visual ด้วย CSS pointer-events เฉพาะเมื่อซ่อน
+    try{
+      g.clickZone.setStyle({fillOpacity: _gridVisible ? 0.03 : 0.001});
+      const el = g.clickZone.getElement ? g.clickZone.getElement() : null;
+      if(el) el.style.pointerEvents = _gridVisible ? '' : 'none';
+    }catch(e){}
   });
 }
 
