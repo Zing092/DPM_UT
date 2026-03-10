@@ -3,1182 +3,1157 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ภารกิจค้นหา | กองป้องกันและบรรเทาสาธารณภัย</title>
+<title>ภารกิจค้นหา | กองป้องกันฯ</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <style>
-:root {
-  --primary: #0a2463;
-  --primary-mid: #1b3d8f;
-  --primary-light: #2563eb;
-  --primary-glow: #3b82f6;
-  --accent-red: #ef4444;
-  --accent-green: #10b981;
-  --surface: #ffffff;
-  --surface-2: #f0f4ff;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --border: #cbd5e1;
-  --border-light: #e2e8f0;
-  --shadow-sm: 0 1px 3px rgba(10,36,99,0.1);
-  --shadow-md: 0 4px 16px rgba(10,36,99,0.12);
-  --shadow-lg: 0 8px 32px rgba(10,36,99,0.16);
-  --shadow-xl: 0 20px 60px rgba(10,36,99,0.2);
-  --radius: 16px;
-  --radius-sm: 10px;
-  --topbar-h: 58px;
+:root{
+  --primary:#0a2463;--primary-mid:#1b3d8f;--primary-light:#2563eb;--primary-glow:#3b82f6;
+  --accent-red:#ef4444;--accent-green:#10b981;--accent-orange:#f59e0b;--accent-purple:#8b5cf6;
+  --surface:#fff;--surface-2:#f0f4ff;--surface-3:#e8eeff;
+  --text-primary:#0f172a;--text-secondary:#475569;--text-muted:#94a3b8;
+  --border:#cbd5e1;--border-light:#e2e8f0;
+  --shadow-sm:0 1px 3px rgba(10,36,99,0.1);--shadow-md:0 4px 16px rgba(10,36,99,0.12);
+  --shadow-lg:0 8px 32px rgba(10,36,99,0.16);--shadow-xl:0 20px 60px rgba(10,36,99,0.2);
+  --topbar-h:58px;
 }
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primary);
+  height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:#f1f5f9;}
+::-webkit-scrollbar-thumb{background:var(--primary-light);border-radius:2px;}
 
-* { margin:0; padding:0; box-sizing:border-box; }
+/* ── TOPBAR ── */
+.topbar{height:var(--topbar-h);background:linear-gradient(90deg,#020c2e,#0a2463,#1b3d8f);
+  border-bottom:1px solid rgba(255,255,255,0.08);box-shadow:0 2px 12px rgba(0,0,0,0.3);
+  display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0;
+  padding-top:env(safe-area-inset-top,0px);}
+.topbar-back{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:#fff;font-size:14px;text-decoration:none;transition:all 0.2s;flex-shrink:0;}
+.topbar-back:hover{background:rgba(255,255,255,0.2);}
+.topbar-info{flex:1;min-width:0;}
+.topbar-title{font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.topbar-sub{font-size:10px;color:rgba(255,255,255,0.5);margin-top:1px;}
+.topbar-live{display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#166534;
+  font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;flex-shrink:0;}
+.topbar-live::before{content:'';width:5px;height:5px;border-radius:50%;background:#16a34a;animation:blink 1.5s infinite;}
+.topbar-timer{font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;color:rgba(255,255,255,0.85);
+  background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);padding:4px 9px;border-radius:8px;flex-shrink:0;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.3;}}
 
-body {
-  font-family: 'Sarabun', sans-serif;
-  background: #0f1a2e;
-  color: var(--text-primary);
-  min-height: 100vh;
-  overflow-x: hidden;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
+/* ── PAGE BODY ── */
+.page-body{flex:1;display:flex;flex-direction:column;overflow:hidden;}
 
-/* ===== TOPBAR ===== */
-.topbar {
-  height: var(--topbar-h);
-  background: linear-gradient(90deg, #020c2e 0%, #0a2463 60%, #1b3d8f 100%);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  gap: 12px;
-  flex-shrink: 0;
-  padding-top: env(safe-area-inset-top, 0px);
-}
+/* ── SOS BAR ── */
+.sos-bar{display:flex;gap:8px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--border-light);flex-shrink:0;}
+.sos-btn{flex:1;padding:11px;border:none;border-radius:11px;
+  background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;font-size:14px;font-weight:800;
+  font-family:'Kanit',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
+  box-shadow:0 4px 14px rgba(239,68,68,0.4);-webkit-user-select:none;user-select:none;touch-action:none;}
+.sos-btn:active{transform:scale(0.97);}
+.sos-cancel-btn{flex:1;padding:11px;border:2px solid #dc2626;border-radius:11px;background:#fff;
+  color:#dc2626;font-size:13px;font-weight:800;font-family:'Kanit',sans-serif;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:7px;}
+.center-btn{padding:11px 13px;border:1px solid var(--border);border-radius:11px;background:#fff;
+  color:var(--primary);font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif;font-weight:600;
+  display:flex;align-items:center;gap:4px;white-space:nowrap;}
 
-.topbar-back {
-  width: 36px; height: 36px;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.15);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: #fff; font-size: 15px;
-  transition: all 0.2s; flex-shrink: 0;
-  text-decoration: none;
-}
-.topbar-back:hover { background: rgba(255,255,255,0.2); }
+/* ── MEMBER PANEL ── */
+.member-panel{background:#fff;border-bottom:1px solid var(--border-light);flex-shrink:0;}
+.member-panel-hdr{background:linear-gradient(135deg,#064e3b,#065f46);padding:9px 14px;
+  display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+@keyframes sos-hdr-flash{0%,100%{background:linear-gradient(135deg,#7f1d1d,#991b1b);}50%{background:linear-gradient(135deg,#dc2626,#ef4444);}}
+.member-panel-hdr.sos-alert{animation:sos-hdr-flash 0.8s infinite;}
+.panel-title{font-family:'Kanit',sans-serif;font-size:12px;color:#fff;font-weight:700;}
+.panel-toggle{background:none;border:none;color:rgba(255,255,255,0.8);font-size:11px;cursor:pointer;padding:0;transition:transform 0.25s;}
+.panel-toggle.collapsed{transform:rotate(-90deg);}
+.member-list{max-height:155px;overflow-y:auto;transition:max-height 0.3s ease,opacity 0.2s;}
+.member-list.collapsed{max-height:0!important;overflow:hidden;opacity:0;}
+.member-row{display:flex;align-items:center;gap:9px;padding:7px 12px;border-bottom:1px solid var(--border-light);}
+.member-row:last-child{border-bottom:none;}
+@keyframes sos-row{0%,100%{background:#fff1f1;}50%{background:#fecaca;}}
+.member-row.sos-alert{animation:sos-row 0.8s infinite;border-left:3px solid #dc2626!important;}
+.mdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.mdot.online{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,0.2);animation:blink 2s infinite;}
+.mdot.moving{background:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.2);animation:blink 1s infinite;}
+.mdot.sos{background:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,0.3);animation:blink 0.5s infinite;}
+.mdot.offline{background:#94a3b8;}
+.mavatar{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;}
+.minfo{flex:1;min-width:0;}
+.mname{font-size:12px;font-weight:600;color:var(--text-primary);display:flex;align-items:center;flex-wrap:wrap;gap:3px;}
+.mstatus{font-size:10px;color:var(--text-muted);}
+.mactions{display:flex;gap:4px;}
+.mbtn{padding:4px 8px;background:var(--surface-2);border:1px solid var(--border-light);border-radius:6px;font-size:10px;cursor:pointer;color:var(--primary-light);font-family:'Sarabun',sans-serif;font-weight:600;}
 
-.topbar-info { flex: 1; min-width: 0; }
-.topbar-title {
-  font-family: 'Kanit', sans-serif;
-  font-size: 15px; font-weight: 700; color: #fff;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.topbar-sub { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 1px; }
+/* ── MAP WRAP ── */
+#map-wrap{flex:1;position:relative;overflow:hidden;}
+#track-map{width:100%;height:100%;}
 
-.topbar-live {
-  display: inline-flex; align-items: center; gap: 5px;
-  background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700;
-  padding: 3px 9px; border-radius: 20px; flex-shrink: 0;
-}
-.topbar-live::before {
-  content: ''; width: 6px; height: 6px; border-radius: 50%; background: #16a34a;
-  animation: dot-blink 1.5s infinite;
-}
-@keyframes dot-blink {
-  0%,100% { opacity:1; } 50% { opacity:0.3; }
-}
+/* ── MAP FLOATING TOOLBAR ── */
+.map-toolbar{position:absolute;right:10px;top:10px;z-index:900;display:flex;flex-direction:column;gap:6px;}
+.mtool{width:42px;height:42px;border-radius:12px;background:#fff;border:1.5px solid var(--border-light);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;
+  box-shadow:var(--shadow-md);transition:all 0.2s;color:var(--text-secondary);position:relative;}
+.mtool:hover{background:var(--surface-2);transform:scale(1.05);}
+.mtool.active{background:var(--primary-light);color:#fff;border-color:var(--primary-light);}
+.mtool.trail-on{background:#10b981;color:#fff;border-color:#10b981;}
+.mtool-tip{position:absolute;right:50px;top:50%;transform:translateY(-50%);background:#1e293b;color:#fff;
+  font-size:11px;font-weight:600;padding:4px 9px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;}
+.mtool:hover .mtool-tip{opacity:1;}
 
-/* ===== BODY LAYOUT ===== */
-.page-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--surface-2);
-}
+/* ── DRAW TOOLBAR ── */
+.draw-tb{position:absolute;left:10px;top:10px;z-index:900;background:#fff;border-radius:14px;
+  padding:10px;box-shadow:var(--shadow-lg);border:1px solid var(--border-light);display:none;flex-direction:column;gap:6px;min-width:130px;}
+.draw-tb.show{display:flex;}
+.draw-tb-title{font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;color:var(--primary);padding-bottom:6px;border-bottom:1px solid var(--border-light);}
+.dmbtn{padding:8px 11px;border-radius:9px;border:1.5px solid var(--border);background:#fff;font-size:12px;
+  font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--text-secondary);transition:all 0.15s;}
+.dmbtn:hover{background:var(--surface-2);}
+.dmbtn.active{background:var(--primary-light);color:#fff;border-color:var(--primary-light);}
+.dmbtn.rect.active{background:#f59e0b;border-color:#f59e0b;}
+.dmbtn.circle.active{background:#8b5cf6;border-color:#8b5cf6;}
+.draw-hint{font-size:10px;color:var(--text-muted);padding:2px;line-height:1.5;}
+.draw-cancel{padding:7px;border-radius:9px;border:1px solid #fecaca;background:#fff;color:#ef4444;
+  font-size:11px;font-weight:700;font-family:'Sarabun',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;margin-top:2px;}
 
-/* ===== SOS BAR ===== */
-.sos-bar {
-  display: flex; gap: 10px;
-  padding: 10px 14px;
-  background: #fff;
-  border-bottom: 1px solid var(--border-light);
-  flex-shrink: 0;
-}
-.sos-btn {
-  flex: 1; padding: 13px; border: none; border-radius: 12px;
-  background: linear-gradient(135deg, #dc2626, #ef4444);
-  color: #fff; font-size: 15px; font-weight: 800; font-family: 'Kanit', sans-serif;
-  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-  box-shadow: 0 4px 16px rgba(239,68,68,0.4); transition: all 0.2s;
-  -webkit-user-select: none; user-select: none;
-  touch-action: none;
-  -webkit-touch-callout: none;
-}
-.sos-btn:active { transform: scale(0.97); }
-.sos-cancel-btn {
-  flex: 1; padding: 13px; border: 2.5px solid #dc2626; border-radius: 12px;
-  background: #fff; color: #dc2626; font-size: 14px; font-weight: 800;
-  font-family: 'Kanit', sans-serif; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  -webkit-user-select: none; user-select: none;
-  touch-action: manipulation;
-  box-shadow: 0 0 0 3px rgba(220,38,38,0.2);
-}
-.sos-cancel-btn:active { background: #fef2f2; }
-.center-map-btn {
-  padding: 13px 16px; border: 1px solid var(--border); border-radius: 12px;
-  background: #fff; color: var(--primary); font-size: 12px; cursor: pointer;
-  font-family: 'Sarabun', sans-serif; font-weight: 600; transition: all 0.2s;
-  display: flex; align-items: center; gap: 5px; white-space: nowrap;
-}
-.center-map-btn:hover { background: var(--surface-2); }
+/* ── PIN PICKER ── */
+.pin-picker{position:absolute;right:60px;top:10px;z-index:950;background:#fff;border-radius:14px;
+  padding:10px;box-shadow:var(--shadow-xl);border:1px solid var(--border-light);display:none;flex-direction:column;gap:5px;min-width:160px;}
+.pin-picker.show{display:flex;}
+.pin-picker-title{font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;color:var(--primary);padding-bottom:5px;border-bottom:1px solid var(--border-light);}
+.pin-type-btn{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:9px;border:none;
+  background:transparent;cursor:pointer;font-size:12px;font-weight:600;font-family:'Sarabun',sans-serif;
+  color:var(--text-primary);width:100%;text-align:left;transition:background 0.15s;}
+.pin-type-btn:hover{background:var(--surface-2);}
+.pin-ico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
 
-/* ===== MEMBER PANEL ===== */
-.member-panel {
-  background: #fff;
-  border-bottom: 1px solid var(--border-light);
-  flex-shrink: 0;
-  overflow: hidden;
-}
-.member-panel-header {
-  background: linear-gradient(135deg, #064e3b, #065f46);
-  padding: 10px 14px;
-  display: flex; align-items: center; justify-content: space-between;
-  cursor: pointer; user-select: none; -webkit-user-select: none;
-  transition: background 0.3s;
-}
-@keyframes sos-header-flash {
-  0%,100% { background: linear-gradient(135deg,#7f1d1d,#991b1b); }
-  50%      { background: linear-gradient(135deg,#dc2626,#ef4444); }
-}
-.member-panel-header.sos-alert { animation: sos-header-flash 0.8s ease-in-out infinite; }
-.member-panel-title { font-family: 'Kanit', sans-serif; font-size: 13px; color: #fff; font-weight: 700; }
-.panel-toggle {
-  background: none; border: none; color: rgba(255,255,255,0.8);
-  font-size: 12px; cursor: pointer; padding: 0; line-height: 1;
-  transition: transform 0.25s;
-}
-.panel-toggle.collapsed { transform: rotate(-90deg); }
-.member-list {
-  max-height: 180px;
-  overflow-y: auto;
-  transition: max-height 0.3s ease, opacity 0.2s ease;
-}
-.member-list.collapsed { max-height: 0 !important; overflow: hidden; opacity: 0; }
-.member-row {
-  display: flex; align-items: center; gap: 10px; padding: 9px 14px;
-  border-bottom: 1px solid var(--border-light); transition: background 0.15s;
-}
-.member-row:hover { background: var(--surface-2); }
-.member-row:last-child { border-bottom: none; }
-@keyframes sos-row-flash {
-  0%,100% { background: #fff1f1; } 50% { background: #fecaca; }
-}
-.member-row.sos-alert { animation: sos-row-flash 0.8s ease-in-out infinite; border-left: 4px solid #dc2626 !important; }
-.member-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-.member-dot.online  { background:#22c55e; box-shadow:0 0 0 3px rgba(34,197,94,0.2); animation:dot-blink 2s infinite; }
-.member-dot.moving  { background:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.2); animation:dot-blink 1s infinite; }
-.member-dot.sos     { background:#ef4444; box-shadow:0 0 0 4px rgba(239,68,68,0.3); animation:dot-blink 0.5s infinite; }
-.member-dot.offline { background:#94a3b8; }
-.member-avatar {
-  width: 32px; height: 32px; border-radius: 9px;
-  background: linear-gradient(135deg,#3b82f6,#06b6d4);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
-}
-.member-info { flex: 1; min-width: 0; }
-.member-name { font-size: 13px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; flex-wrap: wrap; gap: 3px; }
-.member-status { font-size: 11px; color: var(--text-muted); }
-.member-actions { display: flex; gap: 5px; }
-.locate-btn {
-  padding: 5px 9px; background: var(--surface-2);
-  border: 1px solid var(--border-light); border-radius: 7px;
-  font-size: 11px; cursor: pointer; color: var(--primary-light);
-  font-family: 'Sarabun', sans-serif; font-weight: 600; transition: all 0.15s;
-}
-.locate-btn:hover { background: #eff6ff; }
+/* ── BOTTOM BAR ── */
+.bottom-bar{background:#fff;border-top:1px solid var(--border-light);
+  padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));
+  flex-shrink:0;display:flex;gap:8px;align-items:center;}
+.leave-btn{flex:1;padding:11px;border:2px solid #fecaca;border-radius:11px;background:#fff;
+  color:var(--accent-red);font-size:13px;font-weight:700;font-family:'Kanit',sans-serif;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+.end-btn{flex:1;padding:11px;border:none;border-radius:11px;
+  background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:13px;font-weight:700;
+  font-family:'Kanit',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
+  box-shadow:0 4px 12px rgba(124,58,237,0.35);}
+.chat-fab{position:relative;width:48px;height:48px;border-radius:14px;flex-shrink:0;
+  background:linear-gradient(135deg,#0a2463,#2563eb);color:#fff;border:none;
+  display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;
+  box-shadow:0 4px 14px rgba(37,99,235,0.4);}
+.chat-badge{position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;
+  font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;
+  display:none;align-items:center;justify-content:center;padding:0 3px;border:2px solid #fff;}
+.chat-badge.show{display:flex;}
 
-/* ===== MAP ===== */
-#track-map {
-  flex: 1;
-  min-height: 200px;
-}
+/* ── CHAT PANEL ── */
+.chat-panel{position:fixed;inset:0;z-index:1500;display:flex;flex-direction:column;
+  background:#fff;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.16,1,0.3,1);}
+.chat-panel.open{transform:translateY(0);}
+.chat-hdr{background:linear-gradient(90deg,#020c2e,#0a2463,#1b3d8f);padding:13px 16px;
+  display:flex;align-items:center;gap:10px;flex-shrink:0;padding-top:env(safe-area-inset-top,0px);}
+.chat-hdr-title{font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:#fff;flex:1;}
+.chat-close{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;}
+.chat-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background:#f0f4ff;}
+.chat-msg{max-width:82%;display:flex;flex-direction:column;gap:2px;}
+.chat-msg.mine{align-self:flex-end;align-items:flex-end;}
+.chat-msg.theirs{align-self:flex-start;align-items:flex-start;}
+.chat-bubble{padding:9px 12px;border-radius:14px;font-size:13px;line-height:1.5;word-break:break-word;}
+.chat-msg.mine .chat-bubble{background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;border-radius:14px 14px 4px 14px;}
+.chat-msg.theirs .chat-bubble{background:#fff;color:var(--text-primary);border:1px solid var(--border-light);border-radius:14px 14px 14px 4px;box-shadow:var(--shadow-sm);}
+.chat-sender{font-size:10px;color:var(--text-muted);font-weight:600;margin-bottom:2px;}
+.chat-time{font-size:10px;color:rgba(255,255,255,0.6);margin-top:1px;}
+.chat-msg.theirs .chat-time{color:var(--text-muted);}
+.chat-img-wrap{border-radius:12px;overflow:hidden;max-width:210px;cursor:pointer;}
+.chat-img-wrap img{width:100%;display:block;}
+.chat-loc-card{background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:10px 12px;
+  cursor:pointer;display:flex;align-items:center;gap:9px;min-width:165px;}
+.chat-loc-card:hover{background:#dcfce7;}
+.chat-loc-icon{width:32px;height:32px;border-radius:9px;background:#22c55e;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex-shrink:0;}
+.chat-loc-coords{font-size:11px;color:#166534;font-family:monospace;font-weight:600;}
+.chat-loc-label{font-size:10px;color:#16a34a;}
+.chat-sys{text-align:center;font-size:11px;color:var(--text-muted);background:#fff;border-radius:8px;padding:5px 12px;align-self:center;border:1px solid var(--border-light);}
+.chat-input-bar{display:flex;gap:7px;padding:9px 12px;background:#fff;border-top:1px solid var(--border-light);
+  flex-shrink:0;align-items:flex-end;padding-bottom:max(9px,env(safe-area-inset-bottom));}
+.chat-input{flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:12px;font-size:14px;
+  font-family:'Sarabun',sans-serif;outline:none;resize:none;max-height:100px;min-height:40px;line-height:1.4;}
+.chat-input:focus{border-color:var(--primary-light);}
+.chat-act{width:38px;height:38px;border-radius:10px;border:1.5px solid var(--border-light);
+  background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:var(--text-secondary);flex-shrink:0;}
+.chat-send{width:38px;height:38px;border-radius:10px;border:none;
+  background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0;}
 
-/* ===== BOTTOM ACTION BAR ===== */
-.bottom-bar {
-  background: #fff;
-  border-top: 1px solid var(--border-light);
-  padding: 10px 14px;
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
-  flex-shrink: 0;
-  display: flex;
-  gap: 8px;
-}
-.leave-btn {
-  flex: 1; padding: 12px; border: 2px solid #fecaca;
-  border-radius: 12px; background: #fff; color: var(--accent-red);
-  font-size: 14px; font-weight: 700; font-family: 'Kanit', sans-serif;
-  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: all 0.2s;
-}
-.leave-btn:hover { background: #fef2f2; }
-.end-mission-btn {
-  flex: 1; padding: 12px; border: none;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #7c3aed, #6d28d9);
-  color: #fff; font-size: 14px; font-weight: 700; font-family: 'Kanit', sans-serif;
-  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-  box-shadow: 0 4px 14px rgba(124,58,237,0.35); transition: all 0.2s;
-}
-.end-mission-btn:hover { transform: translateY(-1px); }
+/* ── MODALS ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;
+  display:none;align-items:flex-end;justify-content:center;padding:16px;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;border-radius:22px 22px 14px 14px;width:100%;max-width:520px;
+  max-height:88vh;overflow-y:auto;padding:20px;animation:modal-up 0.3s cubic-bezier(0.16,1,0.3,1);}
+@keyframes modal-up{from{opacity:0;transform:translateY(40px);}to{opacity:1;transform:translateY(0);}}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;}
+.modal-title{font-family:'Kanit',sans-serif;font-size:16px;font-weight:700;color:var(--primary);}
+.btn-close{width:30px;height:30px;border-radius:8px;background:var(--surface-2);border:none;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13px;}
+.form-group{margin-bottom:12px;}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:5px;}
+.form-ctrl{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-family:'Sarabun',sans-serif;outline:none;}
+.form-ctrl:focus{border-color:var(--primary-light);}
+textarea.form-ctrl{min-height:70px;resize:vertical;}
+.btn{padding:11px 15px;border-radius:10px;font-size:13px;font-weight:700;font-family:'Sarabun',sans-serif;cursor:pointer;border:none;display:flex;align-items:center;gap:7px;transition:all 0.2s;}
+.btn-primary{background:linear-gradient(135deg,var(--primary-light),var(--primary-glow));color:#fff;}
+.btn-secondary{background:var(--surface-2);color:var(--text-secondary);border:1.5px solid var(--border);}
+.btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;}
+.btn-success{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+.btn-purple{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;}
+.btn-block{width:100%;justify-content:center;}
+.btn-row{display:flex;gap:8px;}
+.req{color:var(--accent-red);margin-left:2px;}
 
-/* ===== LOADING / ERROR SCREENS ===== */
-.screen-center {
-  flex: 1;
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 16px; padding: 32px;
-  text-align: center;
-}
-.spinner {
-  width: 48px; height: 48px;
-  border: 4px solid rgba(37,99,235,0.15);
-  border-top-color: var(--primary-light);
-  border-radius: 50%; animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.screen-title { font-family: 'Kanit', sans-serif; font-size: 17px; font-weight: 700; color: var(--primary); }
-.screen-sub { font-size: 13px; color: var(--text-muted); }
-.btn-retry {
-  padding: 12px 28px; border-radius: 12px;
-  background: var(--primary-light); color: #fff; border: none;
-  font-size: 14px; font-weight: 700; font-family: 'Sarabun', sans-serif;
-  cursor: pointer; margin-top: 8px;
-}
+/* color swatches */
+.color-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:4px;}
+.cswatch{width:26px;height:26px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all 0.15s;}
+.cswatch.sel{border-color:#0a2463;transform:scale(1.2);}
 
-/* ===== TOAST ===== */
-.toast {
-  position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-20px);
-  background: #1e293b; color: #fff; padding: 11px 18px; border-radius: 12px;
-  font-size: 13px; z-index: 3000; opacity: 0; transition: all 0.3s;
-  white-space: nowrap; box-shadow: var(--shadow-xl);
-  display: flex; align-items: center; gap: 8px; pointer-events: none;
-}
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-.toast.success i { color: #10b981; }
-.toast.error   i { color: #ef4444; }
-.toast.info    i { color: #3b82f6; }
+/* photo upload */
+.photo-area{border:2px dashed var(--border);border-radius:10px;padding:14px;text-align:center;cursor:pointer;background:#fafbff;transition:all 0.2s;}
+.photo-area:hover,.photo-area.dragover{border-color:var(--primary-light);background:#eff6ff;}
+.photo-area input{display:none;}
+.photo-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.photo-item{position:relative;width:62px;height:62px;border-radius:8px;overflow:hidden;border:1px solid var(--border-light);}
+.photo-item img{width:100%;height:100%;object-fit:cover;}
+.photo-rm{position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;
+  background:rgba(239,68,68,0.9);color:#fff;border:none;cursor:pointer;font-size:8px;
+  display:flex;align-items:center;justify-content:center;}
 
-/* ===== MODAL ===== */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000;
-  display: none; align-items: flex-end; justify-content: center; padding: 16px;
-  backdrop-filter: blur(4px);
-}
-.modal-overlay.open { display: flex; }
-.modal {
-  background: #fff; border-radius: 24px 24px 16px 16px;
-  width: 100%; max-width: 560px; max-height: 90vh;
-  overflow-y: auto; padding: 22px;
-  animation: modal-up 0.3s cubic-bezier(0.16,1,0.3,1);
-}
-@keyframes modal-up {
-  from { opacity:0; transform:translateY(40px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-.modal-header {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px;
-}
-.modal-title { font-family: 'Kanit', sans-serif; font-size: 17px; font-weight: 700; color: var(--primary); }
-.btn-close {
-  width: 32px; height: 32px; border-radius: 8px;
-  background: var(--surface-2); border: none; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--text-muted); font-size: 15px; transition: all 0.2s;
-}
-.btn-close:hover { background: var(--surface-2); color: var(--text-primary); }
-.form-group { margin-bottom: 14px; }
-.form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
-.form-control {
-  width: 100%; padding: 11px 13px;
-  border: 1.5px solid var(--border); border-radius: 10px;
-  font-size: 14px; font-family: 'Sarabun', sans-serif;
-  outline: none; transition: border-color 0.2s;
-}
-.form-control:focus { border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-textarea.form-control { min-height: 90px; resize: vertical; }
-.btn { padding: 12px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; border: none; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
-.btn-primary { background: linear-gradient(135deg, var(--primary-light), var(--primary-glow)); color: #fff; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
-.btn-primary:hover { transform: translateY(-1px); }
-.btn-secondary { background: var(--surface-2); color: var(--text-secondary); border: 1.5px solid var(--border); }
-.btn-purple { background: linear-gradient(135deg,#7c3aed,#6d28d9); color: #fff; box-shadow: 0 4px 14px rgba(124,58,237,0.35); }
-.btn-block { width: 100%; justify-content: center; }
-.btn-group-row { display: flex; gap: 10px; }
-.req { color: var(--accent-red); margin-left: 2px; }
+/* toast */
+.toast{position:fixed;top:68px;left:50%;transform:translateX(-50%) translateY(-20px);
+  background:#1e293b;color:#fff;padding:10px 16px;border-radius:11px;font-size:13px;
+  z-index:9999;opacity:0;transition:all 0.3s;white-space:nowrap;box-shadow:var(--shadow-xl);
+  display:flex;align-items:center;gap:7px;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.success i{color:#10b981;}.toast.error i{color:#ef4444;}.toast.info i{color:#3b82f6;}
 
-/* Photo upload area */
-.photo-upload-area {
-  border: 2px dashed var(--border); border-radius: 12px;
-  padding: 20px; text-align: center; cursor: pointer;
-  transition: all 0.2s; background: #fafbff;
-}
-.photo-upload-area:hover, .photo-upload-area.dragover { border-color: var(--primary-light); background: #eff6ff; }
-.photo-upload-area input { display: none; }
-.photo-upload-icon { font-size: 28px; color: var(--primary-light); opacity: 0.6; margin-bottom: 8px; }
-.photo-upload-text { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
-.photo-upload-hint { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
-.photo-preview-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.photo-preview-item {
-  position: relative; width: 72px; height: 72px; border-radius: 9px;
-  overflow: hidden; border: 1.5px solid var(--border-light);
-}
-.photo-preview-item img { width: 100%; height: 100%; object-fit: cover; }
-.photo-preview-remove {
-  position: absolute; top: 3px; right: 3px; width: 18px; height: 18px;
-  border-radius: 50%; background: rgba(239,68,68,0.9); color: #fff;
-  border: none; cursor: pointer; font-size: 9px;
-  display: flex; align-items: center; justify-content: center;
-}
+/* screen states */
+.screen-center{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:32px;text-align:center;}
+.spinner{width:44px;height:44px;border:4px solid rgba(37,99,235,0.15);border-top-color:var(--primary-light);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.screen-title{font-family:'Kanit',sans-serif;font-size:16px;font-weight:700;color:var(--primary);}
+.screen-sub{font-size:12px;color:var(--text-muted);}
+.btn-retry{padding:11px 24px;border-radius:11px;background:var(--primary-light);color:#fff;border:none;font-size:13px;font-weight:700;font-family:'Sarabun',sans-serif;cursor:pointer;}
 
-/* ===== MAP POPUP ===== */
-.leaflet-popup-content-wrapper {
-  border-radius: 14px !important; box-shadow: var(--shadow-lg) !important;
-  font-family: 'Sarabun', sans-serif !important;
-}
-.map-popup-title { font-family: 'Kanit', sans-serif; font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 5px; }
-.map-popup-row { font-size: 12px; color: var(--text-secondary); margin-bottom: 3px; }
+/* leaflet popup */
+.leaflet-popup-content-wrapper{border-radius:14px!important;box-shadow:var(--shadow-lg)!important;font-family:'Sarabun',sans-serif!important;}
+.pp-title{font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:var(--primary);margin-bottom:4px;}
+.pp-row{font-size:12px;color:var(--text-secondary);margin-bottom:2px;}
+.pp-btn{margin-top:7px;width:100%;padding:6px;border:none;border-radius:7px;background:#eff6ff;color:#2563eb;font-size:11px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;}
 
-/* ===== NAV SHEET (bottom navigation modal) ===== */
-#nav-sheet {
-  position: fixed; inset: 0; z-index: 99999;
-  display: flex; align-items: flex-end; justify-content: center;
-  background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
-}
-#nav-sheet .sheet-inner {
-  background: #fff; border-radius: 24px 24px 0 0;
-  padding: 24px 20px 36px; width: 100%; max-width: 480px;
-  box-shadow: 0 -8px 40px rgba(0,0,0,0.2);
-  font-family: 'Sarabun', sans-serif;
-  animation: modal-up 0.25s cubic-bezier(0.16,1,0.3,1);
-}
+/* nav sheet */
+#nav-sheet{position:fixed;inset:0;z-index:9999;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);}
+#nav-sheet .sheet{background:#fff;border-radius:22px 22px 0 0;padding:22px 18px 34px;width:100%;max-width:480px;animation:modal-up 0.25s cubic-bezier(0.16,1,0.3,1);}
 
-/* ===== PULSE for SOS marker ===== */
-@keyframes sos-pulse {
-  0% { transform:scale(1); opacity:1; }
-  50% { transform:scale(1.4); opacity:0.5; }
-  100% { transform:scale(1); opacity:1; }
-}
-.sos-marker-pulse { animation: sos-pulse 0.8s ease-in-out infinite; }
+/* sos marker */
+@keyframes sos-pulse{0%{transform:scale(1);opacity:1;}50%{transform:scale(1.4);opacity:0.5;}100%{transform:scale(1);opacity:1;}}
+.sos-pulse{animation:sos-pulse 0.8s ease-in-out infinite;}
 
-/* ===== SCROLLBAR ===== */
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: #f1f5f9; }
-::-webkit-scrollbar-thumb { background: var(--primary-light); border-radius: 3px; }
+/* lightbox */
+#lightbox{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);display:none;align-items:center;justify-content:center;}
+#lightbox.open{display:flex;}
+#lightbox img{max-width:95vw;max-height:92vh;border-radius:10px;object-fit:contain;}
+#lb-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 
-@media (max-width: 480px) {
-  .topbar-title { font-size: 13px; }
-  .sos-btn { font-size: 14px; padding: 12px; }
-  .member-list { max-height: 150px; }
-}
+@media(max-width:480px){.topbar-title{font-size:13px;}.sos-btn{font-size:13px;}.member-list{max-height:120px;}.chat-bubble{font-size:12px;}}
 </style>
 </head>
 <body>
 
 <!-- TOPBAR -->
-<div class="topbar" id="topbar">
-  <a href="index.html" class="topbar-back" id="btn-back" onclick="handleBack(event)">
-    <i class="fas fa-arrow-left"></i>
-  </a>
+<div class="topbar">
+  <a href="index.html" class="topbar-back" onclick="return handleBack(event)"><i class="fas fa-arrow-left"></i></a>
   <div class="topbar-info">
     <div class="topbar-title" id="mission-title">กำลังโหลด...</div>
     <div class="topbar-sub" id="mission-area"></div>
   </div>
+  <div class="topbar-timer" id="mission-timer" style="display:none">00:00</div>
   <span class="topbar-live" id="live-badge" style="display:none">LIVE</span>
 </div>
 
-<!-- LOADING SCREEN -->
+<!-- LOADING -->
 <div class="page-body" id="screen-loading">
-  <div class="screen-center">
-    <div class="spinner"></div>
-    <div class="screen-title">กำลังเชื่อมต่อ</div>
-    <div class="screen-sub">โหลดข้อมูลภารกิจ...</div>
-  </div>
+  <div class="screen-center"><div class="spinner"></div><div class="screen-title">กำลังเชื่อมต่อ</div><div class="screen-sub">โหลดข้อมูลภารกิจ...</div></div>
 </div>
 
-<!-- ERROR SCREEN -->
+<!-- ERROR -->
 <div class="page-body" id="screen-error" style="display:none">
   <div class="screen-center">
-    <i class="fas fa-exclamation-triangle" style="font-size:48px;color:#f59e0b"></i>
-    <div class="screen-title" id="error-title">เกิดข้อผิดพลาด</div>
-    <div class="screen-sub" id="error-msg">ไม่สามารถโหลดข้อมูลภารกิจได้</div>
-    <button class="btn-retry" onclick="location.href='index.html'">
-      <i class="fas fa-arrow-left"></i> กลับหน้าหลัก
-    </button>
+    <i class="fas fa-exclamation-triangle" style="font-size:44px;color:#f59e0b"></i>
+    <div class="screen-title" id="err-title">เกิดข้อผิดพลาด</div>
+    <div class="screen-sub" id="err-msg"></div>
+    <button class="btn-retry" onclick="location.href='index.html'"><i class="fas fa-arrow-left"></i> กลับหน้าหลัก</button>
   </div>
 </div>
 
-<!-- MAIN MISSION SCREEN -->
+<!-- MAIN -->
 <div class="page-body" id="screen-main" style="display:none">
 
-  <!-- SOS Bar -->
+  <!-- SOS -->
   <div class="sos-bar">
-    <button class="sos-btn" id="sos-btn">
-      <i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน
-    </button>
-    <button class="sos-cancel-btn" id="sos-cancel-btn" style="display:none" onclick="cancelSos()">
-      <i class="fas fa-times-circle"></i> ยกเลิก SOS
-    </button>
-    <button class="center-map-btn" onclick="centerMap()">
-      <i class="fas fa-compress-arrows-alt"></i> ดูทีม
-    </button>
+    <button class="sos-btn" id="sos-btn"><i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน</button>
+    <button class="sos-cancel-btn" id="sos-cancel-btn" style="display:none" onclick="cancelSos()"><i class="fas fa-times-circle"></i> ยกเลิก SOS</button>
+    <button class="center-btn" onclick="centerMap()"><i class="fas fa-compress-arrows-alt"></i> ดูทีม</button>
   </div>
 
-  <!-- Member Panel -->
+  <!-- MEMBER PANEL -->
   <div class="member-panel">
-    <div class="member-panel-header" id="member-panel-header" onclick="toggleMemberPanel()">
-      <div class="member-panel-title">
-        <i class="fas fa-users" style="margin-right:6px"></i>สมาชิกในทีม
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div id="online-count" style="font-size:11px;color:rgba(255,255,255,0.7)">0 ออนไลน์</div>
-        <button class="panel-toggle" id="panel-toggle-btn"><i class="fas fa-chevron-down"></i></button>
+    <div class="member-panel-hdr" id="mem-hdr" onclick="togglePanel()">
+      <div class="panel-title"><i class="fas fa-users" style="margin-right:5px"></i>สมาชิกในทีม</div>
+      <div style="display:flex;align-items:center;gap:7px">
+        <span id="online-count" style="font-size:10px;color:rgba(255,255,255,0.7)">0 ออนไลน์</span>
+        <button class="panel-toggle" id="panel-toggle"><i class="fas fa-chevron-down"></i></button>
       </div>
     </div>
     <div class="member-list" id="member-list"></div>
   </div>
 
-  <!-- Map -->
-  <div id="track-map"></div>
+  <!-- MAP -->
+  <div id="map-wrap">
+    <div id="track-map"></div>
 
-  <!-- Bottom Bar -->
+    <!-- Floating toolbar -->
+    <div class="map-toolbar">
+      <div class="mtool" id="btn-draw" onclick="toggleDraw()"><i class="fas fa-draw-polygon"></i><span class="mtool-tip">วาดโซน</span></div>
+      <div class="mtool" id="btn-pin" onclick="togglePinPicker()"><i class="fas fa-map-pin"></i><span class="mtool-tip">ปักหมุด</span></div>
+      <div class="mtool" id="btn-trail" onclick="toggleTrail()"><i class="fas fa-route"></i><span class="mtool-tip">เส้นทาง</span></div>
+      <div class="mtool" id="btn-zones" onclick="toggleZones()"><i class="fas fa-layer-group"></i><span class="mtool-tip">โซน</span></div>
+    </div>
+
+    <!-- Draw toolbar -->
+    <div class="draw-tb" id="draw-tb">
+      <div class="draw-tb-title"><i class="fas fa-draw-polygon" style="margin-right:5px"></i>วาดโซน</div>
+      <button class="dmbtn" id="dm-free" onclick="setDrawMode('free')"><i class="fas fa-pen"></i> Freehand</button>
+      <button class="dmbtn rect" id="dm-rect" onclick="setDrawMode('rect')"><i class="fas fa-vector-square"></i> สี่เหลี่ยม</button>
+      <button class="dmbtn circle" id="dm-circle" onclick="setDrawMode('circle')"><i class="fas fa-circle-notch"></i> วงกลม</button>
+      <div class="draw-hint" id="draw-hint">เลือกโหมดแล้วลากบนแผนที่</div>
+      <button class="draw-cancel" onclick="cancelDraw()"><i class="fas fa-times"></i> ยกเลิก</button>
+    </div>
+
+    <!-- Pin picker -->
+    <div class="pin-picker" id="pin-picker">
+      <div class="pin-picker-title"><i class="fas fa-map-pin" style="margin-right:4px"></i>เลือกประเภทหมุด</div>
+      <button class="pin-type-btn" onclick="startPin('safe')"><div class="pin-ico" style="background:#dcfce7;color:#16a34a"><i class="fas fa-check-circle"></i></div>ฉันปลอดภัย</button>
+      <button class="pin-type-btn" onclick="startPin('clue')"><div class="pin-ico" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-search"></i></div>พบร่องรอย</button>
+      <button class="pin-type-btn" onclick="startPin('danger')"><div class="pin-ico" style="background:#fee2e2;color:#dc2626"><i class="fas fa-exclamation-triangle"></i></div>พื้นที่อันตราย</button>
+      <button class="pin-type-btn" onclick="startPin('rally')"><div class="pin-ico" style="background:#fef3c7;color:#d97706"><i class="fas fa-flag"></i></div>จุดรวมพล</button>
+      <button class="pin-type-btn" onclick="startPin('note')"><div class="pin-ico" style="background:#f5f3ff;color:#7c3aed"><i class="fas fa-sticky-note"></i></div>หมายเหตุ</button>
+      <button class="draw-cancel" onclick="closePinPicker()"><i class="fas fa-times"></i> ปิด</button>
+    </div>
+  </div>
+
+  <!-- BOTTOM BAR -->
   <div class="bottom-bar">
-    <button class="leave-btn" onclick="confirmLeave()">
-      <i class="fas fa-sign-out-alt"></i> ออกจากภารกิจ
+    <button class="chat-fab" id="chat-fab" onclick="openChat()">
+      <i class="fas fa-comments"></i>
+      <div class="chat-badge" id="chat-badge"></div>
     </button>
-    <button class="end-mission-btn" id="end-mission-btn" style="display:none" onclick="showEndModal()">
-      <i class="fas fa-flag-checkered"></i> จบภารกิจ
-    </button>
+    <button class="leave-btn" onclick="confirmLeave()"><i class="fas fa-sign-out-alt"></i> ออกจากภารกิจ</button>
+    <button class="end-btn" id="end-btn" style="display:none" onclick="showEndModal()"><i class="fas fa-flag-checkered"></i> จบภารกิจ</button>
+  </div>
+</div>
+
+<!-- CHAT PANEL -->
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-hdr">
+    <button class="chat-close" onclick="closeChat()"><i class="fas fa-arrow-down"></i></button>
+    <div class="chat-hdr-title"><i class="fas fa-comments" style="margin-right:6px;opacity:0.8"></i>แชทในทีม</div>
+    <span class="topbar-live">LIVE</span>
+  </div>
+  <div class="chat-msgs" id="chat-msgs"><div class="chat-sys">ยังไม่มีข้อความ</div></div>
+  <div class="chat-input-bar">
+    <button class="chat-act" onclick="sendLocation()" title="ส่งพิกัด"><i class="fas fa-map-marker-alt" style="color:#22c55e"></i></button>
+    <button class="chat-act" onclick="document.getElementById('chat-img-input').click()" title="แนบรูป"><i class="fas fa-image" style="color:#3b82f6"></i></button>
+    <input type="file" id="chat-img-input" accept="image/*" multiple style="display:none" onchange="sendPhotos(event)">
+    <textarea class="chat-input" id="chat-input" placeholder="พิมพ์ข้อความ..." rows="1"
+      oninput="autoResize(this)" onkeydown="chatKey(event)"></textarea>
+    <button class="chat-send" onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button>
   </div>
 </div>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- END MISSION MODAL -->
+<!-- LIGHTBOX -->
+<div id="lightbox" onclick="closeLB()">
+  <button id="lb-close" onclick="closeLB()"><i class="fas fa-times"></i></button>
+  <img id="lb-img" src="" alt="">
+</div>
+
+<!-- MODAL: Zone name -->
+<div class="modal-overlay" id="modal-zone">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-hdr">
+      <div class="modal-title"><i class="fas fa-draw-polygon" style="color:var(--primary-light);margin-right:6px"></i>ตั้งชื่อโซน</div>
+      <button class="btn-close" onclick="cancelZone()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="form-group">
+      <label>ชื่อโซน<span class="req">*</span></label>
+      <input type="text" class="form-ctrl" id="zone-name" placeholder="เช่น โซน A ฝั่งเหนือ">
+    </div>
+    <div class="form-group">
+      <label>สี</label>
+      <div class="color-row" id="zone-colors">
+        <div class="cswatch sel" style="background:#3b82f6" data-c="#3b82f6" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#ef4444" data-c="#ef4444" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#10b981" data-c="#10b981" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#f59e0b" data-c="#f59e0b" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#8b5cf6" data-c="#8b5cf6" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#ec4899" data-c="#ec4899" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#06b6d4" data-c="#06b6d4" onclick="pickColor(this)"></div>
+        <div class="cswatch" style="background:#84cc16" data-c="#84cc16" onclick="pickColor(this)"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary btn-block" onclick="saveZone()"><i class="fas fa-save"></i> บันทึกโซน</button>
+      <button class="btn btn-secondary" onclick="cancelZone()" style="min-width:70px">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Pin add -->
+<div class="modal-overlay" id="modal-pin">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-hdr">
+      <div class="modal-title" id="pin-modal-title"><i class="fas fa-map-pin" style="margin-right:6px"></i>เพิ่มหมุด</div>
+      <button class="btn-close" onclick="closeModal('modal-pin')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="form-group">
+      <label>รายละเอียด</label>
+      <textarea class="form-ctrl" id="pin-detail" placeholder="ระบุรายละเอียดเพิ่มเติม..."></textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label>รูปภาพ <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(ไม่บังคับ)</span></label>
+      <div class="photo-area" onclick="document.getElementById('pin-img-input').click()">
+        <input type="file" id="pin-img-input" accept="image/*" onchange="handlePinImg(event)">
+        <i class="fas fa-image" style="font-size:22px;color:var(--primary-light);opacity:0.5;margin-bottom:4px"></i>
+        <div style="font-size:12px;color:var(--text-muted)">แตะเพื่อแนบรูป</div>
+      </div>
+      <div class="photo-grid" id="pin-img-preview"></div>
+    </div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-success btn-block" onclick="confirmPin()"><i class="fas fa-map-pin"></i> ปักหมุด</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-pin')" style="min-width:70px">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Pin view -->
+<div class="modal-overlay" id="modal-pin-view">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-hdr">
+      <div class="modal-title" id="pinv-title"></div>
+      <button class="btn-close" onclick="closeModal('modal-pin-view')"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="pinv-body"></div>
+    <div class="btn-row" style="margin-top:12px" id="pinv-actions"></div>
+  </div>
+</div>
+
+<!-- MODAL: End mission -->
 <div class="modal-overlay" id="modal-end">
   <div class="modal" style="display:flex;flex-direction:column;padding:0;overflow:hidden;max-width:520px">
-    <div class="modal-header" style="padding:18px 20px 14px;border-bottom:1px solid var(--border-light);margin-bottom:0;flex-shrink:0">
+    <div class="modal-hdr" style="padding:15px 18px 12px;border-bottom:1px solid var(--border-light);margin-bottom:0;flex-shrink:0">
       <div class="modal-title"><i class="fas fa-flag-checkered" style="color:#7c3aed;margin-right:6px"></i>จบภารกิจ</div>
       <button class="btn-close" onclick="closeModal('modal-end')"><i class="fas fa-times"></i></button>
     </div>
-    <div style="flex:1;overflow-y:auto;padding:16px 20px;-webkit-overflow-scrolling:touch">
-      <div style="background:#faf5ff;border:1.5px solid #d8b4fe;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#6b21a8;">
-        <i class="fas fa-info-circle" style="margin-right:6px"></i>
-        เมื่อจบภารกิจแล้ว ระบบจะหยุดติดตาม GPS ของทุกคน และบันทึกไว้ในประวัติ
+    <div style="flex:1;overflow-y:auto;padding:14px 18px">
+      <div style="background:#faf5ff;border:1.5px solid #d8b4fe;border-radius:11px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#6b21a8">
+        <i class="fas fa-info-circle" style="margin-right:5px"></i>เมื่อจบภารกิจ ระบบจะหยุดติดตาม GPS ของทุกคน
       </div>
       <div class="form-group">
         <label>สรุปผลภารกิจ<span class="req">*</span></label>
-        <textarea class="form-control" id="end-summary"
-          placeholder="สรุปผลการปฏิบัติงาน เช่น พบผู้สูญหายแล้ว / ไม่พบผู้สูญหาย..."
-          style="min-height:90px"></textarea>
+        <textarea class="form-ctrl" id="end-summary" placeholder="สรุปผลการปฏิบัติงาน..." style="min-height:80px"></textarea>
       </div>
       <div class="form-group" style="margin-bottom:0">
-        <label>รูปภาพประกอบ <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(ไม่บังคับ, สูงสุด 5 รูป)</span></label>
-        <div class="photo-upload-area" id="photo-drop" onclick="document.getElementById('photo-input').click()">
-          <input type="file" id="photo-input" accept="image/*" multiple onchange="handlePhotoSelect(event)">
-          <div class="photo-upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
-          <div class="photo-upload-text">แตะเพื่อเลือกรูปภาพ</div>
-          <div class="photo-upload-hint">รองรับ JPG, PNG • สูงสุด 10 MB ต่อรูป</div>
+        <label>รูปภาพ <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(ไม่บังคับ, สูงสุด 5)</span></label>
+        <div class="photo-area" onclick="document.getElementById('end-img-input').click()">
+          <input type="file" id="end-img-input" accept="image/*" multiple onchange="handleEndImgs(event)">
+          <i class="fas fa-cloud-upload-alt" style="font-size:24px;color:var(--primary-light);opacity:0.5;margin-bottom:5px"></i>
+          <div style="font-size:12px;color:var(--text-muted)">แตะเพื่อเลือกรูป</div>
         </div>
-        <div class="photo-preview-grid" id="photo-preview"></div>
+        <div class="photo-grid" id="end-img-preview"></div>
       </div>
     </div>
-    <div style="flex-shrink:0;padding:10px 20px 16px;border-top:1px solid var(--border-light);background:#fff;border-radius:0 0 16px 16px">
-      <div class="btn-group-row">
-        <button class="btn btn-purple btn-block" id="end-confirm-btn" onclick="endMission()">
-          <i class="fas fa-flag-checkered"></i> ยืนยันจบภารกิจ
-        </button>
-        <button class="btn btn-secondary" onclick="closeModal('modal-end')" style="min-width:80px">ยกเลิก</button>
+    <div style="flex-shrink:0;padding:10px 18px 14px;border-top:1px solid var(--border-light)">
+      <div class="btn-row">
+        <button class="btn btn-purple btn-block" id="end-confirm-btn" onclick="endMission()"><i class="fas fa-flag-checkered"></i> ยืนยันจบภารกิจ</button>
+        <button class="btn btn-secondary" onclick="closeModal('modal-end')" style="min-width:70px">ยกเลิก</button>
       </div>
     </div>
   </div>
 </div>
 
+<!-- ========== SCRIPT ========== -->
 <script type="module">
-import { initializeApp }    from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, get, update, remove, onValue, push }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// ── Firebase Config (same as index.html) ──────────────────
-const firebaseConfig = {
-  apiKey: "AIzaSyD4i4tIdswvYaRLP3EpEHHg_miOJIu-k7o",
-  authDomain: "fire-rescue-app-f03d5.firebaseapp.com",
-  databaseURL: "https://fire-rescue-app-f03d5-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "fire-rescue-app-f03d5",
-  storageBucket: "fire-rescue-app-f03d5.firebasestorage.app",
-  messagingSenderId: "320085960767",
-  appId: "1:320085960767:web:a69ebd5b441f49a580b08a"
+const FB = {
+  apiKey:"AIzaSyD4i4tIdswvYaRLP3EpEHHg_miOJIu-k7o",
+  authDomain:"fire-rescue-app-f03d5.firebaseapp.com",
+  databaseURL:"https://fire-rescue-app-f03d5-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"fire-rescue-app-f03d5",
+  storageBucket:"fire-rescue-app-f03d5.firebasestorage.app",
+  messagingSenderId:"320085960767",
+  appId:"1:320085960767:web:a69ebd5b441f49a580b08a"
+};
+const db = getDatabase(initializeApp(FB));
+
+// ─── Params & Session ────────────────────────────────────
+const params    = new URLSearchParams(location.search);
+const missionId = params.get('id');
+const user      = (() => { try { return JSON.parse(localStorage.getItem('fire_user')); } catch { return null; } })();
+if (!user)      { location.replace('index.html'); throw 0; }
+if (!missionId) { errScreen('ไม่พบรหัสภารกิจ','กรุณาเข้าร่วมใหม่จากหน้าหลัก'); throw 0; }
+
+// ─── State ───────────────────────────────────────────────
+let _map=null, _markers={}, _trailLayers={}, _zoneLayers={}, _pinMarkers={};
+let _wid=null, _bgInt=null, _trailInt=null, _timerInt=null;
+let _unLoc=null, _unMem=null, _unStatus=null, _unChat=null, _unPins=null, _unZones=null;
+let _gps=false, _trailOn=true, _zonesOn=true;
+let _sosOn=false, _sosExp=0, _sosT=null;
+let _mStart=null;
+let _unread=0, _chatOpen=false, _lastChatTs=0;
+let _drawMode=null, _drawOn=false;
+let _fPts=[], _fLine=null, _rStart=null, _rRect=null, _cCtr=null, _cCirc=null;
+let _pendingZone=null, _zoneColor='#3b82f6';
+let _pendingPinType=null, _pendingPinLL=null, _pendingPinPhoto=null;
+let _endPhotos=[];
+
+const COLORS=['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1'];
+const PIN_CFG={
+  safe:  {label:'ฉันปลอดภัย',  icon:'✅', color:'#16a34a', bg:'#dcfce7'},
+  clue:  {label:'พบร่องรอย',    icon:'🔍', color:'#1d4ed8', bg:'#dbeafe'},
+  danger:{label:'พื้นที่อันตราย',icon:'⚠️', color:'#dc2626', bg:'#fee2e2'},
+  rally: {label:'จุดรวมพล',     icon:'🏁', color:'#d97706', bg:'#fef3c7'},
+  note:  {label:'หมายเหตุ',     icon:'💬', color:'#7c3aed', bg:'#f5f3ff'}
 };
 
-const app = initializeApp(firebaseConfig);
-const db  = getDatabase(app);
+// ─── Expose to inline onclick ────────────────────────────
+const W = window;
+W.handleBack=handleBack; W.cancelSos=cancelSos; W.centerMap=centerMap;
+W.togglePanel=togglePanel; W.toggleDraw=toggleDraw; W.setDrawMode=setDrawMode;
+W.cancelDraw=cancelDraw; W.saveZone=saveZone; W.cancelZone=cancelZone; W.pickColor=pickColor;
+W.togglePinPicker=togglePinPicker; W.closePinPicker=closePinPicker;
+W.startPin=startPin; W.confirmPin=confirmPin; W.handlePinImg=handlePinImg;
+W.toggleTrail=toggleTrail; W.toggleZones=toggleZones;
+W.openChat=openChat; W.closeChat=closeChat; W.sendMsg=sendMsg;
+W.sendLocation=sendLocation; W.sendPhotos=sendPhotos;
+W.chatKey=chatKey; W.autoResize=autoResize;
+W.showEndModal=showEndModal; W.endMission=endMission;
+W.handleEndImgs=handleEndImgs; W.confirmLeave=confirmLeave;
+W.closeModal=closeModal; W.openLB=openLB; W.closeLB=closeLB;
+W.flyTo=(la,ln)=>_map?.flyTo([la,ln],17,{animate:true,duration:0.8});
+W.showNav=showNav; W.delZone=delZone; W.delPin=delPin;
+W.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
 
-// ── State ─────────────────────────────────────────────────
-const params     = new URLSearchParams(location.search);
-const missionId  = params.get('id');
-const user       = (() => { try { return JSON.parse(localStorage.getItem('fire_user')); } catch{ return null; } })();
-
-let _map          = null;
-let _markers      = {};
-let _watchId      = null;
-let _bgInterval   = null;
-let _locListener  = null;
-let _memListener  = null;
-let _statusListener = null;
-let _hasCentered  = false;
-let _gpsActive    = false;
-let _sosActive    = false;
-let _sosExpiry    = 0;
-let _sosTimer     = null;
-let _missionData  = null;
-let _pendingPhotos = [];
-
-// ── Guard: must be logged in and have missionId ───────────
-if(!user) {
-  location.replace('index.html');
-  throw new Error('no session');
-}
-if(!missionId) {
-  showError('ไม่พบรหัสภารกิจ', 'กรุณาเข้าร่วมภารกิจใหม่จากหน้าหลัก');
-  throw new Error('no missionId');
-}
-
-// expose for inline handlers
-window.cancelSos       = cancelSos;
-window.centerMap       = centerMap;
-window.confirmLeave    = confirmLeave;
-window.showEndModal    = showEndModal;
-window.closeModal      = closeModal;
-window.endMission      = endMission;
-window.handlePhotoSelect = handlePhotoSelect;
-window.removePhoto     = removePhoto;
-window.toggleMemberPanel = toggleMemberPanel;
-window.handleBack      = handleBack;
-window.smFlyTo         = (lat,lng) => { if(_map) _map.flyTo([lat,lng],17,{animate:true,duration:0.8}); };
-window.showNavOptions  = showNavOptions;
-
-// ── Init ──────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', init);
-
-async function init() {
+// ─── Init ────────────────────────────────────────────────
+addEventListener('DOMContentLoaded', async () => {
   try {
-    const snap = await get(ref(db, `search_missions/${missionId}`));
+    const snap = await get(ref(db,`search_missions/${missionId}`));
     const m = snap.val();
-    if(!m) { showError('ไม่พบภารกิจ', 'ภารกิจนี้อาจถูกลบแล้ว'); return; }
-    if(m.status === 'closed') { showError('ภารกิจสิ้นสุดแล้ว', 'ภารกิจนี้ปิดไปแล้ว กรุณากลับหน้าหลัก'); return; }
-    _missionData = m;
+    if (!m)               return errScreen('ไม่พบภารกิจ','ภารกิจนี้อาจถูกลบแล้ว');
+    if (m.status==='closed') return errScreen('ภารกิจสิ้นสุดแล้ว','ภารกิจนี้ปิดไปแล้ว กรุณากลับหน้าหลัก');
 
-    // Update topbar
-    document.getElementById('mission-title').textContent = m.title || 'ภารกิจค้นหา';
-    document.getElementById('mission-area').textContent  = m.area  || '';
+    _mStart = m.createdAt || Date.now();
+    document.getElementById('mission-title').textContent = m.title||'ภารกิจค้นหา';
+    document.getElementById('mission-area').textContent  = m.area||'';
     document.getElementById('live-badge').style.display  = 'inline-flex';
+    document.getElementById('mission-timer').style.display = 'block';
+    startTimer();
+    if (m.createdBy===user.id || user.role==='admin')
+      document.getElementById('end-btn').style.display = 'flex';
 
-    // Show end button if creator or admin
-    const canEnd = m.createdBy === user.id || user.role === 'admin';
-    if(canEnd) document.getElementById('end-mission-btn').style.display = 'flex';
-
-    // Join if not already a member
-    const memberSnap = await get(ref(db, `search_missions/${missionId}/members/${user.id}`));
-    if(!memberSnap.exists()) {
-      await set(ref(db, `search_missions/${missionId}/members/${user.id}`), {
-        userId: user.id, empId: user.id,
-        name: user.name || user.id,
-        joinedAt: Date.now(), status: 'online'
+    const ms = await get(ref(db,`search_missions/${missionId}/members/${user.id}`));
+    if (!ms.exists())
+      await set(ref(db,`search_missions/${missionId}/members/${user.id}`),{
+        userId:user.id,empId:user.id,name:user.name||user.id,joinedAt:Date.now(),status:'online'
       });
-    }
 
-    // Show main screen
-    document.getElementById('screen-loading').style.display = 'none';
-    document.getElementById('screen-main').style.display    = 'flex';
+    document.getElementById('screen-loading').style.display='none';
+    document.getElementById('screen-main').style.display='flex';
 
-    // Init map
-    setTimeout(() => {
-      initMap();
-      startGps();
-      listenLocations();
-      listenMissionStatus();
-      bindSosBtn();
-      startHeartbeat();
-    }, 150);
+    setTimeout(()=>{
+      initMap(); startGps(); listenLoc(); listenStatus();
+      listenChat(); listenPins(); listenZones(); bindSos(); heartbeat();
+    },150);
+  } catch(e) { errScreen('เกิดข้อผิดพลาด', e.message||String(e)); }
+});
 
-  } catch(e) {
-    showError('เกิดข้อผิดพลาด', e.message || 'ไม่สามารถโหลดภารกิจได้');
+function errScreen(t,m){
+  document.getElementById('screen-loading').style.display='none';
+  document.getElementById('screen-main').style.display='none';
+  document.getElementById('screen-error').style.display='flex';
+  document.getElementById('err-title').textContent=t;
+  document.getElementById('err-msg').textContent=m;
+}
+
+// ─── Timer ───────────────────────────────────────────────
+function startTimer(){
+  const el=document.getElementById('mission-timer');
+  function tick(){
+    const s=Math.floor((Date.now()-_mStart)/1000), h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
+    el.textContent=h>0?`${h}:${p2(m)}:${p2(sec)}`:`${p2(m)}:${p2(sec)}`;
   }
+  tick(); _timerInt=setInterval(tick,1000);
+}
+const p2=n=>String(n).padStart(2,'0');
+
+// ─── Map ─────────────────────────────────────────────────
+function initMap(){
+  if(_map){_map.remove();_map=null;_markers={};_trailLayers={};_zoneLayers={};_pinMarkers={};}
+  _map=L.map('track-map',{zoomControl:true,attributionControl:false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_map);
+  _map.setView([15.7,100.0],13);
+  setupDrawEvents();
 }
 
-// ── Error screen ──────────────────────────────────────────
-function showError(title, msg) {
-  document.getElementById('screen-loading').style.display = 'none';
-  document.getElementById('screen-main').style.display    = 'none';
-  document.getElementById('screen-error').style.display   = 'flex';
-  document.getElementById('error-title').textContent = title;
-  document.getElementById('error-msg').textContent   = msg;
+// ─── GPS ─────────────────────────────────────────────────
+function startGps(){
+  if(!navigator.geolocation){toast('อุปกรณ์ไม่รองรับ GPS','error');return;}
+  stopGps(); _gps=true;
+  const locR=ref(db,`search_missions/${missionId}/locations/${user.id}`);
+  const memR=ref(db,`search_missions/${missionId}/members/${user.id}`);
+  _wid=navigator.geolocation.watchPosition(pos=>{
+    if(!_gps||(_sosOn&&Date.now()<_sosExp)) return;
+    const{latitude:la,longitude:ln,heading:hd,speed:sp}=pos.coords;
+    const s=sp||0, st=s>0.5?'moving':'online';
+    set(locR,{lat:la,lng:ln,heading:hd||0,speed:Math.round(s*3.6),status:st,ts:Date.now()}).catch(()=>{});
+    restPut(la,ln,sp,hd);
+    update(memR,{status:st,lastSeen:Date.now()}).catch(()=>{});
+    if(_map&&!W._centered){_map.setView([la,ln],16);W._centered=true;}
+  },e=>{if(e.code===1)toast('กรุณาอนุญาต GPS','error');},{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+  _bgInt=setInterval(()=>{
+    if(!_gps){clearInterval(_bgInt);return;}
+    navigator.geolocation.getCurrentPosition(p=>restPut(p.coords.latitude,p.coords.longitude,p.coords.speed,p.coords.heading),()=>{},{enableHighAccuracy:true,timeout:8000,maximumAge:10000});
+  },15000);
+  // Trail: record every 30s
+  _trailInt=setInterval(()=>{
+    if(!_gps) return;
+    navigator.geolocation.getCurrentPosition(p=>{
+      const{latitude:la,longitude:ln}=p.coords;
+      const tRef=ref(db,`search_missions/${missionId}/trails/${user.id}`);
+      get(tRef).then(s=>{
+        const arr=s.val()||[];
+        arr.push([+la.toFixed(6),+ln.toFixed(6),Date.now()]);
+        if(arr.length>500) arr.splice(0,arr.length-500);
+        set(tRef,arr).catch(()=>{});
+      });
+    },()=>{},{enableHighAccuracy:false,timeout:8000,maximumAge:20000});
+  },30000);
+}
+function stopGps(){
+  _gps=false;
+  if(_wid!=null){navigator.geolocation.clearWatch(_wid);_wid=null;}
+  if(_bgInt!=null){clearInterval(_bgInt);_bgInt=null;}
+  if(_trailInt!=null){clearInterval(_trailInt);_trailInt=null;}
+  W._centered=false;
+}
+function restPut(la,ln,sp,hd){
+  if(!_gps||!la||(_sosOn&&Date.now()<_sosExp)) return;
+  try{
+    const s=sp||0, st=s>0.5?'moving':'online';
+    const b=FB.databaseURL, p=JSON.stringify({lat:la,lng:ln,heading:hd||0,speed:Math.round(s*3.6),status:st,ts:Date.now()});
+    fetch(`${b}/search_missions/${missionId}/locations/${user.id}.json`,{method:'PUT',body:p}).catch(()=>{});
+    fetch(`${b}/search_missions/${missionId}/members/${user.id}/lastSeen.json`,{method:'PUT',body:JSON.stringify(Date.now())}).catch(()=>{});
+  }catch(e){}
 }
 
-// ── Map ───────────────────────────────────────────────────
-function initMap() {
-  const el = document.getElementById('track-map');
-  if(!el) return;
-  if(_map) { _map.remove(); _map = null; _markers = {}; }
-  _map = L.map('track-map', { zoomControl: true, attributionControl: false });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom:19, attribution:'© OpenStreetMap'
-  }).addTo(_map);
-  _map.setView([15.7, 100.0], 13);
+// ─── Listeners ───────────────────────────────────────────
+function listenLoc(){
+  if(_unLoc){_unLoc();_unLoc=null;} if(_unMem){_unMem();_unMem=null;}
+  let L={},M={};
+  function rr(){renderMarkers(L,M);renderMemPanel(L,M);if(_trailOn)renderTrails(M);}
+  _unLoc=onValue(ref(db,`search_missions/${missionId}/locations`),s=>{L=s.val()||{};rr();});
+  _unMem=onValue(ref(db,`search_missions/${missionId}/members`),s=>{M=s.val()||{};rr();});
 }
-
-// ── GPS ───────────────────────────────────────────────────
-function startGps() {
-  if(!navigator.geolocation) { showToast('อุปกรณ์ไม่รองรับ GPS','error'); return; }
-  stopGps();
-  _hasCentered = false;
-  _gpsActive   = true;
-
-  const locRef    = ref(db, `search_missions/${missionId}/locations/${user.id}`);
-  const memberRef = ref(db, `search_missions/${missionId}/members/${user.id}`);
-
-  _watchId = navigator.geolocation.watchPosition(
-    pos => {
-      if(!_gpsActive) return;
-      if(_sosActive && Date.now() < _sosExpiry) return;
-      const { latitude:lat, longitude:lng, heading, speed } = pos.coords;
-      const spd    = speed || 0;
-      const status = spd > 0.5 ? 'moving' : 'online';
-      const payload = { lat, lng, heading: heading||0, speed: Math.round(spd*3.6), status, ts: Date.now() };
-      set(locRef, payload).catch(()=>{});
-      pushLocationRest(lat, lng, speed, heading);
-      update(memberRef, { status, lastSeen: Date.now() }).catch(()=>{});
-      if(_map && !_hasCentered) { _map.setView([lat,lng],16); _hasCentered = true; }
-    },
-    err => {
-      if(err.code === 1) showToast('กรุณาอนุญาต GPS ในการตั้งค่าเบราว์เซอร์','error');
-    },
-    { enableHighAccuracy:true, maximumAge:5000, timeout:20000 }
-  );
-
-  // Background interval
-  _bgInterval = setInterval(() => {
-    if(!_gpsActive) { clearInterval(_bgInterval); return; }
-    navigator.geolocation.getCurrentPosition(
-      pos => pushLocationRest(pos.coords.latitude, pos.coords.longitude, pos.coords.speed, pos.coords.heading),
-      ()=>{},
-      { enableHighAccuracy:true, timeout:8000, maximumAge:10000 }
-    );
-  }, 15000);
-}
-
-function stopGps() {
-  _gpsActive = false;
-  if(_watchId !== null) { navigator.geolocation.clearWatch(_watchId); _watchId = null; }
-  if(_bgInterval !== null) { clearInterval(_bgInterval); _bgInterval = null; }
-  _hasCentered = false;
-}
-
-function pushLocationRest(lat, lng, speed, heading) {
-  if(!_gpsActive || !lat) return;
-  if(_sosActive && Date.now() < _sosExpiry) return;
-  try {
-    const base  = firebaseConfig.databaseURL;
-    const spd   = speed || 0;
-    const status = spd > 0.5 ? 'moving' : 'online';
-    const payload = JSON.stringify({ lat, lng, heading:heading||0, speed:Math.round(spd*3.6), status, ts:Date.now() });
-    fetch(`${base}/search_missions/${missionId}/locations/${user.id}.json`, { method:'PUT', body:payload }).catch(()=>{});
-    fetch(`${base}/search_missions/${missionId}/members/${user.id}/lastSeen.json`, { method:'PUT', body:JSON.stringify(Date.now()) }).catch(()=>{});
-  } catch(e){}
-}
-
-// ── Realtime Listeners ────────────────────────────────────
-function listenLocations() {
-  if(_locListener) { _locListener(); _locListener = null; }
-  if(_memListener) { _memListener(); _memListener = null; }
-
-  let _locs = {}, _mems = {};
-  function rerender() { renderMarkers(_locs, _mems); renderMemberPanel(_locs, _mems); }
-
-  _locListener = onValue(ref(db, `search_missions/${missionId}/locations`), snap => {
-    _locs = snap.val() || {}; rerender();
-  });
-  _memListener = onValue(ref(db, `search_missions/${missionId}/members`), snap => {
-    _mems = snap.val() || {}; rerender();
-  });
-}
-
-function listenMissionStatus() {
-  if(_statusListener) { _statusListener(); _statusListener = null; }
-  _statusListener = onValue(ref(db, `search_missions/${missionId}/status`), snap => {
-    if(snap.val() === 'closed') {
-      if(_statusListener) { _statusListener(); _statusListener = null; }
-      if(_locListener)    { _locListener();    _locListener    = null; }
-      if(_memListener)    { _memListener();    _memListener    = null; }
-      stopGps();
-      showToast('ภารกิจสิ้นสุดแล้ว — ระบบหยุดติดตาม GPS','info');
-      setTimeout(() => location.replace('index.html?tab=search-mission'), 2000);
+function listenStatus(){
+  if(_unStatus){_unStatus();_unStatus=null;}
+  _unStatus=onValue(ref(db,`search_missions/${missionId}/status`),s=>{
+    if(s.val()==='closed'){
+      [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones].forEach(f=>f&&f());
+      stopGps(); toast('ภารกิจสิ้นสุดแล้ว','info');
+      setTimeout(()=>location.replace('index.html?tab=search-mission'),2000);
     }
   });
 }
-
-// ── Heartbeat ─────────────────────────────────────────────
-function startHeartbeat() {
-  setInterval(() => {
-    if(!_gpsActive) return;
-    const isSosNow = _sosActive && Date.now() < _sosExpiry;
-    update(ref(db, `search_missions/${missionId}/members/${user.id}`),
-           { lastSeen: Date.now(), status: isSosNow ? 'sos' : 'online' }).catch(()=>{});
-  }, 25000);
-}
-
-// ── Markers ───────────────────────────────────────────────
-const COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1'];
-function getColor(idx) { return COLORS[idx % COLORS.length]; }
-
-function makeMarkerIcon(label, color, status) {
-  const pulse = status === 'sos' ? 'sos-marker-pulse' : '';
-  const bg = status === 'sos' ? '#dc2626' : status === 'offline' ? '#94a3b8' : color;
-  const ring = status === 'online' ? `box-shadow:0 0 0 3px ${color}55,0 2px 8px rgba(0,0,0,0.3)` : 'box-shadow:0 2px 8px rgba(0,0,0,0.3)';
-  return L.divIcon({
-    html: `<div class="${pulse}" style="
-      width:32px;height:32px;border-radius:50%;background:${bg};
-      display:flex;align-items:center;justify-content:center;
-      color:#fff;font-size:12px;font-weight:800;font-family:'Kanit',sans-serif;
-      border:2.5px solid #fff;${ring}">
-      ${status === 'sos' ? '🆘' : label.slice(0,2)}
-    </div>`,
-    className: '', iconSize:[32,32], iconAnchor:[16,16]
+function listenChat(){
+  if(_unChat){_unChat();_unChat=null;}
+  _unChat=onValue(ref(db,`search_missions/${missionId}/chat`),s=>{
+    const msgs=Object.entries(s.val()||{}).sort((a,b)=>(a[1].ts||0)-(b[1].ts||0));
+    renderChat(msgs);
+    if(!_chatOpen){
+      const n=msgs.filter(([,m])=>(m.ts||0)>_lastChatTs&&m.senderId!==user.id).length;
+      if(n>0){_unread+=n;updateBadge();}
+    }
   });
 }
+function listenPins(){ if(_unPins){_unPins();_unPins=null;} _unPins=onValue(ref(db,`search_missions/${missionId}/pins`),s=>renderPins(s.val()||{})); }
+function listenZones(){ if(_unZones){_unZones();_unZones=null;} _unZones=onValue(ref(db,`search_missions/${missionId}/zones`),s=>renderZones(s.val()||{})); }
+function heartbeat(){
+  setInterval(()=>{
+    if(!_gps) return;
+    update(ref(db,`search_missions/${missionId}/members/${user.id}`),{lastSeen:Date.now(),status:(_sosOn&&Date.now()<_sosExp)?'sos':'online'}).catch(()=>{});
+  },25000);
+}
 
-function renderMarkers(locs, members) {
+// ─── Markers ─────────────────────────────────────────────
+function gc(i){return COLORS[i%COLORS.length];}
+function mkIcon(lbl,color,status){
+  const pulse=status==='sos'?'sos-pulse':'', bg=status==='sos'?'#dc2626':status==='offline'?'#94a3b8':color;
+  const ring=status==='online'?`box-shadow:0 0 0 3px ${color}55,0 2px 8px rgba(0,0,0,0.3)`:'box-shadow:0 2px 8px rgba(0,0,0,0.3)';
+  return L.divIcon({html:`<div class="${pulse}" style="width:32px;height:32px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;font-family:'Kanit',sans-serif;border:2.5px solid #fff;${ring}">${status==='sos'?'🆘':lbl.slice(0,2)}</div>`,className:'',iconSize:[32,32],iconAnchor:[16,16]});
+}
+function renderMarkers(locs,mems){
   if(!_map) return;
-  const now = Date.now();
-  const allUids = new Set([...Object.keys(locs), ...Object.keys(members)]);
-
-  allUids.forEach((uid,idx) => {
-    const loc = locs[uid];
-    const mem = members[uid] || {};
-    const empId = mem.empId || uid.slice(-6);
-    const color = getColor(idx);
-    let status = 'offline';
-    if(loc) {
-      const age = now - (loc.ts||0);
-      if(mem.status === 'sos') status = 'sos';
-      else if(age < 120000) status = loc.status || 'online';
-    }
-    if(!loc) {
-      if(_markers[uid]) { _markers[uid].remove(); delete _markers[uid]; }
-      return;
-    }
-    if(_markers[uid]) {
-      _markers[uid].setLatLng([loc.lat, loc.lng]);
-      _markers[uid].setIcon(makeMarkerIcon(empId, color, status));
-    } else {
-      _markers[uid] = L.marker([loc.lat, loc.lng], {
-        icon: makeMarkerIcon(empId, color, status),
-        zIndexOffset: uid === user.id ? 1000 : 0
-      }).addTo(_map);
-    }
-    const isSelf  = uid === user.id;
-    const lastSeen = loc.ts ? timeAgo(loc.ts) : '-';
+  const now=Date.now(), uids=new Set([...Object.keys(locs),...Object.keys(mems)]);
+  uids.forEach((uid,i)=>{
+    const lo=locs[uid],me=mems[uid]||{},id=me.empId||uid.slice(-6),c=gc(i);
+    let st='offline';
+    if(lo){const age=now-(lo.ts||0); if(me.status==='sos') st='sos'; else if(age<120000) st=lo.status||'online';}
+    if(!lo){if(_markers[uid]){_markers[uid].remove();delete _markers[uid];}return;}
+    if(_markers[uid]){_markers[uid].setLatLng([lo.lat,lo.lng]);_markers[uid].setIcon(mkIcon(id,c,st));}
+    else{_markers[uid]=L.marker([lo.lat,lo.lng],{icon:mkIcon(id,c,st),zIndexOffset:uid===user.id?1000:0}).addTo(_map);}
+    const self=uid===user.id,ls=lo.ts?ago(lo.ts):'-';
     _markers[uid].bindPopup(`
-      <div class="map-popup-title">${isSelf ? '📍 คุณ' : '👤'} ${mem.name||empId}</div>
-      <div class="map-popup-row">รหัส: <b>${empId}</b></div>
-      <div class="map-popup-row">สถานะ: <b>${statusLabel(status)}</b></div>
-      ${loc.speed !== undefined ? `<div class="map-popup-row">ความเร็ว: <b>${loc.speed} กม./ชม.</b></div>` : ''}
-      <div class="map-popup-row">อัปเดต: <b>${lastSeen}</b></div>
-      ${status==='sos' ? '<div style="background:#fef2f2;color:#dc2626;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:700;margin-top:6px">🆘 ขอความช่วยเหลือ!</div>' : ''}
+      <div class="pp-title">${self?'📍 คุณ':'👤'} ${me.name||id}</div>
+      <div class="pp-row">สถานะ: <b>${stLbl(st)}</b></div>
+      ${lo.speed!=null?`<div class="pp-row">ความเร็ว: <b>${lo.speed} กม./ชม.</b></div>`:''}
+      <div class="pp-row">อัปเดต: <b>${ls}</b></div>
+      ${st==='sos'?'<div style="background:#fef2f2;color:#dc2626;padding:5px 9px;border-radius:7px;font-size:11px;font-weight:700;margin-top:5px">🆘 ขอความช่วยเหลือ!</div>':''}
+      ${!self&&lo.lat?`<button class="pp-btn" onclick="W.showNav(${lo.lat},${lo.lng},'${(me.name||'').replace(/'/g,'')}');this.closest('.leaflet-popup').querySelector('a.leaflet-popup-close-button')?.click()"><i class="fas fa-directions"></i> นำทาง</button>`:''}
     `);
   });
-  Object.keys(_markers).forEach(uid => {
-    if(!allUids.has(uid)) { _markers[uid].remove(); delete _markers[uid]; }
-  });
+  Object.keys(_markers).forEach(uid=>{if(!uids.has(uid)){_markers[uid].remove();delete _markers[uid];}});
 }
 
-function renderMemberPanel(locs, members) {
-  const listEl    = document.getElementById('member-list');
-  const onlineEl  = document.getElementById('online-count');
-  const headerEl  = document.getElementById('member-panel-header');
+// ─── Trail ───────────────────────────────────────────────
+function renderTrails(mems){
+  if(!_map||!_trailOn) return;
+  Object.values(_trailLayers).forEach(l=>l.remove()); _trailLayers={};
+  get(ref(db,`search_missions/${missionId}/trails`)).then(s=>{
+    const trails=s.val()||{};
+    Object.entries(trails).forEach(([uid,pts],i)=>{
+      if(!pts||pts.length<2) return;
+      const idx=Object.keys(mems).indexOf(uid), c=gc(idx>=0?idx:i);
+      _trailLayers[uid]=L.polyline(pts.map(p=>[p[0],p[1]]),{color:c,weight:3,opacity:0.7,dashArray:'6,4'}).addTo(_map);
+    });
+  });
+}
+function toggleTrail(){
+  _trailOn=!_trailOn;
+  document.getElementById('btn-trail').classList.toggle('trail-on',_trailOn);
+  if(!_trailOn){Object.values(_trailLayers).forEach(l=>l.remove());_trailLayers={};}
+  else get(ref(db,`search_missions/${missionId}/members`)).then(s=>renderTrails(s.val()||{}));
+  toast(_trailOn?'แสดงเส้นทางการเดิน ✅':'ซ่อนเส้นทางการเดิน','info');
+}
+
+// ─── Member panel ─────────────────────────────────────────
+function renderMemPanel(locs,mems){
+  const listEl=document.getElementById('member-list'), cntEl=document.getElementById('online-count'), hdrEl=document.getElementById('mem-hdr');
   if(!listEl) return;
-
-  const now    = Date.now();
-  const myLoc  = locs[user.id];
-  const entries= Object.entries(members);
-
-  const rows = entries.map(([uid,mem],idx) => {
-    const loc    = locs[uid];
-    const color  = getColor(idx);
-    let status   = 'offline';
-    if(loc) {
-      if(mem.status === 'sos') status = 'sos';
-      else if((now-(loc.ts||0)) < 120000) status = loc.status || 'online';
-    }
-    const isSelf  = uid === user.id;
-    const lastSeen = loc?.ts ? timeAgo(loc.ts) : 'ออฟไลน์';
-    const spd      = loc?.speed !== undefined ? ` · ${loc.speed} กม./ชม.` : '';
-
-    let distBadge = '';
-    if(!isSelf && myLoc && loc?.lat) {
-      const dist = calcDist(myLoc.lat, myLoc.lng, loc.lat, loc.lng);
-      const dc   = dist < 100 ? '#10b981' : dist < 500 ? '#f59e0b' : '#ef4444';
-      distBadge  = `<span style="font-size:10px;font-weight:700;color:${dc};background:${dc}18;border-radius:5px;padding:2px 5px;margin-left:3px;">${fmtDist(dist)}</span>`;
-    }
-    const coordLine = (loc?.lat) ? `<div style="font-size:10px;color:#94a3b8;font-family:monospace;">📍${loc.lat.toFixed(5)},${loc.lng.toFixed(5)}</div>` : '';
-
-    return `
-      <div class="member-row${status==='sos'?' sos-alert':''}">
-        <div class="member-dot ${status}"></div>
-        <div class="member-avatar" style="background:linear-gradient(135deg,${color},${color}99)">${(mem.name||'?').charAt(0)}</div>
-        <div class="member-info">
-          <div class="member-name">
-            ${isSelf?'👤 คุณ':''} ${mem.name||mem.empId||uid.slice(-6)}${distBadge}
-            ${status==='sos'?'<span style="font-size:10px;font-weight:800;color:#dc2626;background:#fee2e2;border-radius:4px;padding:1px 5px">🆘SOS!</span>':''}
-          </div>
-          <div class="member-status">${statusLabel(status)}${spd} · ${lastSeen}</div>
-          ${coordLine}
-        </div>
-        <div class="member-actions">
-          ${loc ? `<button class="locate-btn" onclick="smFlyTo(${loc.lat},${loc.lng})" title="โฟกัส"><i class="fas fa-crosshairs"></i></button>` : ''}
-          ${(!isSelf && loc?.lat) ? `<button onclick="showNavOptions(${loc.lat},${loc.lng},'${(mem.name||'สมาชิก').replace(/'/g,'')}')'" class="locate-btn" style="color:#10b981;border-color:#10b981" title="นำทาง"><i class="fas fa-directions"></i></button>` : ''}
-        </div>
-      </div>`;
-  });
-
-  listEl.innerHTML = rows.length ? rows.join('') : '<div style="padding:14px;text-align:center;color:var(--text-muted);font-size:12px">ยังไม่มีสมาชิก</div>';
-
-  const hasSos      = Object.values(members).some(m => m.status === 'sos');
-  const hasSosOther = Object.entries(members).some(([uid,m]) => m.status === 'sos' && uid !== user.id);
-  if(headerEl) headerEl.classList.toggle('sos-alert', hasSos);
-  if(hasSosOther && listEl.classList.contains('collapsed')) {
-    listEl.classList.remove('collapsed');
-    document.getElementById('panel-toggle-btn')?.classList.remove('collapsed');
-  }
-  if(hasSosOther && !listEl._lastSosAlert) {
-    listEl._lastSosAlert = true;
-    if(navigator.vibrate) navigator.vibrate([200,100,200,100,400]);
-  } else if(!hasSosOther) { listEl._lastSosAlert = false; }
-
-  const onlineCount = Object.values(members).filter((_,i) => {
-    const uid = Object.keys(members)[i];
-    const loc = locs[uid];
-    return loc && (Date.now()-(loc.ts||0)) < 120000;
-  }).length;
-  if(onlineEl) onlineEl.textContent = `${onlineCount} ออนไลน์`;
+  const now=Date.now(), myL=locs[user.id];
+  listEl.innerHTML=Object.entries(mems).map(([uid,me],i)=>{
+    const lo=locs[uid],c=gc(i); let st='offline';
+    if(lo){if(me.status==='sos') st='sos';else if((now-(lo.ts||0))<120000) st=lo.status||'online';}
+    const self=uid===user.id,ls=lo?.ts?ago(lo.ts):'ออฟไลน์',spd=lo?.speed!=null?` · ${lo.speed}กม./ชม.`:'';
+    let dist='';
+    if(!self&&myL&&lo?.lat){const d=calcD(myL.lat,myL.lng,lo.lat,lo.lng);const dc=d<100?'#10b981':d<500?'#f59e0b':'#ef4444';dist=`<span style="font-size:9px;font-weight:700;color:${dc};background:${dc}18;border-radius:4px;padding:1px 5px;margin-left:2px">${fmtD(d)}</span>`;}
+    return `<div class="member-row${st==='sos'?' sos-alert':''}">
+      <div class="mdot ${st}"></div>
+      <div class="mavatar" style="background:linear-gradient(135deg,${c},${c}99)">${(me.name||'?').charAt(0)}</div>
+      <div class="minfo">
+        <div class="mname">${self?'👤 คุณ':''} ${me.name||uid.slice(-6)}${dist}${st==='sos'?'<span style="font-size:9px;font-weight:800;color:#dc2626;background:#fee2e2;border-radius:4px;padding:1px 5px">🆘SOS!</span>':''}</div>
+        <div class="mstatus">${stLbl(st)}${spd} · ${ls}</div>
+      </div>
+      <div class="mactions">
+        ${lo?`<button class="mbtn" onclick="W.flyTo(${lo.lat},${lo.lng})"><i class="fas fa-crosshairs"></i></button>`:''}
+        ${!self&&lo?.lat?`<button class="mbtn" style="color:#10b981;border-color:#10b981" onclick="W.showNav(${lo.lat},${lo.lng},'${(me.name||'').replace(/'/g,'')}')"><i class="fas fa-directions"></i></button>`:''}
+      </div>
+    </div>`;
+  }).join('')||'<div style="padding:12px;text-align:center;color:var(--text-muted);font-size:11px">ยังไม่มีสมาชิก</div>';
+  const hasSos=Object.values(mems).some(m=>m.status==='sos');
+  const hasSosOther=Object.entries(mems).some(([u,m])=>m.status==='sos'&&u!==user.id);
+  if(hdrEl) hdrEl.classList.toggle('sos-alert',hasSos);
+  if(hasSosOther&&listEl.classList.contains('collapsed')){listEl.classList.remove('collapsed');document.getElementById('panel-toggle').classList.remove('collapsed');}
+  if(hasSosOther&&!listEl._sos){listEl._sos=true;if(navigator.vibrate)navigator.vibrate([200,100,200,100,400]);alertSound();}
+  else if(!hasSosOther) listEl._sos=false;
+  const on=Object.values(mems).filter((_,i)=>{const uid=Object.keys(mems)[i];const lo=locs[uid];return lo&&(Date.now()-(lo.ts||0))<120000;}).length;
+  if(cntEl) cntEl.textContent=`${on} ออนไลน์`;
+}
+function togglePanel(){
+  const l=document.getElementById('member-list'),t=document.getElementById('panel-toggle');
+  if(!l) return;
+  const c=l.classList.toggle('collapsed');
+  if(t) t.classList.toggle('collapsed',c);
+}
+function alertSound(){
+  try{const ctx=new(window.AudioContext||window.webkitAudioContext)();[0,0.3,0.6].forEach(t=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.setValueAtTime(0.3,ctx.currentTime+t);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.25);o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+0.25);});}catch(e){}
 }
 
-// ── SOS ───────────────────────────────────────────────────
-function bindSosBtn() {
-  const btn = document.getElementById('sos-btn');
-  if(!btn || btn._bound) return;
-  btn._bound = true;
-  function onStart(e) {
-    e.preventDefault();
-    btn.style.opacity = '0.7';
-    btn.textContent = '🆘 กดค้างไว้ 3 วิ...';
-    if(navigator.vibrate) navigator.vibrate(50);
-    clearTimeout(_sosTimer);
-    _sosTimer = setTimeout(triggerSos, 3000);
-  }
-  function onEnd() {
-    clearTimeout(_sosTimer);
-    if(!_sosActive) { btn.style.opacity='1'; btn.innerHTML='<i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน'; }
-  }
-  btn.addEventListener('touchstart',  onStart, {passive:false});
-  btn.addEventListener('touchend',    onEnd,   {passive:true});
-  btn.addEventListener('touchcancel', onEnd,   {passive:true});
-  btn.addEventListener('mousedown',   onStart, {passive:false});
-  btn.addEventListener('mouseup',     onEnd,   {passive:true});
-  btn.addEventListener('mouseleave',  onEnd,   {passive:true});
+// ─── SOS ─────────────────────────────────────────────────
+function bindSos(){
+  const btn=document.getElementById('sos-btn'); if(!btn||btn._b) return; btn._b=true;
+  const go=e=>{e.preventDefault();btn.style.opacity='0.7';btn.textContent='🆘 กดค้างไว้ 3 วิ...';if(navigator.vibrate)navigator.vibrate(50);clearTimeout(_sosT);_sosT=setTimeout(trigSos,3000);};
+  const up=()=>{clearTimeout(_sosT);if(!_sosOn){btn.style.opacity='1';btn.innerHTML='<i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน';}};
+  btn.addEventListener('touchstart',go,{passive:false});btn.addEventListener('touchend',up,{passive:true});btn.addEventListener('touchcancel',up,{passive:true});btn.addEventListener('mousedown',go,{passive:false});btn.addEventListener('mouseup',up,{passive:true});btn.addEventListener('mouseleave',up,{passive:true});
 }
-
-async function triggerSos() {
-  const btn = document.getElementById('sos-btn');
-  if(btn) { btn.style.opacity='1'; btn.innerHTML='<i class="fas fa-exclamation-triangle"></i> SOS ส่งแล้ว!'; btn.style.background='#7f1d1d'; }
-  _sosActive = true; _sosExpiry = Date.now() + 60000;
-  try {
-    await Promise.all([
-      update(ref(db, `search_missions/${missionId}/members/${user.id}`), { status:'sos', sosAt:Date.now() }),
-      update(ref(db, `search_missions/${missionId}/locations/${user.id}`), { status:'sos', ts:Date.now() })
-    ]);
-  } catch(e){}
-  showToast('🆘 ส่ง SOS แล้ว! ทีมจะเห็นตำแหน่งคุณ','error');
-  const cancelBtn = document.getElementById('sos-cancel-btn');
-  const sosBtn    = document.getElementById('sos-btn');
-  if(cancelBtn) { cancelBtn.style.display='flex'; }
-  if(sosBtn)    sosBtn.style.display='none';
-  setTimeout(() => { _sosActive=false; _sosExpiry=0; restoreSosBtn(); }, 60000);
+async function trigSos(){
+  const btn=document.getElementById('sos-btn');
+  if(btn){btn.style.opacity='1';btn.innerHTML='<i class="fas fa-exclamation-triangle"></i> SOS ส่งแล้ว!';btn.style.background='#7f1d1d';}
+  _sosOn=true;_sosExp=Date.now()+60000;
+  try{await Promise.all([update(ref(db,`search_missions/${missionId}/members/${user.id}`),{status:'sos',sosAt:Date.now()}),update(ref(db,`search_missions/${missionId}/locations/${user.id}`),{status:'sos',ts:Date.now()})]);}catch(e){}
+  toast('🆘 ส่ง SOS แล้ว! ทีมจะเห็นตำแหน่งคุณ','error');
+  document.getElementById('sos-cancel-btn').style.display='flex';
+  document.getElementById('sos-btn').style.display='none';
+  setTimeout(()=>{_sosOn=false;_sosExp=0;resetSos();},60000);
 }
-
-function cancelSos() {
-  if(!confirm('ยืนยันการยกเลิก SOS?')) return;
-  _sosActive = false; _sosExpiry = 0;
-  Promise.all([
-    update(ref(db, `search_missions/${missionId}/members/${user.id}`), { status:'online', sosAt:null }),
-    update(ref(db, `search_missions/${missionId}/locations/${user.id}`), { status:'online' })
-  ]).catch(()=>{});
-  showToast('ยกเลิก SOS แล้ว','info');
-  restoreSosBtn();
+function cancelSos(){
+  if(!confirm('ยืนยันยกเลิก SOS?')) return;
+  _sosOn=false;_sosExp=0;
+  Promise.all([update(ref(db,`search_missions/${missionId}/members/${user.id}`),{status:'online',sosAt:null}),update(ref(db,`search_missions/${missionId}/locations/${user.id}`),{status:'online'})]).catch(()=>{});
+  toast('ยกเลิก SOS แล้ว','info');resetSos();
 }
-
-function restoreSosBtn() {
-  document.getElementById('sos-cancel-btn').style.display = 'none';
-  const btn = document.getElementById('sos-btn');
-  btn.style.display   = 'flex';
-  btn.style.background = '';
-  btn.style.opacity    = '1';
-  btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน';
+function resetSos(){
+  document.getElementById('sos-cancel-btn').style.display='none';
+  const b=document.getElementById('sos-btn');b.style.display='flex';b.style.background='';b.style.opacity='1';b.innerHTML='<i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน';
 }
-
-// ── Map controls ──────────────────────────────────────────
-function centerMap() {
+function centerMap(){
   if(!_map) return;
-  const ms = Object.values(_markers);
-  if(!ms.length) { showToast('ยังไม่มีตำแหน่งทีม','info'); return; }
+  const ms=Object.values(_markers);if(!ms.length){toast('ยังไม่มีตำแหน่งทีม','info');return;}
   _map.fitBounds(L.featureGroup(ms).getBounds().pad(0.2));
 }
 
-// ── Toggle panel ──────────────────────────────────────────
-function toggleMemberPanel() {
-  const list   = document.getElementById('member-list');
-  const toggle = document.getElementById('panel-toggle-btn');
-  if(!list) return;
-  const isCollapsed = list.classList.toggle('collapsed');
-  if(toggle) toggle.classList.toggle('collapsed', isCollapsed);
+// ══════════════════════════════════════════════════════════
+// ─── ZONE DRAWING ─────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+function toggleDraw(){
+  if(_drawOn){cancelDraw();return;}
+  document.getElementById('draw-tb').classList.add('show');
+  document.getElementById('btn-draw').classList.add('active');
 }
-
-// ── Leave ─────────────────────────────────────────────────
-function confirmLeave() {
-  if(!confirm('ยืนยันออกจากภารกิจ?\nระบบจะหยุดส่งตำแหน่งของคุณ')) return;
-  _gpsActive = false;
-  stopGps();
-  if(_locListener)    { _locListener();    _locListener    = null; }
-  if(_memListener)    { _memListener();    _memListener    = null; }
-  if(_statusListener) { _statusListener(); _statusListener = null; }
-  Promise.all([
-    remove(ref(db, `search_missions/${missionId}/members/${user.id}`)),
-    remove(ref(db, `search_missions/${missionId}/locations/${user.id}`))
-  ]).catch(()=>{});
-  localStorage.removeItem('sm_active_mission');
-  location.replace('index.html?tab=search-mission');
+function setDrawMode(mode){
+  _drawMode=mode;_drawOn=true;
+  document.querySelectorAll('.dmbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(`dm-${mode}`).classList.add('active');
+  const hints={free:'🖊️ แตะแล้วลากอิสระ',rect:'⬜ คลิกจุดเริ่ม แล้วลาก',circle:'⭕ คลิกจุดกลาง แล้วลาก'};
+  document.getElementById('draw-hint').textContent=hints[mode]||'';
+  if(_map){_map.dragging.disable();_map.getContainer().style.cursor='crosshair';}
+  clearPrev();
 }
-
-// ── End Mission ───────────────────────────────────────────
-function showEndModal() {
-  _pendingPhotos = [];
-  renderPhotoPreviews();
-  setEndBtnLoading(false);
-  openModal('modal-end');
+function cancelDraw(){
+  _drawMode=null;_drawOn=false;_pendingZone=null;
+  document.getElementById('draw-tb').classList.remove('show');
+  document.getElementById('btn-draw').classList.remove('active');
+  if(_map){_map.dragging.enable();_map.getContainer().style.cursor='';}
+  clearPrev();
 }
-
-async function endMission() {
-  const summary = document.getElementById('end-summary')?.value?.trim();
-  if(!summary) { showToast('กรุณากรอกสรุปผลภารกิจ','error'); return; }
-  setEndBtnLoading(true);
-  try {
-    const snap    = await get(ref(db, `search_missions/${missionId}`));
-    const mission = snap.val() || {};
-    const canEnd  = mission.createdBy === user.id || user.role === 'admin';
-    if(!canEnd) { showToast('ไม่มีสิทธิ์จบภารกิจ','error'); setEndBtnLoading(false); return; }
-
-    const memberSnapshot = mission.members ? JSON.parse(JSON.stringify(mission.members)) : {};
-    const photos = _pendingPhotos.filter(p=>!p.loading && p.dataUrl).map(p=>({ data:p.dataUrl, size:p.compSize||0 }));
-
-    await update(ref(db, `search_missions/${missionId}`), {
-      status:'closed', closedAt:Date.now(),
-      closedBy: user.id, closedByName: user.name || user.id,
-      summary, memberSnapshot,
-      ...(photos.length > 0 && { photos })
-    });
-    await remove(ref(db, `search_missions/${missionId}/locations`)).catch(()=>{});
-
-    showToast('จบภารกิจสำเร็จ ✅','success');
-    stopGps();
-    _gpsActive = false;
-    if(_locListener)    { _locListener();    _locListener    = null; }
-    if(_memListener)    { _memListener();    _memListener    = null; }
-    if(_statusListener) { _statusListener(); _statusListener = null; }
-    localStorage.removeItem('sm_active_mission');
-    setTimeout(() => location.replace('index.html?tab=search-mission'), 1200);
-  } catch(e) {
-    showToast('เกิดข้อผิดพลาด: '+e.message,'error');
-    setEndBtnLoading(false);
-  }
+function clearPrev(){
+  _fPts=[];if(_fLine){_fLine.remove();_fLine=null;}
+  _rStart=null;if(_rRect){_rRect.remove();_rRect=null;}
+  _cCtr=null;if(_cCirc){_cCirc.remove();_cCirc=null;}
 }
-
-function setEndBtnLoading(on) {
-  const btn = document.getElementById('end-confirm-btn');
-  if(!btn) return;
-  btn.disabled = on;
-  btn.innerHTML = on ? '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...' : '<i class="fas fa-flag-checkered"></i> ยืนยันจบภารกิจ';
+function getLL(e){
+  if(e.latlng) return e.latlng;
+  if(e.touches){const r=_map.getContainer().getBoundingClientRect();return _map.containerPointToLatLng(L.point(e.touches[0].clientX-r.left,e.touches[0].clientY-r.top));}
+  return null;
 }
-
-// ── Photos ────────────────────────────────────────────────
-function handlePhotoSelect(e) {
-  addPhotos(Array.from(e.target.files));
-  e.target.value = '';
-}
-async function addPhotos(files) {
-  const max  = 5;
-  const left = max - _pendingPhotos.length;
-  if(left <= 0) { showToast('อัพโหลดได้สูงสุด 5 รูป','error'); return; }
-  const toAdd = files.filter(f=>f.type.startsWith('image/')).slice(0,left);
-  const si    = _pendingPhotos.length;
-  toAdd.forEach(()=> _pendingPhotos.push({ loading:true }));
-  renderPhotoPreviews();
-  const results = await Promise.all(toAdd.map(f => compressImage(f).catch(()=>null)));
-  results.forEach((res,i) => {
-    if(res) _pendingPhotos[si+i] = res;
-    else    _pendingPhotos.splice(si+i,1);
+function setupDrawEvents(){
+  _map.on('mousedown touchstart',e=>{
+    if(!_drawOn||!_drawMode) return;
+    const ll=getLL(e); if(!ll) return;
+    if(_drawMode==='free'){_fPts=[ll];if(_fLine){_fLine.remove();}_fLine=L.polyline([ll],{color:_zoneColor,weight:3,dashArray:'6,3'}).addTo(_map);}
+    if(_drawMode==='rect'){_rStart=ll;}
+    if(_drawMode==='circle'){_cCtr=ll;}
   });
-  renderPhotoPreviews();
+  _map.on('mousemove touchmove',e=>{
+    if(!_drawOn||!_drawMode) return;
+    const ll=getLL(e); if(!ll) return;
+    if(_drawMode==='free'&&_fPts.length){_fPts.push(ll);_fLine?.setLatLngs(_fPts);}
+    if(_drawMode==='rect'&&_rStart){const b=L.latLngBounds(_rStart,ll);if(_rRect){_rRect.setBounds(b);}else{_rRect=L.rectangle(b,{color:_zoneColor,weight:2,fillOpacity:0.2,dashArray:'6,3'}).addTo(_map);}}
+    if(_drawMode==='circle'&&_cCtr){const r=_cCtr.distanceTo(ll);if(_cCirc){_cCirc.setRadius(r);}else{_cCirc=L.circle(_cCtr,{radius:r,color:_zoneColor,weight:2,fillOpacity:0.15,dashArray:'6,3'}).addTo(_map);}}
+  });
+  _map.on('mouseup touchend',e=>{
+    if(!_drawOn||!_drawMode) return;
+    const ll=getLL(e)||(e.changedTouches?_map.containerPointToLatLng(L.point(e.changedTouches[0].clientX-_map.getContainer().getBoundingClientRect().left,e.changedTouches[0].clientY-_map.getContainer().getBoundingClientRect().top)):null);
+    if(_drawMode==='free'){
+      if(_fPts.length<3){clearPrev();return;}
+      _pendingZone={type:'polygon',latlngs:_fPts.map(p=>({lat:p.lat,lng:p.lng}))};
+    } else if(_drawMode==='rect'&&_rStart&&ll){
+      const b=L.latLngBounds(_rStart,ll);
+      _pendingZone={type:'rectangle',sw:{lat:b.getSouth(),lng:b.getWest()},ne:{lat:b.getNorth(),lng:b.getEast()}};
+    } else if(_drawMode==='circle'&&_cCtr&&ll){
+      const r=_cCtr.distanceTo(ll); if(r<10){clearPrev();return;}
+      _pendingZone={type:'circle',center:{lat:_cCtr.lat,lng:_cCtr.lng},radius:Math.round(r)};
+    } else return;
+    if(_map){_map.dragging.enable();_map.getContainer().style.cursor='';}
+    document.getElementById('zone-name').value='';
+    document.querySelectorAll('.cswatch').forEach(s=>s.classList.toggle('sel',s.dataset.c===_zoneColor));
+    openModal('modal-zone');
+  });
 }
-function compressImage(file, maxPx=1024, quality=0.65) {
-  return new Promise((resolve,reject) => {
-    const r = new FileReader();
-    r.onerror = reject;
-    r.onload  = ev => {
-      const img = new Image();
-      img.onerror = reject;
-      img.onload  = () => {
-        let {width,height} = img;
-        if(width>maxPx||height>maxPx){
-          if(width>=height){height=Math.round(height*maxPx/width);width=maxPx;}
-          else{width=Math.round(width*maxPx/height);height=maxPx;}
-        }
-        const c=document.createElement('canvas'); c.width=width; c.height=height;
-        const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,width,height);
-        ctx.drawImage(img,0,0,width,height);
-        c.toBlob(blob=>{
-          if(!blob){reject(new Error('blob failed'));return;}
-          resolve({ blob, dataUrl:c.toDataURL('image/jpeg',quality), origSize:file.size, compSize:blob.size, loading:false });
-        },'image/jpeg',quality);
-      };
-      img.src = ev.target.result;
-    };
+function pickColor(el){document.querySelectorAll('.cswatch').forEach(s=>s.classList.remove('sel'));el.classList.add('sel');_zoneColor=el.dataset.c;}
+async function saveZone(){
+  const name=document.getElementById('zone-name').value.trim();
+  if(!name){toast('กรุณาใส่ชื่อโซน','error');return;}
+  if(!_pendingZone){closeModal('modal-zone');cancelDraw();return;}
+  try{
+    await push(ref(db,`search_missions/${missionId}/zones`),{name,shape:_pendingZone,color:_zoneColor,createdBy:user.id,createdByName:user.name||user.id,createdAt:Date.now()});
+    toast('บันทึกโซนสำเร็จ ✅','success');
+  }catch(e){toast('บันทึกไม่สำเร็จ','error');}
+  closeModal('modal-zone');cancelDraw();
+}
+function cancelZone(){closeModal('modal-zone');cancelDraw();}
+function renderZones(zones){
+  if(!_map) return;
+  Object.values(_zoneLayers).forEach(l=>l.remove());_zoneLayers={};
+  if(!_zonesOn) return;
+  Object.entries(zones).forEach(([id,z])=>{
+    const s=z.shape,c=z.color||'#3b82f6',canDel=z.createdBy===user.id||user.role==='admin';
+    let layer=null;
+    if(s.type==='polygon') layer=L.polygon(s.latlngs.map(p=>[p.lat,p.lng]),{color:c,weight:2.5,fillOpacity:0.15});
+    else if(s.type==='rectangle') layer=L.rectangle([[s.sw.lat,s.sw.lng],[s.ne.lat,s.ne.lng]],{color:c,weight:2.5,fillOpacity:0.15});
+    else if(s.type==='circle') layer=L.circle([s.center.lat,s.center.lng],{radius:s.radius,color:c,weight:2.5,fillOpacity:0.15});
+    if(!layer) return;
+    layer.addTo(_map);
+    layer.bindPopup(`
+      <div class="pp-title" style="color:${c}"><i class="fas fa-draw-polygon" style="margin-right:5px"></i>${z.name}</div>
+      <div class="pp-row">สร้างโดย: ${z.createdByName||'-'}</div>
+      ${s.radius?`<div class="pp-row">รัศมี: ${s.radius>=1000?(s.radius/1000).toFixed(1)+'กม.':s.radius+'ม.'}</div>`:''}
+      ${canDel?`<button class="pp-btn" style="background:#fee2e2;color:#dc2626" onclick="W.delZone('${id}');this.closest('.leaflet-popup').querySelector('a.leaflet-popup-close-button')?.click()"><i class="fas fa-trash"></i> ลบโซน</button>`:''}
+    `);
+    _zoneLayers[id]=layer;
+  });
+}
+function delZone(id){if(!confirm('ลบโซนนี้?')) return;remove(ref(db,`search_missions/${missionId}/zones/${id}`));toast('ลบโซนแล้ว','info');}
+function toggleZones(){
+  _zonesOn=!_zonesOn;
+  document.getElementById('btn-zones').classList.toggle('active',!_zonesOn);
+  get(ref(db,`search_missions/${missionId}/zones`)).then(s=>renderZones(_zonesOn?s.val()||{}:{}));
+  toast(_zonesOn?'แสดงโซนค้นหา':'ซ่อนโซนค้นหา','info');
+}
+
+// ══════════════════════════════════════════════════════════
+// ─── QUICK PINS ───────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+function togglePinPicker(){
+  const p=document.getElementById('pin-picker');p.classList.toggle('show');
+  document.getElementById('btn-pin').classList.toggle('active',p.classList.contains('show'));
+}
+function closePinPicker(){document.getElementById('pin-picker').classList.remove('show');document.getElementById('btn-pin').classList.remove('active');}
+function startPin(type){
+  closePinPicker();_pendingPinType=type;_pendingPinPhoto=null;
+  toast(`แตะบนแผนที่เพื่อปักหมุด "${PIN_CFG[type].label}"`, 'info');
+  if(_map) _map.getContainer().style.cursor='cell';
+  _map.once('click',e=>{
+    _pendingPinLL=e.latlng;
+    const pt=PIN_CFG[type];
+    document.getElementById('pin-modal-title').innerHTML=`<span style="font-size:18px;margin-right:6px">${pt.icon}</span>${pt.label}`;
+    document.getElementById('pin-detail').value='';
+    document.getElementById('pin-img-preview').innerHTML='';
+    document.getElementById('pin-img-input').value='';
+    if(_map) _map.getContainer().style.cursor='';
+    openModal('modal-pin');
+  });
+}
+function handlePinImg(e){
+  const f=e.target.files[0];if(!f) return;
+  compress(f).then(r=>{_pendingPinPhoto=r.url;document.getElementById('pin-img-preview').innerHTML=`<div class="photo-item"><img src="${r.url}"><button class="photo-rm" onclick="_pendingPinPhoto=null;document.getElementById('pin-img-preview').innerHTML='';document.getElementById('pin-img-input').value=''"><i class="fas fa-times"></i></button></div>`;});
+}
+async function confirmPin(){
+  if(!_pendingPinLL||!_pendingPinType) return;
+  const detail=document.getElementById('pin-detail').value.trim();
+  try{
+    await push(ref(db,`search_missions/${missionId}/pins`),{
+      type:_pendingPinType,label:PIN_CFG[_pendingPinType].label,lat:_pendingPinLL.lat,lng:_pendingPinLL.lng,
+      detail,createdBy:user.id,createdByName:user.name||user.id,createdAt:Date.now(),
+      ...(_pendingPinPhoto&&{photo:_pendingPinPhoto})
+    });
+    toast(`ปักหมุด "${PIN_CFG[_pendingPinType].label}" แล้ว ✅`,'success');
+  }catch(e){toast('บันทึกไม่สำเร็จ','error');}
+  closeModal('modal-pin');_pendingPinLL=null;_pendingPinType=null;_pendingPinPhoto=null;
+}
+function mkPinIcon(type){
+  const pt=PIN_CFG[type]||PIN_CFG.note;
+  return L.divIcon({
+    html:`<div style="position:relative;width:40px;height:48px">
+      <div style="width:40px;height:40px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${pt.color};border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;">
+        <div style="transform:rotate(45deg);font-size:17px">${pt.icon}</div>
+      </div>
+    </div>`,
+    className:'',iconSize:[40,48],iconAnchor:[14,48],popupAnchor:[6,-48]
+  });
+}
+function renderPins(pins){
+  if(!_map) return;
+  Object.values(_pinMarkers).forEach(m=>m.remove());_pinMarkers={};
+  Object.entries(pins).forEach(([id,p])=>{
+    const m=L.marker([p.lat,p.lng],{icon:mkPinIcon(p.type),zIndexOffset:500}).addTo(_map);
+    m.on('click',()=>showPinDetail(id,p));
+    _pinMarkers[id]=m;
+  });
+}
+function showPinDetail(id,p){
+  const pt=PIN_CFG[p.type]||PIN_CFG.note, canDel=p.createdBy===user.id||user.role==='admin';
+  document.getElementById('pinv-title').innerHTML=`<span style="font-size:18px;margin-right:6px">${pt.icon}</span><span style="color:${pt.color}">${pt.label}</span>`;
+  document.getElementById('pinv-body').innerHTML=`
+    <div style="display:flex;gap:11px;margin-bottom:11px;align-items:center;background:${pt.bg};border-radius:10px;padding:10px 12px">
+      <div style="font-size:26px">${pt.icon}</div>
+      <div><div style="font-size:11px;color:${pt.color};font-weight:700">${pt.label}</div>
+      <div style="font-size:11px;color:var(--text-muted)">โดย ${p.createdByName||'-'} · ${ago(p.createdAt)}</div></div>
+    </div>
+    ${p.detail?`<div style="background:#f8fafc;border-radius:9px;padding:10px 12px;font-size:13px;color:var(--text-primary);margin-bottom:10px;border-left:3px solid ${pt.color}">${esc(p.detail)}</div>`:''}
+    <div style="font-size:11px;color:var(--text-muted);font-family:monospace;background:#f1f5f9;border-radius:7px;padding:6px 10px;margin-bottom:${p.photo?'10px':'0'}">📍 ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}</div>
+    ${p.photo?`<img src="${p.photo}" style="width:100%;border-radius:10px;cursor:pointer;max-height:200px;object-fit:cover" onclick="W.openLB('${p.photo}')">`:''}
+  `;
+  document.getElementById('pinv-actions').innerHTML=`
+    <a href="https://www.google.com/maps?q=${p.lat},${p.lng}" target="_blank" class="btn btn-primary" style="flex:1;justify-content:center"><i class="fas fa-map-marked-alt"></i> Google Maps</a>
+    ${canDel?`<button class="btn btn-danger" onclick="W.delPin('${id}')"><i class="fas fa-trash"></i></button>`:''}
+  `;
+  openModal('modal-pin-view');
+}
+function delPin(id){if(!confirm('ลบหมุดนี้?')) return;remove(ref(db,`search_missions/${missionId}/pins/${id}`));closeModal('modal-pin-view');toast('ลบหมุดแล้ว','info');}
+
+// ══════════════════════════════════════════════════════════
+// ─── CHAT ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+function openChat(){
+  document.getElementById('chat-panel').classList.add('open');
+  _chatOpen=true;_unread=0;_lastChatTs=Date.now();updateBadge();
+  setTimeout(()=>{const el=document.getElementById('chat-msgs');el.scrollTop=el.scrollHeight;},200);
+}
+function closeChat(){document.getElementById('chat-panel').classList.remove('open');_chatOpen=false;}
+function updateBadge(){
+  const b=document.getElementById('chat-badge');
+  if(_unread>0){b.textContent=_unread>9?'9+':_unread;b.classList.add('show');}
+  else b.classList.remove('show');
+}
+async function sendMsg(){
+  const inp=document.getElementById('chat-input'),txt=inp.value.trim();if(!txt) return;
+  inp.value='';inp.style.height='';
+  await push(ref(db,`search_missions/${missionId}/chat`),{type:'text',text:txt,senderId:user.id,senderName:user.name||user.id,ts:Date.now()});
+}
+async function sendLocation(){
+  if(!navigator.geolocation){toast('ไม่รองรับ GPS','error');return;}
+  toast('กำลังรับพิกัด...','info');
+  navigator.geolocation.getCurrentPosition(async p=>{
+    await push(ref(db,`search_missions/${missionId}/chat`),{type:'location',lat:p.coords.latitude,lng:p.coords.longitude,senderId:user.id,senderName:user.name||user.id,ts:Date.now()});
+    toast('ส่งพิกัดแล้ว ✅','success');
+  },()=>toast('รับพิกัดไม่ได้','error'),{enableHighAccuracy:true,timeout:10000});
+}
+async function sendPhotos(e){
+  const files=Array.from(e.target.files).slice(0,3);e.target.value='';
+  for(const f of files){
+    try{const r=await compress(f,800,0.6);await push(ref(db,`search_missions/${missionId}/chat`),{type:'image',image:r.url,senderId:user.id,senderName:user.name||user.id,ts:Date.now()});}catch(e){}
+  }
+  toast('ส่งรูปแล้ว ✅','success');
+}
+function chatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}
+function autoResize(el){el.style.height='';el.style.height=Math.min(el.scrollHeight,100)+'px';}
+function renderChat(msgs){
+  const el=document.getElementById('chat-msgs');if(!el) return;
+  const bot=el.scrollHeight-el.scrollTop-el.clientHeight<60;
+  if(!msgs.length){el.innerHTML='<div class="chat-sys">ยังไม่มีข้อความ — เริ่มสนทนากับทีมได้เลย</div>';return;}
+  el.innerHTML=msgs.map(([id,m])=>{
+    const mine=m.senderId===user.id, time=new Date(m.ts).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+    let bub='';
+    if(m.type==='image') bub=`<div class="chat-img-wrap" onclick="W.openLB('${m.image}')"><img src="${m.image}" loading="lazy"></div>`;
+    else if(m.type==='location') bub=`<div class="chat-loc-card" onclick="window.open('https://www.google.com/maps?q=${m.lat},${m.lng}','_blank')"><div class="chat-loc-icon"><i class="fas fa-map-marker-alt"></i></div><div><div class="chat-loc-coords">${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}</div><div class="chat-loc-label">📍 กดเปิด Google Maps</div></div></div>`;
+    else bub=`<div class="chat-bubble">${esc(m.text||'')}</div>`;
+    return `<div class="chat-msg ${mine?'mine':'theirs'}">
+      ${!mine?`<div class="chat-sender">${esc(m.senderName||'?')}</div>`:''}
+      ${bub}
+      <div class="chat-time">${time}</div>
+    </div>`;
+  }).join('');
+  if(bot||_chatOpen) el.scrollTop=el.scrollHeight;
+}
+
+// ─── End Mission ──────────────────────────────────────────
+function showEndModal(){_endPhotos=[];renderEndPrev();setEndLoading(false);openModal('modal-end');}
+function handleEndImgs(e){addEndImgs(Array.from(e.target.files));e.target.value='';}
+async function addEndImgs(files){
+  const left=5-_endPhotos.length;if(left<=0){toast('สูงสุด 5 รูป','error');return;}
+  const toAdd=files.filter(f=>f.type.startsWith('image/')).slice(0,left);
+  const si=_endPhotos.length;toAdd.forEach(()=>_endPhotos.push({loading:true}));renderEndPrev();
+  const r=await Promise.all(toAdd.map(f=>compress(f).catch(()=>null)));
+  r.forEach((v,i)=>{if(v)_endPhotos[si+i]={url:v.url,loading:false};else _endPhotos.splice(si+i,1);});renderEndPrev();
+}
+function renderEndPrev(){
+  const g=document.getElementById('end-img-preview');if(!g) return;
+  g.innerHTML=_endPhotos.map((p,i)=>p.loading?`<div class="photo-item" style="display:flex;align-items:center;justify-content:center"><i class="fas fa-spinner fa-spin"></i></div>`:`<div class="photo-item"><img src="${p.url}"><button class="photo-rm" onclick="W.rmEndPhoto(${i})"><i class="fas fa-times"></i></button></div>`).join('');
+}
+async function endMission(){
+  const sum=document.getElementById('end-summary')?.value?.trim();if(!sum){toast('กรุณากรอกสรุปผล','error');return;}
+  setEndLoading(true);
+  try{
+    const snap=await get(ref(db,`search_missions/${missionId}`)),m=snap.val()||{};
+    if(m.createdBy!==user.id&&user.role!=='admin'){toast('ไม่มีสิทธิ์จบภารกิจ','error');setEndLoading(false);return;}
+    const ms=m.members?JSON.parse(JSON.stringify(m.members)):{};
+    const ph=_endPhotos.filter(p=>!p.loading&&p.url).map(p=>({data:p.url}));
+    await update(ref(db,`search_missions/${missionId}`),{status:'closed',closedAt:Date.now(),closedBy:user.id,closedByName:user.name||user.id,summary:sum,memberSnapshot:ms,...(ph.length&&{photos:ph})});
+    await remove(ref(db,`search_missions/${missionId}/locations`)).catch(()=>{});
+    toast('จบภารกิจสำเร็จ ✅','success');stopGps();_gps=false;
+    [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones].forEach(f=>f&&f());
+    localStorage.removeItem('sm_active_mission');
+    setTimeout(()=>location.replace('index.html?tab=search-mission'),1200);
+  }catch(e){toast('เกิดข้อผิดพลาด: '+e.message,'error');setEndLoading(false);}
+}
+function setEndLoading(on){const b=document.getElementById('end-confirm-btn');if(!b) return;b.disabled=on;b.innerHTML=on?'<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...':'<i class="fas fa-flag-checkered"></i> ยืนยันจบภารกิจ';}
+function confirmLeave(){
+  if(!confirm('ยืนยันออกจากภารกิจ?\nระบบจะหยุดส่งตำแหน่งของคุณ')) return;
+  _gps=false;stopGps();
+  [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones].forEach(f=>f&&f());
+  Promise.all([remove(ref(db,`search_missions/${missionId}/members/${user.id}`)),remove(ref(db,`search_missions/${missionId}/locations/${user.id}`))]).catch(()=>{});
+  localStorage.removeItem('sm_active_mission');location.replace('index.html?tab=search-mission');
+}
+
+// ─── Helpers ─────────────────────────────────────────────
+function compress(file,maxPx=1024,q=0.65){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();r.onerror=rej;
+    r.onload=ev=>{const img=new Image();img.onerror=rej;img.onload=()=>{let{width:w,height:h}=img;if(w>maxPx||h>maxPx){if(w>=h){h=Math.round(h*maxPx/w);w=maxPx;}else{w=Math.round(w*maxPx/h);h=maxPx;}}const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);c.toBlob(b=>{if(!b)return rej(new Error('blob'));res({url:c.toDataURL('image/jpeg',q),blob:b});},'image/jpeg',q);};img.src=ev.target.result;};
     r.readAsDataURL(file);
   });
 }
-function renderPhotoPreviews() {
-  const grid = document.getElementById('photo-preview');
-  if(!grid) return;
-  if(!_pendingPhotos.length) { grid.innerHTML=''; return; }
-  grid.innerHTML = _pendingPhotos.map((p,i) => p.loading
-    ? `<div class="photo-preview-item" style="display:flex;align-items:center;justify-content:center;background:#f1f5f9"><i class="fas fa-spinner fa-spin" style="color:var(--primary-light)"></i></div>`
-    : `<div class="photo-preview-item"><img src="${p.dataUrl}"><button class="photo-preview-remove" onclick="removePhoto(${i})"><i class="fas fa-times"></i></button></div>`
-  ).join('');
-}
-function removePhoto(idx) { _pendingPhotos.splice(idx,1); renderPhotoPreviews(); }
+function stLbl(s){return{online:'🟢 ออนไลน์',moving:'🔵 กำลังเดิน',offline:'⚫ ออฟไลน์',sos:'🔴 SOS!'}[s]||s;}
+function ago(ts){const s=Math.floor((Date.now()-ts)/1000);if(s<10) return'เพิ่งอัปเดต';if(s<60) return`${s}วิที่แล้ว`;if(s<3600) return`${Math.floor(s/60)}นาทีที่แล้ว`;return`${Math.floor(s/3600)}ชม.ที่แล้ว`;}
+function calcD(la1,ln1,la2,ln2){const R=6371000,dLa=(la2-la1)*Math.PI/180,dLn=(ln2-ln1)*Math.PI/180,a=Math.sin(dLa/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLn/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
+function fmtD(m){return m<1000?`${Math.round(m)}ม.`:`${(m/1000).toFixed(1)}กม.`;}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function openLB(src){document.getElementById('lb-img').src=src;document.getElementById('lightbox').classList.add('open');}
+function closeLB(){document.getElementById('lightbox').classList.remove('open');}
+let _tT=null;
+function toast(msg,type='info'){const t=document.getElementById('toast'),icons={success:'check-circle',error:'exclamation-circle',info:'info-circle'};t.className=`toast ${type}`;t.innerHTML=`<i class="fas fa-${icons[type]||'info-circle'}"></i>${msg}`;requestAnimationFrame(()=>t.classList.add('show'));clearTimeout(_tT);_tT=setTimeout(()=>t.classList.remove('show'),3500);}
+W.showToast=toast;
+function handleBack(e){e.preventDefault();if(confirm('กลับหน้าหลัก?\n(GPS จะยังทำงานอยู่ถ้าคุณยังอยู่ในภารกิจ)'))location.replace('index.html?tab=search-mission');return false;}
+function showNav(la,ln,name){const ex=document.getElementById('nav-sheet');if(ex)ex.remove();const el=document.createElement('div');el.id='nav-sheet';el.innerHTML=`<div class="sheet"><div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px"></div><div style="font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;color:#0a2463;margin-bottom:13px"><i class="fas fa-navigation" style="color:#2563eb;margin-right:7px"></i>นำทางไปหา ${name||'สมาชิก'}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><a href="https://www.google.com/maps/dir/?api=1&destination=${la},${ln}" target="_blank" style="display:flex;flex-direction:column;align-items:center;gap:7px;padding:13px;border-radius:13px;border:2px solid #4285f4;text-decoration:none;color:#4285f4;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700"><i class="fas fa-map-marked-alt" style="font-size:20px"></i>Google Maps</a><a href="https://waze.com/ul?ll=${la},${ln}&navigate=yes" target="_blank" style="display:flex;flex-direction:column;align-items:center;gap:7px;padding:13px;border-radius:13px;border:2px solid #33ccff;text-decoration:none;color:#00b5e6;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700"><i class="fas fa-route" style="font-size:20px"></i>Waze</a></div><button onclick="document.getElementById('nav-sheet').remove()" style="width:100%;padding:12px;border-radius:11px;background:#f1f5f9;border:none;font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:#64748b;cursor:pointer">ยกเลิก</button></div>`;el.addEventListener('click',e=>{if(e.target===el)el.remove();});document.body.appendChild(el);}
 
-// ── Navigation Options ────────────────────────────────────
-function showNavOptions(lat, lng, name) {
-  const ex = document.getElementById('nav-sheet');
-  if(ex) ex.remove();
-  const el = document.createElement('div');
-  el.id = 'nav-sheet';
-  el.innerHTML = `
-    <div class="sheet-inner">
-      <div style="width:40px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 18px"></div>
-      <div style="font-family:'Kanit',sans-serif;font-size:16px;font-weight:700;color:#0a2463;margin-bottom:4px"><i class="fas fa-navigation" style="color:#2563eb;margin-right:8px"></i>นำทางไปหา ${name||'สมาชิก'}</div>
-      <div style="font-family:monospace;font-size:12px;color:#0369a1;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:7px 12px;margin-bottom:16px;display:flex;align-items:center;gap:8px">
-        📍 ${lat.toFixed(6)}, ${lng.toFixed(6)}
-        <button onclick="navigator.clipboard.writeText('${lat.toFixed(6)},${lng.toFixed(6)}').then(()=>showToast('คัดลอกแล้ว','success'))" style="background:none;border:none;cursor:pointer;color:#0369a1"><i class="fas fa-copy"></i></button>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;border-radius:14px;border:2px solid #4285f4;text-decoration:none;color:#4285f4;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600">
-          <i class="fas fa-map-marked-alt" style="font-size:22px"></i>Google Maps
-        </a>
-        <a href="https://waze.com/ul?ll=${lat},${lng}&navigate=yes" target="_blank" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;border-radius:14px;border:2px solid #33ccff;text-decoration:none;color:#00b5e6;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600">
-          <i class="fas fa-route" style="font-size:22px"></i>Waze
-        </a>
-      </div>
-      <button onclick="document.getElementById('nav-sheet').remove()" style="width:100%;padding:13px;border-radius:12px;background:#f1f5f9;border:none;font-family:'Kanit',sans-serif;font-size:14px;font-weight:600;color:#64748b;cursor:pointer">ยกเลิก</button>
-    </div>`;
-  el.addEventListener('click', e => { if(e.target===el) el.remove(); });
-  document.body.appendChild(el);
-}
-
-// ── Modal helpers ─────────────────────────────────────────
-function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-
-// ── Toast ─────────────────────────────────────────────────
-let _toastTimer = null;
-window.showToast = function(msg, type='info') {
-  const t = document.getElementById('toast');
-  const icons = { success:'check-circle', error:'exclamation-circle', info:'info-circle' };
-  t.className = `toast ${type}`;
-  t.innerHTML = `<i class="fas fa-${icons[type]||'info-circle'}"></i>${msg}`;
-  requestAnimationFrame(() => t.classList.add('show'));
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
-};
-
-// ── Back button ───────────────────────────────────────────
-function handleBack(e) {
-  e.preventDefault();
-  if(confirm('กลับหน้าหลัก?\n(GPS จะยังทำงานอยู่ถ้าคุณยังอยู่ในภารกิจ)')) {
-    location.replace('index.html?tab=search-mission');
-  }
-}
-
-// ── Helpers ───────────────────────────────────────────────
-function statusLabel(s) {
-  return { online:'🟢 ออนไลน์', moving:'🔵 กำลังเดิน', offline:'⚫ ออฟไลน์', sos:'🔴 SOS!' }[s] || s;
-}
-function timeAgo(ts) {
-  const sec = Math.floor((Date.now()-ts)/1000);
-  if(sec<10) return 'เพิ่งอัปเดต';
-  if(sec<60) return `${sec} วิที่แล้ว`;
-  if(sec<3600) return `${Math.floor(sec/60)} นาทีที่แล้ว`;
-  return `${Math.floor(sec/3600)} ชม.ที่แล้ว`;
-}
-function calcDist(lat1,lng1,lat2,lng2) {
-  const R=6371000, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
-  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-}
-function fmtDist(m) { return m<1000?`${Math.round(m)}ม.`:`${(m/1000).toFixed(1)}กม.`; }
-
-// ── Page Lifecycle ────────────────────────────────────────
-function beaconLocation() {
-  if(!_gpsActive) return;
-  try {
-    const base = firebaseConfig.databaseURL;
-    const isSosNow = _sosActive && Date.now() < _sosExpiry;
-    const payload = JSON.stringify({ status: isSosNow?'sos':'online', lastSeen:Date.now(), bgActive:true });
-    navigator.sendBeacon(`${base}/search_missions/${missionId}/members/${user.id}.json`, new Blob([payload],{type:'application/json'}));
-  } catch(e){}
-}
-document.addEventListener('visibilitychange', () => {
-  if(document.hidden) beaconLocation();
-  else if(_gpsActive) startGps();
-});
-window.addEventListener('pagehide', () => { if(_gpsActive) beaconLocation(); });
-window.addEventListener('beforeunload', beaconLocation);
-window.addEventListener('freeze', beaconLocation);
-window.addEventListener('resume', () => { if(_gpsActive) { stopGps(); startGps(); } });
-
-// Drag & Drop for photos
-document.addEventListener('DOMContentLoaded', () => {
-  const drop = document.getElementById('photo-drop');
-  if(drop) {
-    drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.classList.add('dragover'); });
-    drop.addEventListener('dragleave', ()=>drop.classList.remove('dragover'));
-    drop.addEventListener('drop', e=>{ e.preventDefault(); drop.classList.remove('dragover'); addPhotos(Array.from(e.dataTransfer.files)); });
-  }
-});
+// ─── Lifecycle ────────────────────────────────────────────
+function beacon(){if(!_gps) return;try{const b=FB.databaseURL,p=JSON.stringify({status:(_sosOn&&Date.now()<_sosExp)?'sos':'online',lastSeen:Date.now(),bgActive:true});navigator.sendBeacon(`${b}/search_missions/${missionId}/members/${user.id}.json`,new Blob([p],{type:'application/json'}));}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)beacon();else if(_gps)startGps();});
+addEventListener('pagehide',()=>{if(_gps)beacon();});
+addEventListener('beforeunload',beacon);
+addEventListener('freeze',beacon);
+addEventListener('resume',()=>{if(_gps){stopGps();startGps();}});
 </script>
 </body>
 </html>
