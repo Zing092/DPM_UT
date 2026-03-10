@@ -464,18 +464,18 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
           <div class="chk"><i class="fas fa-check"></i></div>
         </button>
         <button class="layer-opt" id="layer-opt-satellite" onclick="switchLayer('satellite')">
-          <div class="layer-opt-icon"><img src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/13/3564/6415" alt="" onerror="this.style.background='#1a3a5c'"></div>
-          <div class="layer-opt-info"><div class="layer-opt-name">ดาวเทียม</div><div class="layer-opt-desc">Esri World Imagery</div></div>
+          <div class="layer-opt-icon" style="background:#1a3a5c;display:flex;align-items:center;justify-content:center;font-size:16px">🛰️</div>
+          <div class="layer-opt-info"><div class="layer-opt-name">ดาวเทียม</div><div class="layer-opt-desc">Google Satellite</div></div>
+          <div class="chk"></div>
+        </button>
+        <button class="layer-opt" id="layer-opt-hybrid" onclick="switchLayer('hybrid')">
+          <div class="layer-opt-icon" style="background:#1a2a1a;display:flex;align-items:center;justify-content:center;font-size:16px">🗺️</div>
+          <div class="layer-opt-info"><div class="layer-opt-name">Hybrid</div><div class="layer-opt-desc">ดาวเทียม + ถนน</div></div>
           <div class="chk"></div>
         </button>
         <button class="layer-opt" id="layer-opt-topo" onclick="switchLayer('topo')">
           <div class="layer-opt-icon"><img src="https://tile.opentopomap.org/13/6415/3564.png" alt="" onerror="this.style.background='#d4e9c4'"></div>
-          <div class="layer-opt-info"><div class="layer-opt-name">ภูมิประเทศ</div><div class="layer-opt-desc">OpenTopoMap (เส้นชั้นความสูง)</div></div>
-          <div class="chk"></div>
-        </button>
-        <button class="layer-opt" id="layer-opt-contour" onclick="switchLayer('contour')">
-          <div class="layer-opt-icon"><img src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/13/3564/6415" alt="" onerror="this.style.background='#e8dcc8'"></div>
-          <div class="layer-opt-info"><div class="layer-opt-name">Topo Map</div><div class="layer-opt-desc">Esri World Topo</div></div>
+          <div class="layer-opt-info"><div class="layer-opt-name">ภูมิประเทศ</div><div class="layer-opt-desc">OpenTopoMap</div></div>
           <div class="chk"></div>
         </button>
       </div>
@@ -699,10 +699,10 @@ let _currentTileLayer=null, _activeLayerId='street';
 
 // ── Tile Layer Definitions ────────────────────────────────
 const TILE_LAYERS = {
-  street:    { url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',    maxZoom:19, opts:{} },
-  satellite: { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', maxZoom:19, opts:{subdomains:[]} },
-  topo:      { url:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',      maxZoom:17, opts:{subdomains:['a','b','c']} },
-  contour:   { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', maxZoom:19, opts:{subdomains:[]} },
+  street:    { url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',                           maxZoom:19, opts:{subdomains:['a','b','c']} },
+  satellite: { url:'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',                       maxZoom:20, opts:{subdomains:['0','1','2','3']} },
+  hybrid:    { url:'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',                       maxZoom:20, opts:{subdomains:['0','1','2','3']} },
+  topo:      { url:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',                            maxZoom:17, opts:{subdomains:['a','b','c']} },
 };
 let _wid=null, _bgInt=null, _trailInt=null, _timerInt=null;
 let _unLoc=null, _unMem=null, _unStatus=null, _unChat=null, _unPins=null, _unZones=null, _unTrails=null;
@@ -2450,14 +2450,14 @@ function switchLayer(id){
   _currentTileLayer.bringToBack();
   _activeLayerId = id;
   // อัปเดต UI
-  ['street','satellite','topo','contour'].forEach(k => {
+  ['street','satellite','hybrid','topo'].forEach(k => {
     const el = document.getElementById('layer-opt-'+k);
     if(!el) return;
     const isActive = k === id;
     el.classList.toggle('active', isActive);
     el.querySelector('.chk').innerHTML = isActive ? '<i class="fas fa-check"></i>' : '';
   });
-  const names = {street:'Street Map',satellite:'ดาวเทียม',topo:'ภูมิประเทศ (OpenTopo)',contour:'Esri Topo Map'};
+  const names = {street:'Street Map',satellite:'ดาวเทียม (Google)',hybrid:'Hybrid (ดาวเทียม+ถนน)',topo:'ภูมิประเทศ (OpenTopo)'};
   toast('เปลี่ยนเป็น '+names[id]+' ✅','info');
 }
 function toggleLayerPicker(){
