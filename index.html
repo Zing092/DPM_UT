@@ -1399,18 +1399,6 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
   border-radius: 50%; background: rgba(255,255,255,0.15); color: #fff; font-size: 18px;
   border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
-
-/* ── FULLSCREEN BUTTON ── */
-.btn-fullscreen {
-  width: 34px; height: 34px; border-radius: 9px;
-  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: #fff; font-size: 13px; transition: all 0.2s; flex-shrink: 0;
-}
-.btn-fullscreen:hover { background: rgba(255,255,255,0.22); }
-/* TV mode: ซ่อนส่วนที่ไม่จำเป็นเมื่อ fullscreen */
-:fullscreen .bottom-nav, :-webkit-full-screen .bottom-nav { display: none !important; }
-:fullscreen .navbar, :-webkit-full-screen .navbar { padding-top: 0 !important; }
 </style>
 </head>
 <body>
@@ -1491,9 +1479,6 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
       </div>
     </div>
     <button class="btn-logout" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i></button>
-    <button class="btn-fullscreen" id="btn-fs" onclick="toggleFullscreen()" title="เต็มจอ / TV Mode">
-      <i class="fas fa-expand" id="fs-icon"></i>
-    </button>
   </div>
 </nav>
 
@@ -6459,28 +6444,8 @@ window.smOpenLightbox = function(url) {
   img.src = url;
   lb.classList.add('open');
 };
-// ─── Fullscreen / TV Mode ─────────────────────────────────
-function toggleFullscreen(){
-  const icon = document.getElementById('fs-icon');
-  if(!document.fullscreenElement && !document.webkitFullscreenElement){
-    const el = document.documentElement;
-    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-    if(req) req.call(el).catch(()=>{});
-    if(icon) icon.className = 'fas fa-compress';
-  } else {
-    const ex = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
-    if(ex) ex.call(document).catch(()=>{});
-    if(icon) icon.className = 'fas fa-expand';
-  }
-}
-// ซิงค์ icon เมื่อกด Esc หรือออกจาก fullscreen จากภายนอก
-['fullscreenchange','webkitfullscreenchange'].forEach(ev => {
-  document.addEventListener(ev, () => {
-    const icon = document.getElementById('fs-icon');
-    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-    if(icon) icon.className = isFs ? 'fas fa-compress' : 'fas fa-expand';
-  });
-});
+
+
 
 </script>
 <!-- Lightbox for mission photos -->
