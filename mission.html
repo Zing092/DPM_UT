@@ -526,7 +526,8 @@ if (!missionId) { errScreen('ไม่พบรหัสภารกิจ','ก
 // ─── State ───────────────────────────────────────────────
 let _map=null, _markers={}, _trailLayers={}, _zoneLayers={}, _pinMarkers={};
 let _wid=null, _bgInt=null, _trailInt=null, _timerInt=null;
-let _unLoc=null, _unMem=null, _unStatus=null, _unChat=null, _unPins=null, _unZones=null;
+let _unLoc=null, _unMem=null, _unStatus=null, _unChat=null, _unPins=null, _unZones=null, _unTrails=null;
+let _trailData={}; // cache trail data from Firebase
 let _gps=false, _trailOn=true, _zonesOn=true;
 let _sosOn=false, _sosExp=0, _sosT=null;
 let _mStart=null;
@@ -592,7 +593,7 @@ addEventListener('DOMContentLoaded', async () => {
 
     setTimeout(()=>{
       initMap(); startGps(); listenLoc(); listenStatus();
-      listenChat(); listenPins(); listenZones(); bindSos(); heartbeat();
+      listenChat(); listenPins(); listenZones(); listenTrails(); bindSos(); heartbeat();
     },150);
   } catch(e) { errScreen('เกิดข้อผิดพลาด', e.message||String(e)); }
 });
@@ -696,7 +697,7 @@ function restPut(la,ln,sp,hd){
 function listenLoc(){
   if(_unLoc){_unLoc();_unLoc=null;} if(_unMem){_unMem();_unMem=null;}
   let L={},M={};
-  function rr(){renderMarkers(L,M);renderMemPanel(L,M);if(_trailOn)renderTrails(M);}
+  function rr(){renderMarkers(L,M);renderMemPanel(L,M);}
   _unLoc=onValue(ref(db,`search_missions/${missionId}/locations`),s=>{L=s.val()||{};rr();});
   _unMem=onValue(ref(db,`search_missions/${missionId}/members`),s=>{M=s.val()||{};rr();});
 }
@@ -704,7 +705,7 @@ function listenStatus(){
   if(_unStatus){_unStatus();_unStatus=null;}
   _unStatus=onValue(ref(db,`search_missions/${missionId}/status`),s=>{
     if(s.val()==='closed'){
-      [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones].forEach(f=>f&&f());
+      [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails].forEach(f=>f&&f());
       stopGps(); toast('ภารกิจสิ้นสุดแล้ว','info');
       setTimeout(()=>location.replace('index.html?tab=search-mission'),2000);
     }
@@ -761,17 +762,22 @@ function renderMarkers(locs,mems){
 }
 
 // ─── Trail ───────────────────────────────────────────────
-function renderTrails(mems){
-  if(!_map||!_trailOn) return;
+function listenTrails(){
+  if(_unTrails){_unTrails();_unTrails=null;}
+  _unTrails=onValue(ref(db,`search_missions/${missionId}/trails`),s=>{
+    _trailData=s.val()||{};
+    drawTrailLayers();
+  });
+}
+function drawTrailLayers(){
+  if(!_map) return;
+  // Always clear first
   Object.values(_trailLayers).forEach(l=>l.remove()); _trailLayers={};
-  get(ref(db,`search_missions/${missionId}/trails`)).then(s=>{
-    if(!_trailOn){Object.values(_trailLayers).forEach(l=>l.remove());_trailLayers={};return;}
-    const trails=s.val()||{};
-    Object.entries(trails).forEach(([uid,pts],i)=>{
-      if(!pts||pts.length<2) return;
-      const idx=Object.keys(mems).indexOf(uid), c=gc(idx>=0?idx:i);
-      _trailLayers[uid]=L.polyline(pts.map(p=>[p[0],p[1]]),{color:c,weight:3,opacity:0.7,dashArray:'6,4'}).addTo(_map);
-    });
+  if(!_trailOn) return;
+  Object.entries(_trailData).forEach(([uid,pts],i)=>{
+    if(!pts||pts.length<2) return;
+    const c=gc(i);
+    _trailLayers[uid]=L.polyline(pts.map(p=>[p[0],p[1]]),{color:c,weight:3,opacity:0.7,dashArray:'6,4'}).addTo(_map);
   });
 }
 function toggleTrail(){
@@ -781,13 +787,7 @@ function toggleTrail(){
   const tip=btn.querySelector('.mtool-tip');
   if(tip) tip.textContent=_trailOn?'ซ่อนเส้นทาง':'แสดงเส้นทาง';
   btn.blur();
-  if(!_trailOn){
-    // remove immediately and schedule another removal to catch any pending async renders
-    Object.values(_trailLayers).forEach(l=>l.remove());_trailLayers={};
-    setTimeout(()=>{Object.values(_trailLayers).forEach(l=>l.remove());_trailLayers={};},600);
-  } else {
-    get(ref(db,`search_missions/${missionId}/members`)).then(s=>renderTrails(s.val()||{}));
-  }
+  drawTrailLayers();
   toast(_trailOn?'แสดงเส้นทางการเดิน ✅':'ซ่อนเส้นทางการเดิน','info');
 }
 
@@ -1137,7 +1137,7 @@ async function endMission(){
     await update(ref(db,`search_missions/${missionId}`),{status:'closed',closedAt:Date.now(),closedBy:user.id,closedByName:user.name||user.id,summary:sum,memberSnapshot:ms,...(ph.length&&{photos:ph})});
     await remove(ref(db,`search_missions/${missionId}/locations`)).catch(()=>{});
     toast('จบภารกิจสำเร็จ ✅','success');stopGps();_gps=false;
-    [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones].forEach(f=>f&&f());
+    [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails].forEach(f=>f&&f());
     localStorage.removeItem('sm_active_mission');
     setTimeout(()=>location.replace('index.html?tab=search-mission'),1200);
   }catch(e){toast('เกิดข้อผิดพลาด: '+e.message,'error');setEndLoading(false);}
@@ -1146,7 +1146,7 @@ function setEndLoading(on){const b=document.getElementById('end-confirm-btn');if
 function confirmLeave(){
   if(!confirm('ยืนยันออกจากภารกิจ?\nระบบจะหยุดส่งตำแหน่งของคุณ')) return;
   _gps=false;stopGps();
-  [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones].forEach(f=>f&&f());
+  [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails].forEach(f=>f&&f());
   Promise.all([remove(ref(db,`search_missions/${missionId}/members/${user.id}`)),remove(ref(db,`search_missions/${missionId}/locations/${user.id}`))]).catch(()=>{});
   localStorage.removeItem('sm_active_mission');location.replace('index.html?tab=search-mission');
 }
