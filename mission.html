@@ -352,11 +352,14 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 :fullscreen body,:-webkit-full-screen body,:fullscreen .page-body,:-webkit-full-screen .page-body{overflow:hidden;}
 
 /* ── INFO BUTTON ── */
-.btn-info{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.12);
-  border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;
-  cursor:pointer;color:#fff;font-size:15px;transition:all 0.2s;flex-shrink:0;}
-.btn-info:hover{background:rgba(255,255,255,0.25);}
-.btn-info.active{background:rgba(99,179,237,0.3);border-color:rgba(99,179,237,0.6);color:#93c5fd;}
+.btn-info{width:36px;height:36px;border-radius:10px;
+  background:rgba(255,255,255,0.15);
+  border:1.5px solid rgba(255,255,255,0.3);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:#fff;font-size:16px;transition:all 0.2s;flex-shrink:0;
+  box-shadow:0 2px 8px rgba(0,0,0,0.2);}
+.btn-info:hover{background:rgba(255,255,255,0.28);transform:scale(1.05);}
+.btn-info.active{background:rgba(59,130,246,0.45);border-color:#60a5fa;color:#bfdbfe;}
 
 /* ── MISSION INFO DRAWER ── */
 .mission-info-drawer{
@@ -394,8 +397,8 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
   <div style="display:flex;align-items:center;gap:8px">
     <div class="topbar-timer" id="mission-timer" style="display:none">00:00</div>
     <span class="topbar-live" id="live-badge" style="display:none">LIVE</span>
-    <button class="btn-info" id="btn-info" onclick="toggleMissionInfo()" title="รายละเอียดภารกิจ">
-      <i class="fas fa-info-circle"></i>
+    <button class="btn-info" id="btn-info" onclick="toggleMissionInfo()" title="รายละเอียดภารกิจ" style="width:auto;padding:0 10px;gap:5px;font-size:12px;font-family:'Kanit',sans-serif;font-weight:700">
+      <i class="fas fa-clipboard-list" style="font-size:13px"></i> ภารกิจ
     </button>
     <button class="btn-fullscreen" id="btn-fs" onclick="toggleFullscreen()" title="เต็มจอ">
       <i class="fas fa-expand" id="fs-icon"></i>
