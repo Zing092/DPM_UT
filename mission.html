@@ -32,7 +32,8 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
   border-bottom:1px solid rgba(255,255,255,0.08);
   box-shadow:0 2px 12px rgba(0,0,0,0.3);
   display:flex;flex-direction:column;
-  flex-shrink:0;position:relative;z-index:100;
+  flex-shrink:0;position:relative;z-index:200;
+  overflow:hidden;
 }
 .topbar::before{
   content:'';display:block;
@@ -376,7 +377,7 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 
 /* ── MISSION INFO DRAWER ── */
 .mission-info-drawer{
-  position:fixed;top:var(--topbar-total);left:0;right:0;z-index:99;
+  position:fixed;top:var(--topbar-total);left:0;right:0;z-index:101;
   background:linear-gradient(160deg,#0a1628 0%,#0a2463 100%);
   transform:translateY(-110%);transition:transform 0.38s cubic-bezier(0.16,1,0.3,1);
   box-shadow:0 12px 40px rgba(0,0,0,0.5);
@@ -397,7 +398,7 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
   font-family:'Kanit',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
   transition:background 0.2s;width:calc(100% - 36px);}
 .mid-close:hover{background:rgba(255,255,255,0.13);}
-.mid-overlay{position:fixed;top:var(--topbar-total);left:0;right:0;bottom:0;z-index:1799;display:none;background:rgba(0,0,0,0.25);}
+.mid-overlay{position:fixed;top:var(--topbar-total);left:0;right:0;bottom:0;z-index:100;display:none;background:rgba(0,0,0,0.25);}
 .mid-overlay.show{display:block;}
 </style>
 </head>
