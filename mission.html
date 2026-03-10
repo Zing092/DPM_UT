@@ -360,10 +360,10 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
   <div style="flex:1"></div>
   <div style="display:flex;align-items:center;gap:8px">
     <div class="topbar-timer" id="mission-timer" style="display:none">00:00</div>
-    <button class="btn-info" id="btn-info" onclick="toggleMissionInfo()" title="รายละเอียดภารกิจ" style="display:none">
+    <span class="topbar-live" id="live-badge" style="display:none">LIVE</span>
+    <button class="btn-info" id="btn-info" onclick="toggleMissionInfo()" title="รายละเอียดภารกิจ">
       <i class="fas fa-info-circle"></i>
     </button>
-    <span class="topbar-live" id="live-badge" style="display:none">LIVE</span>
     <button class="btn-fullscreen" id="btn-fs" onclick="toggleFullscreen()" title="เต็มจอ">
       <i class="fas fa-expand" id="fs-icon"></i>
     </button>
