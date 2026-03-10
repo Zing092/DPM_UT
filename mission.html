@@ -708,10 +708,11 @@ function startGps(){
       const{latitude:la,longitude:ln}=p.coords;
       const tRef=ref(db,`search_missions/${missionId}/trails/${user.id}`);
       get(tRef).then(s=>{
-        const arr=s.val()||[];
+        const data=s.val()||{points:[],name:user.name||user.id,leftAt:null};
+        const arr=Array.isArray(data)?data:data.points||[];
         arr.push([+la.toFixed(6),+ln.toFixed(6),Date.now()]);
         if(arr.length>500) arr.splice(0,arr.length-500);
-        set(tRef,arr).catch(()=>{});
+        set(tRef,{points:arr,name:user.name||user.id,color:_memberColors[user.id]||null,leftAt:null}).catch(()=>{});
       });
     },()=>{},{enableHighAccuracy:false,timeout:8000,maximumAge:20000});
   },30000);
@@ -881,7 +882,24 @@ function renderMarkers(locs,mems){
 function listenTrails(){
   if(_unTrails){_unTrails();_unTrails=null;}
   _unTrails=onValue(ref(db,`search_missions/${missionId}/trails`),s=>{
-    _trailData=s.val()||{};
+    const raw=s.val()||{};
+    // normalise: support both old array format and new {points,name,color,leftAt} format
+    _trailData={};
+    Object.entries(raw).forEach(([uid,val])=>{
+      if(Array.isArray(val)){
+        _trailData[uid]={points:val,name:_memberNames[uid]||uid.slice(-6),color:null,leftAt:null};
+      } else {
+        _trailData[uid]={
+          points:val.points||[],
+          name:val.name||_memberNames[uid]||uid.slice(-6),
+          color:val.color||null,
+          leftAt:val.leftAt||null
+        };
+        // cache name for legend
+        if(val.name) _memberNames[uid]=val.name;
+        if(val.color) _memberColors[uid]=val.color;
+      }
+    });
     drawTrailLayers();
   });
 }
@@ -893,15 +911,33 @@ function syncMemberColors(mems){
 }
 function drawTrailLayers(){
   if(!_map) return;
-  Object.values(_trailLayers).forEach(l=>l.remove()); _trailLayers={};
+  Object.values(_trailLayers).forEach(l=>{if(l.remove)l.remove();else if(l.line)l.line.remove()}); _trailLayers={};
   if(!_trailOn) return;
-  // use stable member order for color assignment
   const memberUids=Object.keys(_memberColors);
-  Object.entries(_trailData).forEach(([uid,pts])=>{
-    if(!pts||pts.length<2) return;
+  Object.entries(_trailData).forEach(([uid,data])=>{
+    const pts=data.points||[];
+    if(pts.length<2) return;
+    const hasLeft=!!data.leftAt;
     const idx=memberUids.indexOf(uid);
-    const c=_memberColors[uid]||(idx>=0?gc(idx):gc(0));
-    _trailLayers[uid]=L.polyline(pts.map(p=>[p[0],p[1]]),{color:c,weight:4,opacity:0.9,dashArray:'10,6'}).addTo(_map);
+    const c=data.color||_memberColors[uid]||(idx>=0?gc(idx):gc(0));
+    // left members: faded, grey-tinted, thinner dashes
+    const opacity = hasLeft ? 0.38 : 0.9;
+    const weight  = hasLeft ? 2.5  : 4;
+    const dash    = hasLeft ? '6,8' : '10,6';
+    const lineColor = hasLeft ? '#94a3b8' : c;
+    const line=L.polyline(pts.map(p=>[p[0],p[1]]),{color:lineColor,weight,opacity,dashArray:dash}).addTo(_map);
+    if(hasLeft){
+      // popup on click for left member trail
+      const leftTime=new Date(data.leftAt).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+      const dist=calcTotalDist(pts);
+      line.bindPopup(`
+        <div class="pp-title" style="color:#64748b"><i class="fas fa-sign-out-alt" style="margin-right:5px"></i>${data.name||uid.slice(-6)}</div>
+        <div class="pp-row" style="color:#94a3b8"><i class="fas fa-clock" style="margin-right:4px"></i>ออกจากภารกิจเมื่อ ${leftTime}</div>
+        <div class="pp-row" style="color:#94a3b8"><i class="fas fa-route" style="margin-right:4px"></i>ระยะทางรวม ${fmtD(dist)}</div>
+        <div style="margin-top:6px;font-size:10px;background:#f1f5f9;border-radius:6px;padding:4px 8px;color:#94a3b8">เส้นทางของผู้ที่ออกจากภารกิจแล้ว</div>
+      `);
+    }
+    _trailLayers[uid]=line;
   });
   renderTrailLegend();
 }
@@ -911,13 +947,16 @@ function renderTrailLegend(){
   const el=document.createElement('div');
   el.id='trail-legend';
   el.style.cssText='position:absolute;bottom:12px;left:12px;z-index:900;background:rgba(255,255,255,0.93);border-radius:10px;padding:8px 11px;box-shadow:0 2px 12px rgba(0,0,0,0.15);border:1px solid #e2e8f0;max-width:160px;backdrop-filter:blur(6px)';
-  const items=Object.entries(_trailData).map(([uid,pts],i)=>{
-    const c=gc(i);
-    const name=_memberNames[uid]||uid.slice(-6);
-    const dist=pts&&pts.length>1?calcTotalDist(pts):0;
-    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-      <div style="width:20px;height:3px;border-radius:2px;background:${c};border-top:2px dashed ${c}66;flex-shrink:0"></div>
-      <div style="font-size:10px;font-weight:700;font-family:'Kanit',sans-serif;color:#0f172a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
+  const items=Object.entries(_trailData).map(([uid,data],i)=>{
+    const pts=data.points||[];
+    const hasLeft=!!data.leftAt;
+    const c=hasLeft?'#94a3b8':(data.color||_memberColors[uid]||gc(i));
+    const name=data.name||_memberNames[uid]||uid.slice(-6);
+    const dist=pts.length>1?calcTotalDist(pts):0;
+    const leftTag=hasLeft?`<span style="font-size:8px;background:#f1f5f9;color:#94a3b8;border-radius:3px;padding:1px 4px;margin-left:2px">ออกแล้ว</span>`:'';
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;opacity:${hasLeft?0.6:1}">
+      <div style="width:20px;height:3px;border-radius:2px;background:${c};opacity:${hasLeft?0.5:1};flex-shrink:0"></div>
+      <div style="font-size:10px;font-weight:700;font-family:'Kanit',sans-serif;color:${hasLeft?'#94a3b8':'#0f172a'};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}${leftTag}</div>
       <div style="font-size:9px;color:#64748b;flex-shrink:0">${fmtD(dist)}</div>
     </div>`;
   }).join('');
@@ -1299,6 +1338,9 @@ function confirmLeave(){
   if(!confirm('ยืนยันออกจากภารกิจ?\nระบบจะหยุดส่งตำแหน่งของคุณ')) return;
   _gps=false;stopGps();
   [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails].forEach(f=>f&&f());
+  // stamp leftAt on trail so others can still see it as "left"
+  const myColor=_memberColors[user.id]||null;
+  update(ref(db,`search_missions/${missionId}/trails/${user.id}`),{leftAt:Date.now(),name:user.name||user.id,color:myColor}).catch(()=>{});
   Promise.all([remove(ref(db,`search_missions/${missionId}/members/${user.id}`)),remove(ref(db,`search_missions/${missionId}/locations/${user.id}`))]).catch(()=>{});
   localStorage.removeItem('sm_active_mission');location.replace('index.html?tab=search-mission');
 }
