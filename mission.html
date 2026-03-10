@@ -550,22 +550,25 @@ const PIN_CFG={
 };
 
 // ─── Expose to inline onclick ────────────────────────────
-const W = window;
-W.handleBack=handleBack; W.cancelSos=cancelSos; W.centerMap=centerMap;
-W.togglePanel=togglePanel; W.toggleDraw=toggleDraw; W.setDrawMode=setDrawMode;
-W.cancelDraw=cancelDraw; W.saveZone=saveZone; W.cancelZone=cancelZone; W.pickColor=pickColor;
-W.togglePinPicker=togglePinPicker; W.closePinPicker=closePinPicker;
-W.startPin=startPin; W.confirmPin=confirmPin; W.handlePinImg=handlePinImg;
-W.toggleTrail=toggleTrail; W.toggleZones=toggleZones;
-W.openChat=openChat; W.closeChat=closeChat; W.sendMsg=sendMsg;
-W.sendLocation=sendLocation; W.sendPhotos=sendPhotos;
-W.chatKey=chatKey; W.autoResize=autoResize;
-W.showEndModal=showEndModal; W.endMission=endMission;
-W.handleEndImgs=handleEndImgs; W.confirmLeave=confirmLeave;
-W.closeModal=closeModal; W.openLB=openLB; W.closeLB=closeLB;
-W.flyTo=(la,ln)=>_map?.flyTo([la,ln],17,{animate:true,duration:0.8});
-W.showNav=showNav; W.delZone=delZone; W.delPin=delPin;
-W.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
+// ── Expose ALL functions to global scope (module scope fix) ──
+window.handleBack=handleBack; window.cancelSos=cancelSos; window.centerMap=centerMap;
+window.togglePanel=togglePanel; window.toggleDraw=toggleDraw; window.setDrawMode=setDrawMode;
+window.cancelDraw=cancelDraw; window.saveZone=saveZone; window.cancelZone=cancelZone;
+window.pickColor=pickColor; window.togglePinPicker=togglePinPicker;
+window.closePinPicker=closePinPicker; window.startPin=startPin;
+window.confirmPin=confirmPin; window.handlePinImg=handlePinImg;
+window.toggleTrail=toggleTrail; window.toggleZones=toggleZones;
+window.openChat=openChat; window.closeChat=closeChat; window.sendMsg=sendMsg;
+window.sendLocation=sendLocation; window.sendPhotos=sendPhotos;
+window.chatKey=chatKey; window.autoResize=autoResize;
+window.showEndModal=showEndModal; window.endMission=endMission;
+window.handleEndImgs=handleEndImgs; window.confirmLeave=confirmLeave;
+window.closeModal=closeModal; window.openLB=openLB; window.closeLB=closeLB;
+window.flyTo=(la,ln)=>_map?.flyTo([la,ln],17,{animate:true,duration:0.8});
+window.showNav=showNav; window.delZone=delZone; window.delPin=delPin;
+window.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
+window._map_closePopup=()=>_map?.closePopup();
+const W=window;
 
 // ─── Init ────────────────────────────────────────────────
 addEventListener('DOMContentLoaded', async () => {
@@ -776,7 +779,7 @@ function _popupMember(uid){
       ${st==='sos'?`<div style="background:#fef2f2;color:#dc2626;padding:7px 10px;border-radius:8px;font-size:11px;font-weight:700;margin-bottom:8px"><i class="fas fa-exclamation-circle" style="margin-right:5px"></i>ขอความช่วยเหลือด่วน!</div>`:''}
       ${!isSelf&&lo.lat?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
         <button onclick="W.flyTo(${lo.lat},${lo.lng})" style="padding:8px;border:1.5px solid #e2e8f0;border-radius:9px;background:#fff;color:#475569;font-size:11px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px"><i class="fas fa-crosshairs" style="color:#3b82f6"></i>โฟกัส</button>
-        <button onclick="W.showNav(${lo.lat},${lo.lng},'${safeN}');_map.closePopup()" style="padding:8px;border:none;border-radius:9px;background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px"><i class="fas fa-directions"></i>นำทาง</button>
+        <button onclick="W.showNav(${lo.lat},${lo.lng},'${safeN}');window._map_closePopup()" style="padding:8px;border:none;border-radius:9px;background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px"><i class="fas fa-directions"></i>นำทาง</button>
       </div>`:''}
     </div>
   `,{maxWidth:260}).openPopup();
@@ -930,11 +933,11 @@ function setupDrawEvents(){
     if(_drawMode==='free'&&_fPts.length){ _fPts.push(ll); _fLine.setLatLngs(_fPts); }
     if(_drawMode==='rect'&&_rStart){
       const b=L.latLngBounds(_rStart,ll);
-      if(_rRect){_rRect.setBounds(b);}else{_rRect=L.rectangle(b,{color:_zoneColor,weight:2,fillOpacity:0.18,dashArray:'6,3'}).addTo(_map);}
+      if(_rRect){_rRect.setBounds(b);}else{_rRect=L.rectangle(b,{color:_zoneColor,weight:2,fillOpacity:0.10,dashArray:'6,3'}).addTo(_map);}
     }
     if(_drawMode==='circle'&&_cCtr){
       const r=_cCtr.distanceTo(ll);
-      if(_cCirc){_cCirc.setRadius(r);}else{_cCirc=L.circle(_cCtr,{radius:r,color:_zoneColor,weight:2,fillOpacity:0.12,dashArray:'6,3'}).addTo(_map);}
+      if(_cCirc){_cCirc.setRadius(r);}else{_cCirc=L.circle(_cCtr,{radius:r,color:_zoneColor,weight:2,fillOpacity:0.08,dashArray:'6,3'}).addTo(_map);}
     }
   });
 
@@ -967,11 +970,11 @@ function setupDrawEvents(){
     if(_drawMode==='free'&&_fPts.length){ _fPts.push(ll); _fLine.setLatLngs(_fPts); }
     if(_drawMode==='rect'&&_rStart){
       const b=L.latLngBounds(_rStart,ll);
-      if(_rRect){_rRect.setBounds(b);}else{_rRect=L.rectangle(b,{color:_zoneColor,weight:2,fillOpacity:0.18,dashArray:'6,3'}).addTo(_map);}
+      if(_rRect){_rRect.setBounds(b);}else{_rRect=L.rectangle(b,{color:_zoneColor,weight:2,fillOpacity:0.10,dashArray:'6,3'}).addTo(_map);}
     }
     if(_drawMode==='circle'&&_cCtr){
       const r=_cCtr.distanceTo(ll);
-      if(_cCirc){_cCirc.setRadius(r);}else{_cCirc=L.circle(_cCtr,{radius:r,color:_zoneColor,weight:2,fillOpacity:0.12,dashArray:'6,3'}).addTo(_map);}
+      if(_cCirc){_cCirc.setRadius(r);}else{_cCirc=L.circle(_cCtr,{radius:r,color:_zoneColor,weight:2,fillOpacity:0.08,dashArray:'6,3'}).addTo(_map);}
     }
   },{passive:false});
   cont().addEventListener('touchend',e=>{
@@ -1035,9 +1038,9 @@ function renderZones(zones){
   Object.entries(zones).forEach(([id,z])=>{
     const s=z.shape, c=z.color||'#3b82f6', canDel=z.createdBy===user.id||user.role==='admin';
     let layer=null;
-    if(s.type==='polygon')   layer=L.polygon(s.latlngs.map(p=>[p.lat,p.lng]),{color:c,weight:2.5,fillOpacity:0.15,fillColor:c});
-    else if(s.type==='rectangle') layer=L.rectangle([[s.sw.lat,s.sw.lng],[s.ne.lat,s.ne.lng]],{color:c,weight:2.5,fillOpacity:0.15,fillColor:c});
-    else if(s.type==='circle')  layer=L.circle([s.center.lat,s.center.lng],{radius:s.radius,color:c,weight:2.5,fillOpacity:0.15,fillColor:c});
+    if(s.type==='polygon')   layer=L.polygon(s.latlngs.map(p=>[p.lat,p.lng]),{color:c,weight:2.5,fillOpacity:0.08,fillColor:c});
+    else if(s.type==='rectangle') layer=L.rectangle([[s.sw.lat,s.sw.lng],[s.ne.lat,s.ne.lng]],{color:c,weight:2.5,fillOpacity:0.08,fillColor:c});
+    else if(s.type==='circle')  layer=L.circle([s.center.lat,s.center.lng],{radius:s.radius,color:c,weight:2.5,fillOpacity:0.08,fillColor:c});
     if(!layer) return;
     layer.addTo(_map);
     // Zone label marker at center
@@ -1268,7 +1271,7 @@ function openLB(src){document.getElementById('lb-img').src=src;document.getEleme
 function closeLB(){document.getElementById('lightbox').classList.remove('open');}
 let _tT=null;
 function toast(msg,type='info'){const t=document.getElementById('toast'),icons={success:'check-circle',error:'exclamation-circle',info:'info-circle'};t.className=`toast ${type}`;t.innerHTML=`<i class="fas fa-${icons[type]||'info-circle'}"></i>${msg}`;requestAnimationFrame(()=>t.classList.add('show'));clearTimeout(_tT);_tT=setTimeout(()=>t.classList.remove('show'),3500);}
-W.showToast=toast;
+window.showToast=toast;
 function handleBack(e){e.preventDefault();if(confirm('กลับหน้าหลัก?\n(GPS จะยังทำงานอยู่ถ้าคุณยังอยู่ในภารกิจ)'))location.replace('index.html?tab=search-mission');return false;}
 function showNav(la,ln,name){const ex=document.getElementById('nav-sheet');if(ex)ex.remove();const el=document.createElement('div');el.id='nav-sheet';el.innerHTML=`<div class="sheet"><div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px"></div><div style="font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;color:#0a2463;margin-bottom:13px"><i class="fas fa-navigation" style="color:#2563eb;margin-right:7px"></i>นำทางไปหา ${name||'สมาชิก'}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><a href="https://www.google.com/maps/dir/?api=1&destination=${la},${ln}" target="_blank" style="display:flex;flex-direction:column;align-items:center;gap:7px;padding:13px;border-radius:13px;border:2px solid #4285f4;text-decoration:none;color:#4285f4;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700"><i class="fas fa-map-marked-alt" style="font-size:20px"></i>Google Maps</a><a href="https://waze.com/ul?ll=${la},${ln}&navigate=yes" target="_blank" style="display:flex;flex-direction:column;align-items:center;gap:7px;padding:13px;border-radius:13px;border:2px solid #33ccff;text-decoration:none;color:#00b5e6;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700"><i class="fas fa-route" style="font-size:20px"></i>Waze</a></div><button onclick="document.getElementById('nav-sheet').remove()" style="width:100%;padding:12px;border-radius:11px;background:#f1f5f9;border:none;font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:#64748b;cursor:pointer">ยกเลิก</button></div>`;el.addEventListener('click',e=>{if(e.target===el)el.remove();});document.body.appendChild(el);}
 
