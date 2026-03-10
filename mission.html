@@ -595,6 +595,10 @@ let _wid=null, _bgInt=null, _trailInt=null, _timerInt=null;
 let _unLoc=null, _unMem=null, _unStatus=null, _unChat=null, _unPins=null, _unZones=null, _unTrails=null;
 let _trailData={}; // cache trail data from Firebase
 let _gps=false, _trailOn=true, _zonesOn=true;
+let _myLat=null, _myLng=null; // ตำแหน่งของตัวเอง สำหรับคำนวณระยะห่าง
+let _trailLegendExpanded = true; // legend expand/collapse state
+function _toggleTrailLegend(){ _trailLegendExpanded=!_trailLegendExpanded; renderTrailLegend(); }
+window._toggleTrailLegend = _toggleTrailLegend;
 // โซนที่ซ่อนเฉพาะเครื่องนี้ — เก็บใน localStorage
 const _hiddenZonesKey = ()=>`sm_hidden_zones_${missionId||'x'}`;
 let _hiddenZones = new Set(JSON.parse(localStorage.getItem(_hiddenZonesKey())||'[]'));
@@ -807,6 +811,7 @@ function stopGps(){
 }
 function restPut(la,ln,sp,hd){
   if(!_gps||!la||(_sosOn&&Date.now()<_sosExp)) return;
+  _myLat=la; _myLng=ln; // อัปเดตพิกัดตัวเอง
   try{
     const s=sp||0, st=s>0.5?'moving':'online';
     const b=FB.databaseURL, p=JSON.stringify({lat:la,lng:ln,heading:hd||0,speed:Math.round(s*3.6),status:st,ts:Date.now()});
@@ -946,15 +951,47 @@ function renderMarkers(locs,mems){
     if(!lo){if(_markers[uid]){_markers[uid].remove();delete _markers[uid];}return;}
     if(_markers[uid]){_markers[uid].setLatLng([lo.lat,lo.lng]);_markers[uid].setIcon(mkIcon(id,c,st,me.name));}
     else{_markers[uid]=L.marker([lo.lat,lo.lng],{icon:mkIcon(id,c,st,me.name),zIndexOffset:uid===user.id?1000:0}).addTo(_map);}
-    const self=uid===user.id,ls=lo.ts?ago(lo.ts):'-';
+    const self=uid===user.id, ls=lo.ts?ago(lo.ts):'-';
+    const lat=lo.lat?.toFixed(5)||'-', lng=lo.lng?.toFixed(5)||'-';
+    // คำนวณระยะห่างจากตำแหน่งผู้ใช้
+    let distStr='';
+    if(!self && _myLat && _myLng && lo.lat && lo.lng){
+      const d=calcD(_myLat,_myLng,lo.lat,lo.lng);
+      distStr=`<div class="pp-row"><i class="fas fa-ruler" style="color:#8b5cf6;margin-right:5px;width:14px"></i>ห่างจากคุณ <b>${fmtD(d)}</b></div>`;
+    }
+    const headingStr=lo.heading!=null&&lo.heading>0?`<div class="pp-row"><i class="fas fa-compass" style="color:#f59e0b;margin-right:5px;width:14px"></i>ทิศทาง <b>${Math.round(lo.heading)}°</b></div>`:'';
+    const roleStr=me.role?`<div class="pp-row"><i class="fas fa-id-badge" style="color:#64748b;margin-right:5px;width:14px"></i>ตำแหน่ง <b>${me.role}</b></div>`:'';
+
     _markers[uid].bindPopup(`
-      <div class="pp-title">${self?'📍 คุณ':'👤'} ${me.name||id}</div>
-      <div class="pp-row">สถานะ: <b>${stLbl(st)}</b></div>
-      ${lo.speed!=null?`<div class="pp-row">ความเร็ว: <b>${lo.speed} กม./ชม.</b></div>`:''}
-      <div class="pp-row">อัปเดต: <b>${ls}</b></div>
-      ${st==='sos'?'<div style="background:#fef2f2;color:#dc2626;padding:5px 9px;border-radius:7px;font-size:11px;font-weight:700;margin-top:5px">🆘 ขอความช่วยเหลือ!</div>':''}
-      ${!self&&lo.lat?`<button class="pp-btn pp-nav-btn" data-lat="${lo.lat}" data-lng="${lo.lng}" data-name="${(me.name||'').replace(/"/g,'')}"><i class="fas fa-directions"></i> นำทาง</button>`:''}
-    `);
+      <div style="min-width:210px;font-family:'Sarabun',sans-serif">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid ${c}33">
+          <div style="width:36px;height:36px;border-radius:50%;background:${c}22;border:2.5px solid ${c};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">
+            ${self?'📍':'👤'}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:'Kanit',sans-serif;font-size:14px;font-weight:800;color:${c};overflow:hidden;text-overflow:ellipsis">${me.name||id}</div>
+            ${me.empId?`<div style="font-size:10px;color:#94a3b8">รหัส: ${me.empId}</div>`:''}
+          </div>
+        </div>
+        <div style="font-size:11px;color:#475569;margin-bottom:8px">
+          <div class="pp-row"><i class="fas fa-circle" style="color:${st==='sos'?'#ef4444':st==='moving'?'#3b82f6':st==='online'?'#22c55e':'#94a3b8'};margin-right:5px;width:14px;font-size:8px"></i>สถานะ <b>${stLbl(st)}</b></div>
+          ${lo.speed!=null?`<div class="pp-row"><i class="fas fa-tachometer-alt" style="color:#3b82f6;margin-right:5px;width:14px"></i>ความเร็ว <b>${lo.speed} กม./ชม.</b></div>`:''}
+          ${headingStr}
+          ${distStr}
+          ${roleStr}
+          <div class="pp-row"><i class="fas fa-clock" style="color:#f59e0b;margin-right:5px;width:14px"></i>อัปเดต <b>${ls}</b></div>
+          <div class="pp-row" style="margin-top:4px;padding-top:4px;border-top:1px solid #f1f5f9">
+            <i class="fas fa-map-pin" style="color:#64748b;margin-right:5px;width:14px"></i>พิกัด
+            <b style="font-family:monospace;font-size:10px;color:#0f172a"> ${lat}, ${lng}</b>
+          </div>
+        </div>
+        ${st==='sos'?'<div style="background:#fef2f2;color:#dc2626;padding:6px 9px;border-radius:8px;font-size:11px;font-weight:700;margin-bottom:7px;display:flex;align-items:center;gap:5px"><i class="fas fa-exclamation-triangle"></i> ขอความช่วยเหลือด่วน!</div>':''}
+        <div style="display:flex;gap:6px">
+          ${!self&&lo.lat?`<button class="pp-btn pp-nav-btn" style="flex:1;margin-top:0;border-radius:9px;background:linear-gradient(135deg,#eff6ff,#dbeafe);color:#1d4ed8;border:1.5px solid #bfdbfe;padding:7px;font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer" data-lat="${lo.lat}" data-lng="${lo.lng}" data-name="${(me.name||'').replace(/"/g,'')}"><i class="fas fa-directions"></i> นำทาง</button>`:''}
+          <button onclick="window.open('https://www.google.com/maps?q=${lo.lat},${lo.lng}','_blank')" style="flex:1;margin-top:0;border-radius:9px;background:#f8fafc;color:#475569;border:1.5px solid #e2e8f0;padding:7px;font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-family:'Sarabun',sans-serif"><i class="fas fa-map"></i> Maps</button>
+        </div>
+      </div>
+    `,{maxWidth:260});
   });
   Object.keys(_markers).forEach(uid=>{if(!uids.has(uid)){_markers[uid].remove();delete _markers[uid];}});
 }
@@ -1101,11 +1138,34 @@ function drawTrailLayers(){
 function renderTrailLegend(){
   const ex=document.getElementById('trail-legend');if(ex)ex.remove();
   if(!_trailOn||!Object.keys(_trailData).length) return;
+
+  const entries=Object.entries(_trailData);
+  const isExpanded = _trailLegendExpanded;
+
   const el=document.createElement('div');
   el.id='trail-legend';
-  el.style.cssText='position:absolute;bottom:60px;left:10px;z-index:900;background:rgba(255,255,255,0.95);border-radius:12px;padding:8px 10px;box-shadow:0 2px 14px rgba(0,0,0,0.18);border:1px solid #e2e8f0;max-width:185px;backdrop-filter:blur(8px)';
+  // mobile-friendly: ติดขอบซ้ายล่าง เป็น pill ยุบ/ขยายได้
+  el.style.cssText=`position:absolute;bottom:60px;left:10px;z-index:900;
+    background:rgba(255,255,255,0.97);border-radius:${isExpanded?'14px':'20px'};
+    box-shadow:0 2px 14px rgba(0,0,0,0.18);border:1px solid #e2e8f0;
+    backdrop-filter:blur(8px);overflow:hidden;max-width:${isExpanded?'190px':'auto'};
+    transition:all 0.25s`;
 
-  const items=Object.entries(_trailData).map(([uid,data],i)=>{
+  // ── header bar (กดยุบ/ขยาย) ──────────────────────────────
+  const count=entries.length;
+  const activeCount=entries.filter(([,d])=>!(!Array.isArray(d)&&d.leftAt)).length;
+
+  const header=`
+    <div id="trail-legend-hdr" onclick="window._toggleTrailLegend()"
+      style="display:flex;align-items:center;gap:7px;padding:7px 10px;cursor:pointer;user-select:none;min-width:0">
+      <i class="fas fa-route" style="color:#2563eb;font-size:11px;flex-shrink:0"></i>
+      <span style="font-size:10px;font-weight:800;font-family:'Kanit',sans-serif;color:#0a2463;white-space:nowrap">เส้นทางค้นหา</span>
+      <span style="font-size:9px;background:#eff6ff;color:#2563eb;border-radius:8px;padding:1px 6px;font-weight:700;flex-shrink:0">${count}</span>
+      <i class="fas fa-chevron-${isExpanded?'down':'up'}" style="font-size:9px;color:#94a3b8;margin-left:auto;flex-shrink:0"></i>
+    </div>`;
+
+  // ── รายการสมาชิก (ซ่อน/แสดงตาม state) ─────────────────
+  const itemsHtml = entries.map(([uid,data],i)=>{
     const pts=Array.isArray(data)?data:(data.points||[]);
     const hasLeft=!Array.isArray(data)&&!!data.leftAt;
     const idx=Object.keys(_memberColors).indexOf(uid);
@@ -1115,34 +1175,36 @@ function renderTrailLegend(){
     const leftTime=(!Array.isArray(data)&&data.leftAt)?new Date(data.leftAt).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}):null;
 
     return `<div onclick="window._zoomTrail('${uid}')"
-      style="display:flex;align-items:center;gap:7px;padding:6px 5px;border-radius:8px;cursor:pointer;transition:background 0.15s;margin-bottom:2px"
-      onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-      <div style="width:26px;height:26px;border-radius:50%;background:${hasLeft?c+'22':c+'22'};border:2px solid ${c};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <i class="fas fa-${hasLeft?'user-slash':'walking'}" style="font-size:10px;color:${c}"></i>
+      style="display:flex;align-items:center;gap:7px;padding:5px 10px;border-radius:0;cursor:pointer;transition:background 0.12s"
+      onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+      <div style="width:24px;height:24px;border-radius:50%;background:${c}22;border:2px solid ${c};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="fas fa-${hasLeft?'user-slash':'walking'}" style="font-size:9px;color:${c}"></i>
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:10px;font-weight:700;font-family:'Kanit',sans-serif;color:${c};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</div>
-        <div style="font-size:9px;color:#94a3b8;display:flex;gap:4px;align-items:center">
+        <div style="font-size:9px;color:#94a3b8;display:flex;gap:3px;align-items:center;flex-wrap:wrap">
           <span>${fmtD(dist)}</span>
-          ${leftTime?`<span style="background:#fee2e2;color:#ef4444;border-radius:3px;padding:0 3px;font-size:8px">ออก ${leftTime}</span>`:'<span style="background:#dcfce7;color:#16a34a;border-radius:3px;padding:0 3px;font-size:8px">กำลังทำงาน</span>'}
+          ${leftTime
+            ?`<span style="background:#fee2e2;color:#ef4444;border-radius:3px;padding:0 4px;font-size:8px;font-weight:700">ออก ${leftTime}</span>`
+            :`<span style="background:#dcfce7;color:#16a34a;border-radius:3px;padding:0 4px;font-size:8px;font-weight:700">กำลังทำงาน</span>`}
         </div>
       </div>
-      <i class="fas fa-search-location" style="font-size:9px;color:#94a3b8;flex-shrink:0"></i>
+      <i class="fas fa-search-location" style="font-size:9px;color:#cbd5e1;flex-shrink:0"></i>
     </div>`;
   }).join('');
 
-  el.innerHTML=`
-    <div style="font-size:10px;font-weight:800;color:#0a2463;font-family:'Kanit',sans-serif;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:5px">
-      <i class="fas fa-route" style="color:#2563eb"></i>เส้นทางค้นหา
-    </div>
-    ${items}
-    <div style="font-size:8px;color:#94a3b8;text-align:center;margin-top:4px;padding-top:4px;border-top:1px solid #f1f5f9">แตะชื่อเพื่อซูมดูเส้นทาง</div>`;
+  const body=`
+    <div id="trail-legend-body" style="display:${isExpanded?'block':'none'};border-top:1px solid #f1f5f9">
+      <div style="padding:4px 0">${itemsHtml}</div>
+      <div style="font-size:8px;color:#94a3b8;text-align:center;padding:4px 8px 7px;font-style:italic">แตะชื่อเพื่อซูมดูเส้นทาง</div>
+    </div>`;
+
+  el.innerHTML = header + body;
   document.getElementById('map-wrap').appendChild(el);
 
-  // zoom to trail on click
-  window._zoomTrail=function(uid){
-    const g=_trailLayers[uid];
-    if(!g) return;
+  // ── zoom to trail ─────────────────────────────────────────
+  window._zoomTrail = function(uid){
+    const g=_trailLayers[uid]; if(!g) return;
     try{ _map.fitBounds(g.getBounds().pad(0.3),{animate:true,duration:0.8}); }catch(e){}
   };
 }
