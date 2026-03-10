@@ -342,6 +342,14 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 #lb-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 
 @media(max-width:480px){.topbar-title{font-size:13px;}.sos-btn{font-size:13px;}.member-list{max-height:120px;}.chat-bubble{font-size:12px;}}
+
+/* ── FULLSCREEN BUTTON ── */
+.btn-fullscreen{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:#fff;font-size:13px;transition:all 0.2s;flex-shrink:0;}
+.btn-fullscreen:hover{background:rgba(255,255,255,0.22);}
+:fullscreen .topbar,:-webkit-full-screen .topbar{padding-top:0!important;}
+:fullscreen body,:-webkit-full-screen body,:fullscreen .page-body,:-webkit-full-screen .page-body{overflow:hidden;}
 </style>
 </head>
 <body>
@@ -355,6 +363,9 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
   </div>
   <div class="topbar-timer" id="mission-timer" style="display:none">00:00</div>
   <span class="topbar-live" id="live-badge" style="display:none">LIVE</span>
+  <button class="btn-fullscreen" id="btn-fs" onclick="toggleFullscreen()" title="เต็มจอ">
+    <i class="fas fa-expand" id="fs-icon"></i>
+  </button>
 </div>
 
 <!-- LOADING -->
@@ -2592,6 +2603,7 @@ function showNav(la,ln,name){const ex=document.getElementById('nav-sheet');if(ex
 
 // ─── Window Exports (ต้องอยู่หลัง function declarations ทั้งหมด) ─────────
 window.handleBack=handleBack; window.cancelSos=cancelSos; window.centerMap=centerMap;
+window.toggleFullscreen=toggleFullscreen;
 window.toggleDraw=toggleDraw; window.setDrawMode=setDrawMode;
 window.cancelDraw=cancelDraw; window.saveZone=saveZone; window.cancelZone=cancelZone; window.pickColor=pickColor;
 window.togglePinPicker=togglePinPicker; window.closePinPicker=closePinPicker;
@@ -2614,6 +2626,30 @@ window.toggleGridVisibility=toggleGridVisibility; window.deleteGrid=deleteGrid;
 window.showNav=showNav; window.delZone=delZone; window.delPin=delPin;
 window.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
 window.showToast=toast;
+
+// ─── Fullscreen ───────────────────────────────────────────
+function toggleFullscreen(){
+  const icon=document.getElementById('fs-icon');
+  if(!document.fullscreenElement&&!document.webkitFullscreenElement){
+    const el=document.documentElement;
+    const req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen;
+    if(req) req.call(el).catch(()=>{});
+    if(icon){icon.className='fas fa-compress';}
+  } else {
+    const ex=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen;
+    if(ex) ex.call(document).catch(()=>{});
+    if(icon){icon.className='fas fa-expand';}
+  }
+}
+// ซิงค์ icon เมื่อผู้ใช้กด Esc
+document.addEventListener('fullscreenchange',()=>{
+  const icon=document.getElementById('fs-icon');
+  if(icon) icon.className=document.fullscreenElement?'fas fa-compress':'fas fa-expand';
+});
+document.addEventListener('webkitfullscreenchange',()=>{
+  const icon=document.getElementById('fs-icon');
+  if(icon) icon.className=document.webkitFullscreenElement?'fas fa-compress':'fas fa-expand';
+});
 
 // ─── Lifecycle ────────────────────────────────────────────
 function beacon(){if(!_gps) return;try{const b=FB.databaseURL,p=JSON.stringify({status:(_sosOn&&Date.now()<_sosExp)?'sos':'online',lastSeen:Date.now(),bgActive:true});navigator.sendBeacon(`${b}/search_missions/${missionId}/members/${user.id}.json`,new Blob([p],{type:'application/json'}));}catch(e){}}
