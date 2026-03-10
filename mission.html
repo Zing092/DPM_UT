@@ -53,14 +53,15 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
 .btn-info.active{background:rgba(255,255,255,0.25);border-color:rgba(255,255,255,0.5);}
 
 .mission-info-drawer{
-  position:fixed;top:0;left:0;right:0;z-index:1800;
+  position:fixed;
+  top:var(--topbar-h);left:0;right:0;z-index:1800;
   background:linear-gradient(135deg,#020c2e,#0a2463);
-  transform:translateY(-100%);transition:transform 0.35s cubic-bezier(0.16,1,0.3,1);
-  padding:0;box-shadow:0 8px 32px rgba(0,0,0,0.4);
-  padding-top:calc(var(--topbar-h) + env(safe-area-inset-top,0px));
+  transform:translateY(-120%);transition:transform 0.35s cubic-bezier(0.16,1,0.3,1);
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+  border-bottom-left-radius:16px;border-bottom-right-radius:16px;
 }
 .mission-info-drawer.open{transform:translateY(0);}
-.mission-info-body{padding:16px 18px 20px;display:flex;flex-direction:column;gap:12px;}
+.mission-info-body{padding:16px 18px 14px;display:flex;flex-direction:column;gap:12px;}
 .mission-info-row{display:flex;align-items:flex-start;gap:10px;}
 .mission-info-icon{width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,0.1);
   display:flex;align-items:center;justify-content:center;font-size:13px;color:rgba(255,255,255,0.7);flex-shrink:0;margin-top:1px;}
@@ -69,14 +70,14 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
 .mission-info-value.big{font-family:'Kanit',sans-serif;font-size:16px;font-weight:800;}
 .mission-info-divider{height:1px;background:rgba(255,255,255,0.08);margin:2px 0;}
 .mission-info-close{
-  margin:0 18px 18px;padding:10px;border:1px solid rgba(255,255,255,0.15);border-radius:11px;
+  margin:0 18px 16px;padding:10px;border:1px solid rgba(255,255,255,0.15);border-radius:11px;
   background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);font-size:13px;font-weight:700;
   font-family:'Kanit',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
   transition:background 0.2s;}
 .mission-info-close:hover{background:rgba(255,255,255,0.15);}
 /* overlay คลิกปิด */
 .mission-info-overlay{position:fixed;inset:0;z-index:1799;display:none;}
-.mission-info-overlay.show{display:block;}}
+.mission-info-overlay.show{display:block;}
 
 /* ── PAGE BODY ── */
 .page-body{flex:1;display:flex;flex-direction:column;overflow:hidden;}
@@ -2697,6 +2698,8 @@ function closeMissionInfo(){
   document.getElementById('mission-info-drawer').classList.remove('open');
   document.getElementById('info-overlay').classList.remove('show');
   document.getElementById('btn-info').classList.remove('active');
+  // บอก Leaflet ว่า container size อาจเปลี่ยน
+  setTimeout(()=>{ if(_map) _map.invalidateSize(); }, 360);
 }
 
 // ─── Fullscreen ───────────────────────────────────────────
