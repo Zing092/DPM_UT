@@ -1618,10 +1618,19 @@ function _bindMapZoneClick(){
 
   _map.on('click', function(ev){
     if(_drawOn || _gridDrawing) return;
-    // ถ้ากริดถูกคลิก (clickZone.on('click') set flag ไว้) → skip zone popup
-    if(_lastClickWasGrid){ _lastClickWasGrid = false; return; }
 
     const latlng = ev.latlng;
+
+    // ถ้าจุดคลิกอยู่ในกริดที่มองเห็นอยู่ → ให้ clickZone ของกริดจัดการ ไม่แสดง zone popup
+    const inGrid = _gridLayers.some(g => {
+      if(!_gridVisible) return false;
+      if(_hiddenGrids.has(g.gridId)) return false;
+      try {
+        const b = g.clickZone.getBounds();
+        return b && b.contains(latlng);
+      } catch(e){ return false; }
+    });
+    if(inGrid) return;
 
     // หาทุกโซนที่จุดคลิก ด้วย precise point-in-shape
     const hits = Object.entries(_zoneLayers)
