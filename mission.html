@@ -765,8 +765,12 @@ function startGps(){
       get(tRef).then(s=>{
         const raw=s.val();
         const prev=raw&&!Array.isArray(raw)?raw:{points:Array.isArray(raw)?raw:[],name:user.name||user.id,color:null,leftAt:null};
-        prev.points.push([+la.toFixed(6),+ln.toFixed(6),Date.now()]);
-        if(prev.points.length>500) prev.points.splice(0,prev.points.length-500);
+        const newPt=[+la.toFixed(6),+ln.toFixed(6),Date.now()];
+        const lastPt=prev.points.length?prev.points[prev.points.length-1]:null;
+        // กรอง GPS jitter — บันทึกเฉพาะเมื่อเคลื่อนที่ > 5 เมตร
+        const moved=lastPt?calcD(lastPt[0],lastPt[1],newPt[0],newPt[1]):999;
+        if(moved >= 5) prev.points.push(newPt);
+        if(prev.points.length>800) prev.points.splice(0,prev.points.length-800);
         prev.name=user.name||user.id;
         prev.color=_memberColors[user.id]||null;
         prev.leftAt=null;
@@ -972,43 +976,101 @@ function drawTrailLayers(){
     const idx=memberUids.indexOf(uid);
     const c=(Array.isArray(data)?null:data.color)||_memberColors[uid]||(idx>=0?gc(idx):gc(0));
     const name=(Array.isArray(data)?null:data.name)||_memberNames[uid]||uid.slice(-6);
+    const dist=calcTotalDist(pts);
+
+    // เส้นหลัก
     const line=L.polyline(pts.map(p=>[p[0],p[1]]),{
       color: hasLeft?'#94a3b8':c,
       weight: hasLeft?2.5:4,
-      opacity: hasLeft?0.45:0.9,
-      dashArray: hasLeft?'6,9':'10,6'
+      opacity: hasLeft?0.5:0.85,
+      dashArray: hasLeft?'8,10':null,
+      pane:'gridPane'
     }).addTo(_map);
-    if(hasLeft){
-      const dist=calcTotalDist(pts);
-      const leftTime=new Date(data.leftAt).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
-      const startTime=pts[0][2]?new Date(pts[0][2]).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}):'-';
-      line.bindPopup(`
-        <div style="min-width:180px">
-          <div class="pp-title" style="color:#64748b;margin-bottom:8px">
-            <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${c};margin-right:6px;vertical-align:middle"></span>
-            ${esc(name)}
+
+    // จุดเริ่มต้น (▶)
+    const startPt=pts[0];
+    const startMarker=L.circleMarker([startPt[0],startPt[1]],{
+      radius:5, color:'#fff', weight:2, fillColor:hasLeft?'#94a3b8':c, fillOpacity:1, pane:'gridPane'
+    }).addTo(_map);
+
+    // จุดสุดท้าย (■ หรือ ✖)
+    const endPt=pts[pts.length-1];
+    const endMarker=L.circleMarker([endPt[0],endPt[1]],{
+      radius: hasLeft?6:7,
+      color:'#fff', weight:2,
+      fillColor: hasLeft?'#ef4444':c,
+      fillOpacity:1, pane:'gridPane'
+    }).addTo(_map);
+
+    // ── Popup รายละเอียด ──────────────────────────────────
+    const startTime=startPt[2]?new Date(startPt[2]).toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'-';
+    const endTime=endPt[2]?new Date(endPt[2]).toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'-';
+    const leftTime=(!Array.isArray(data)&&data.leftAt)?new Date(data.leftAt).toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):null;
+    const durationMs=(endPt[2]&&startPt[2])?(endPt[2]-startPt[2]):0;
+    const durationStr=durationMs>0?`${Math.floor(durationMs/3600000)}ชม. ${Math.floor((durationMs%3600000)/60000)}นาที`:'-';
+    const speedAvg=durationMs>0&&dist>0?((dist/1000)/(durationMs/3600000)).toFixed(1):'0';
+
+    const popHtml=`
+      <div style="min-width:220px;font-family:'Sarabun',sans-serif">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid ${c}33">
+          <div style="width:36px;height:36px;border-radius:50%;background:${hasLeft?'#f1f5f9':c+'22'};border:2.5px solid ${hasLeft?'#94a3b8':c};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">
+            <i class="fas fa-${hasLeft?'user-slash':'walking'}" style="color:${hasLeft?'#94a3b8':c}"></i>
           </div>
-          <div class="pp-row"><i class="fas fa-sign-out-alt" style="color:#ef4444;margin-right:5px;width:14px"></i>ออกจากภารกิจ <b>${leftTime} น.</b></div>
-          <div class="pp-row"><i class="fas fa-play-circle" style="color:#22c55e;margin-right:5px;width:14px"></i>เริ่มเดิน <b>${startTime} น.</b></div>
-          <div class="pp-row"><i class="fas fa-route" style="color:#3b82f6;margin-right:5px;width:14px"></i>ระยะทางรวม <b>${fmtD(dist)}</b></div>
-          <div class="pp-row"><i class="fas fa-map-marker-alt" style="color:#f59e0b;margin-right:5px;width:14px"></i>จุดบันทึก <b>${pts.length} จุด</b></div>
-          <div style="margin-top:7px;padding:5px 8px;background:#f8fafc;border-radius:7px;border-left:3px solid #94a3b8;font-size:10px;color:#94a3b8">ออกจากภารกิจแล้ว — เส้นทางย้อนหลัง</div>
-        </div>
-      `);
-    } else {
-      const dist=calcTotalDist(pts);
-      line.bindPopup(`
-        <div>
-          <div class="pp-title" style="color:${c}">
-            <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${c};margin-right:6px;vertical-align:middle"></span>
-            ${esc(name)}
+          <div style="flex:1">
+            <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:800;color:${hasLeft?'#64748b':c}">${esc(name)}</div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:1px">${hasLeft?'<span style="background:#fee2e2;color:#ef4444;border-radius:4px;padding:1px 6px;font-weight:700">ออกจากภารกิจแล้ว</span>':'<span style="background:#dcfce7;color:#16a34a;border-radius:4px;padding:1px 6px;font-weight:700">กำลังปฏิบัติงาน</span>'}</div>
           </div>
-          <div class="pp-row"><i class="fas fa-route" style="color:${c};margin-right:5px;width:14px"></i>ระยะทางรวม <b>${fmtD(dist)}</b></div>
-          <div class="pp-row"><i class="fas fa-map-marker-alt" style="color:${c};margin-right:5px;width:14px"></i>จุดบันทึก <b>${pts.length} จุด</b></div>
         </div>
-      `);
-    }
-    _trailLayers[uid]=line;
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:7px 9px;text-align:center">
+            <div style="font-family:'Kanit',sans-serif;font-size:16px;font-weight:800;color:#0369a1">${fmtD(dist)}</div>
+            <div style="font-size:9px;color:#0369a1;opacity:0.7;font-weight:600">ระยะทางรวม</div>
+          </div>
+          <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:7px 9px;text-align:center">
+            <div style="font-family:'Kanit',sans-serif;font-size:16px;font-weight:800;color:#d97706">${pts.length}</div>
+            <div style="font-size:9px;color:#d97706;opacity:0.7;font-weight:600">จุดบันทึก GPS</div>
+          </div>
+        </div>
+
+        <div style="font-size:11px;color:#475569;background:#f8fafc;border-radius:8px;padding:8px 10px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9">
+            <span style="color:#94a3b8"><i class="fas fa-play-circle" style="color:#22c55e;margin-right:4px;width:12px"></i>เริ่มต้น</span>
+            <span style="font-weight:700;color:#0f172a">${startTime}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9">
+            <span style="color:#94a3b8"><i class="fas fa-flag-checkered" style="color:#f59e0b;margin-right:4px;width:12px"></i>บันทึกล่าสุด</span>
+            <span style="font-weight:700;color:#0f172a">${endTime}</span>
+          </div>
+          ${leftTime?`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9">
+            <span style="color:#94a3b8"><i class="fas fa-sign-out-alt" style="color:#ef4444;margin-right:4px;width:12px"></i>ออกภารกิจ</span>
+            <span style="font-weight:700;color:#ef4444">${leftTime}</span>
+          </div>`:''}
+          <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9">
+            <span style="color:#94a3b8"><i class="fas fa-clock" style="color:#8b5cf6;margin-right:4px;width:12px"></i>เวลาปฏิบัติงาน</span>
+            <span style="font-weight:700;color:#0f172a">${durationStr}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0">
+            <span style="color:#94a3b8"><i class="fas fa-tachometer-alt" style="color:#3b82f6;margin-right:4px;width:12px"></i>ความเร็วเฉลี่ย</span>
+            <span style="font-weight:700;color:#0f172a">${speedAvg} กม./ชม.</span>
+          </div>
+        </div>
+
+        <button onclick="if(window._trailLayers&&window._trailLayers['${uid}']){_map.fitBounds(window._trailLayers['${uid}'].getBounds().pad(0.3));_map.closePopup();}"
+          style="width:100%;padding:8px;border-radius:9px;border:1.5px solid ${c}66;background:${c}11;color:${c};font-family:'Kanit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px">
+          <i class="fas fa-search-location"></i> ซูมไปที่เส้นทาง
+        </button>
+      </div>`;
+
+    line.bindPopup(popHtml,{maxWidth:270});
+    startMarker.bindPopup(popHtml,{maxWidth:270});
+    endMarker.bindPopup(popHtml,{maxWidth:270});
+
+    // group ทั้งหมดไว้ใน _trailLayers เพื่อใช้ fitBounds
+    const group=L.featureGroup([line,startMarker,endMarker]);
+    window._trailLayers=window._trailLayers||{};
+    window._trailLayers[uid]=group;
+    _trailLayers[uid]=group;
   });
   renderTrailLegend();
 }
@@ -1017,7 +1079,8 @@ function renderTrailLegend(){
   if(!_trailOn||!Object.keys(_trailData).length) return;
   const el=document.createElement('div');
   el.id='trail-legend';
-  el.style.cssText='position:absolute;bottom:12px;left:12px;z-index:900;background:rgba(255,255,255,0.93);border-radius:10px;padding:8px 11px;box-shadow:0 2px 12px rgba(0,0,0,0.15);border:1px solid #e2e8f0;max-width:160px;backdrop-filter:blur(6px)';
+  el.style.cssText='position:absolute;bottom:60px;left:10px;z-index:900;background:rgba(255,255,255,0.95);border-radius:12px;padding:8px 10px;box-shadow:0 2px 14px rgba(0,0,0,0.18);border:1px solid #e2e8f0;max-width:185px;backdrop-filter:blur(8px)';
+
   const items=Object.entries(_trailData).map(([uid,data],i)=>{
     const pts=Array.isArray(data)?data:(data.points||[]);
     const hasLeft=!Array.isArray(data)&&!!data.leftAt;
@@ -1025,16 +1088,39 @@ function renderTrailLegend(){
     const c=(Array.isArray(data)?null:data.color)||_memberColors[uid]||(idx>=0?gc(idx):gc(i));
     const name=(Array.isArray(data)?null:data.name)||_memberNames[uid]||uid.slice(-6);
     const dist=pts.length>1?calcTotalDist(pts):0;
-    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;opacity:${hasLeft?0.65:1}">
-      <div style="width:18px;height:4px;border-radius:2px;background:${hasLeft?'#94a3b8':c};flex-shrink:0;${hasLeft?'border-top:2px dashed #94a3b8':''}"></div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:10px;font-weight:700;font-family:'Kanit',sans-serif;color:${hasLeft?'#94a3b8':'#0f172a'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}${hasLeft?'<span style="font-size:8px;background:#f1f5f9;color:#94a3b8;border-radius:3px;padding:1px 4px;margin-left:3px">ออกแล้ว</span>':''}</div>
-        <div style="font-size:9px;color:#94a3b8">${fmtD(dist)}</div>
+    const leftTime=(!Array.isArray(data)&&data.leftAt)?new Date(data.leftAt).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}):null;
+
+    return `<div onclick="window._zoomTrail('${uid}')"
+      style="display:flex;align-items:center;gap:7px;padding:6px 5px;border-radius:8px;cursor:pointer;transition:background 0.15s;margin-bottom:2px"
+      onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+      <div style="width:26px;height:26px;border-radius:50%;background:${hasLeft?'#f1f5f9':c+'22'};border:2px solid ${hasLeft?'#94a3b8':c};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="fas fa-${hasLeft?'user-slash':'walking'}" style="font-size:10px;color:${hasLeft?'#94a3b8':c}"></i>
       </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10px;font-weight:700;font-family:'Kanit',sans-serif;color:${hasLeft?'#94a3b8':'#0f172a'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</div>
+        <div style="font-size:9px;color:#94a3b8;display:flex;gap:4px;align-items:center">
+          <span>${fmtD(dist)}</span>
+          ${leftTime?`<span style="background:#fee2e2;color:#ef4444;border-radius:3px;padding:0 3px;font-size:8px">ออก ${leftTime}</span>`:'<span style="background:#dcfce7;color:#16a34a;border-radius:3px;padding:0 3px;font-size:8px">กำลังทำงาน</span>'}
+        </div>
+      </div>
+      <i class="fas fa-search-location" style="font-size:9px;color:#94a3b8;flex-shrink:0"></i>
     </div>`;
   }).join('');
-  el.innerHTML=`<div style="font-size:10px;font-weight:800;color:#0a2463;font-family:'Kanit',sans-serif;margin-bottom:5px;border-bottom:1px solid #e2e8f0;padding-bottom:4px"><i class="fas fa-route" style="margin-right:4px"></i>เส้นทางเดิน</div>${items}`;
+
+  el.innerHTML=`
+    <div style="font-size:10px;font-weight:800;color:#0a2463;font-family:'Kanit',sans-serif;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:5px">
+      <i class="fas fa-route" style="color:#2563eb"></i>เส้นทางค้นหา
+    </div>
+    ${items}
+    <div style="font-size:8px;color:#94a3b8;text-align:center;margin-top:4px;padding-top:4px;border-top:1px solid #f1f5f9">แตะชื่อเพื่อซูมดูเส้นทาง</div>`;
   document.getElementById('map-wrap').appendChild(el);
+
+  // zoom to trail on click
+  window._zoomTrail=function(uid){
+    const g=_trailLayers[uid];
+    if(!g) return;
+    try{ _map.fitBounds(g.getBounds().pad(0.3),{animate:true,duration:0.8}); }catch(e){}
+  };
 }
 function calcTotalDist(pts){
   let d=0;
