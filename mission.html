@@ -564,7 +564,7 @@ let _gridLayers=[], _gridOn=false;
 let _memberNames={}; // uid -> display name cache
 let _memberColors={}; // uid -> color cache
 
-const COLORS=['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1'];
+const COLORS=['#2563eb','#9333ea','#f97316','#16a34a','#dc2626','#0891b2','#db2777','#ca8a04','#059669','#7c3aed'];
 const PIN_CFG={
   safe:  {label:'ฉันปลอดภัย',  icon:'✅', color:'#16a34a', bg:'#dcfce7'},
   clue:  {label:'พบร่องรอย',    icon:'🔍', color:'#1d4ed8', bg:'#dbeafe'},
@@ -786,109 +786,70 @@ function mkIcon(lbl,color,status,fullName){
   color=color||'#3b82f6'; status=status||'online';
   const isSos=status==='sos', isOff=status==='offline', isMov=status==='moving';
 
-  // per-status colour palette
-  const suit  = isSos?'#dc2626': isOff?'#94a3b8': color;
-  const dark  = isSos?'#7f1d1d': isOff?'#475569': shadeColor(color,-55);
-  const mid   = isSos?'#ef4444': isOff?'#64748b': shadeColor(color,-20);
-  const lite  = isSos?'#fca5a5': isOff?'#e2e8f0': shadeColor(color,70);
-  const hlt   = isSos?'#fff1f2': isOff?'#f8fafc': shadeColor(color,90);
-  const glow  = isSos?'rgba(220,38,38,0.6)': isOff?'transparent': color+'55';
+  const fill  = isSos?'#ef4444': isOff?'#94a3b8': color;
+  const dark  = isSos?'#991b1b': isOff?'#475569': shadeColor(color,-45);
+  const lite  = isSos?'#fecaca': isOff?'#e2e8f0': shadeColor(color,75);
+  const label = (lbl||'?').slice(0,2).toUpperCase();
 
-  // dot status
-  const dotC  = isSos?'#fbbf24': isMov?'#4ade80': isOff?'#64748b':'#86efac';
-  const dotAn = (isSos||isMov)?`style="animation:blink ${isSos?'0.5':'1'}s infinite"`:'';
+  // status ring color
+  const ringC = isSos?'rgba(239,68,68,0.5)': isMov?color+'88': 'transparent';
+  const ringAn = isSos?'animation:sos-pulse 0.8s ease-in-out infinite': isMov?'animation:spin 2.5s linear infinite':'';
 
-  // SOS pulse ring
-  const sosRing = isSos ? `<div style="position:absolute;inset:-8px;border-radius:50%;border:2.5px solid rgba(220,38,38,0.5);animation:sos-pulse 0.8s ease-in-out infinite;pointer-events:none"></div>` : '';
-
-  // spinning ring when moving
-  const moveRing = isMov ? `<div style="position:absolute;inset:-5px;border-radius:50%;border:2px dashed ${color}aa;animation:spin 2.5s linear infinite;pointer-events:none"></div>` : '';
-
-  // ── SVG firefighter character ──────────────────────────
-  // Helmet stripe colors per suit
-  const helmetStripe = isSos?'#fbbf24': isOff?'#94a3b8':'#fbbf24';
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56">
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 54" width="44" height="54">
   <defs>
-    <radialGradient id="hg${lbl}" cx="40%" cy="30%" r="70%">
-      <stop offset="0%" stop-color="${lite}"/>
-      <stop offset="100%" stop-color="${mid}"/>
-    </radialGradient>
-    <radialGradient id="bg_c${lbl}" cx="45%" cy="30%" r="65%">
-      <stop offset="0%" stop-color="${lite}"/>
+    <linearGradient id="pg${label}${fill.slice(1)}" x1="30%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%"   stop-color="${lite}"/>
+      <stop offset="45%"  stop-color="${fill}"/>
       <stop offset="100%" stop-color="${dark}"/>
-    </radialGradient>
-    <radialGradient id="sk${lbl}" cx="45%" cy="30%" r="70%">
-      <stop offset="0%" stop-color="#ffe0c8"/>
-      <stop offset="100%" stop-color="#f4a97a"/>
-    </radialGradient>
-    <filter id="sh${lbl}">
-      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.25)"/>
+    </linearGradient>
+    <filter id="pshadow${label}" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="${dark}" flood-opacity="0.4"/>
     </filter>
+    <clipPath id="pclip${label}">
+      <path d="M22 2 C10 2 2 11 2 22 C2 35 22 52 22 52 C22 52 42 35 42 22 C42 11 34 2 22 2Z"/>
+    </clipPath>
   </defs>
 
-  <!-- ── BODY / SUIT ── -->
-  <!-- torso -->
-  <rect x="17" y="33" width="22" height="16" rx="5" fill="url(#bg_c${lbl})" filter="url(#sh${lbl})"/>
-  <!-- suit centre stripe -->
-  <rect x="26" y="33" width="4" height="16" rx="2" fill="${dark}" opacity="0.35"/>
-  <!-- shoulder pads -->
-  <rect x="13" y="33" width="8" height="7" rx="3" fill="${mid}"/>
-  <rect x="35" y="33" width="8" height="7" rx="3" fill="${mid}"/>
-  <!-- reflective stripes on torso -->
-  <rect x="17" y="38" width="22" height="3" rx="1.5" fill="${helmetStripe}" opacity="0.85"/>
-  <!-- arms -->
-  <rect x="9"  y="34" width="7"  height="13" rx="3.5" fill="url(#bg_c${lbl})"/>
-  <rect x="40" y="34" width="7"  height="13" rx="3.5" fill="url(#bg_c${lbl})"/>
-  <!-- gloves -->
-  <rect x="9"  y="44" width="7"  height="5" rx="2.5" fill="${dark}"/>
-  <rect x="40" y="44" width="7"  height="5" rx="2.5" fill="${dark}"/>
+  <!-- pin shape -->
+  <path d="M22 2 C10 2 2 11 2 22 C2 35 22 52 22 52 C22 52 42 35 42 22 C42 11 34 2 22 2Z"
+    fill="url(#pg${label}${fill.slice(1)})" filter="url(#pshadow${label})"/>
 
-  <!-- ── NECK ── -->
-  <rect x="24" y="29" width="8" height="6" rx="3" fill="url(#sk${lbl})"/>
+  <!-- inner shine overlay top-left -->
+  <ellipse cx="16" cy="14" rx="9" ry="7" fill="white" opacity="0.18" clip-path="url(#pclip${label})"/>
 
-  <!-- ── HEAD ── -->
-  <ellipse cx="28" cy="25" rx="11" ry="12" fill="url(#sk${lbl})" filter="url(#sh${lbl})"/>
-  <!-- ear left -->
-  <ellipse cx="17" cy="25" rx="3" ry="4" fill="url(#sk${lbl})"/>
-  <!-- ear right -->
-  <ellipse cx="39" cy="25" rx="3" ry="4" fill="url(#sk${lbl})"/>
+  <!-- white circle background for label -->
+  <circle cx="22" cy="21" r="13" fill="white" opacity="0.93"/>
 
-  <!-- ── MASK / RESPIRATOR ── -->
-  <rect x="19" y="27" width="18" height="10" rx="5" fill="${dark}" opacity="0.9"/>
-  <!-- mask lenses -->
-  <ellipse cx="23.5" cy="31" rx="3.5" ry="3" fill="#1e3a5f" opacity="0.85"/>
-  <ellipse cx="32.5" cy="31" rx="3.5" ry="3" fill="#1e3a5f" opacity="0.85"/>
-  <!-- lens shine -->
-  <ellipse cx="22" cy="29.5" rx="1.2" ry="0.9" fill="white" opacity="0.55"/>
-  <ellipse cx="31" cy="29.5" rx="1.2" ry="0.9" fill="white" opacity="0.55"/>
-  <!-- mask bridge -->
-  <rect x="25.5" y="30" width="5" height="2" rx="1" fill="${dark}"/>
+  <!-- label text -->
+  <text x="22" y="26"
+    text-anchor="middle"
+    font-size="${label.length>1?'12':'14'}"
+    font-weight="800"
+    font-family="'Kanit',Arial,sans-serif"
+    fill="${fill}"
+    letter-spacing="0.5">${label}</text>
 
-  <!-- ── HELMET ── -->
-  <!-- brim front -->
-  <rect x="14" y="14" width="28" height="4" rx="2" fill="${dark}"/>
-  <!-- dome -->
-  <path d="M16 18 Q17 7 28 6 Q39 7 40 18Z" fill="url(#hg${lbl})" filter="url(#sh${lbl})"/>
-  <!-- helmet stripe -->
-  <path d="M17 14 Q17 10 28 9.5 Q39 10 39 14" stroke="${helmetStripe}" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.9"/>
-  <!-- badge on helmet -->
-  <circle cx="28" cy="11" r="3.5" fill="${helmetStripe}" opacity="0.95"/>
-  <path d="M28 8.5 L28.9 10.8 L31.4 10.8 L29.4 12.3 L30.2 14.5 L28 13 L25.8 14.5 L26.6 12.3 L24.6 10.8 L27.1 10.8Z" fill="${dark}" transform="scale(0.55) translate(22,8)"/>
-
-  <!-- ── STATUS DOT ── -->
-  <circle cx="43" cy="10" r="5" fill="${dotC}" stroke="white" stroke-width="1.8" ${dotAn}/>
-
-  ${isSos?`<!-- SOS text -->
-  <rect x="19" y="27" width="18" height="10" rx="5" fill="rgba(220,38,38,0.7)"/>
-  <text x="28" y="35" text-anchor="middle" font-size="7" font-weight="900" font-family="Arial" fill="white" letter-spacing="0.5">SOS</text>`:''}
+  ${isSos?`<!-- SOS indicator -->
+  <circle cx="35" cy="8" r="6" fill="#ef4444" stroke="white" stroke-width="2"/>
+  <text x="35" y="12" text-anchor="middle" font-size="7" font-weight="900" font-family="Arial" fill="white">!</text>`
+  :isMov?`<!-- moving dot -->
+  <circle cx="35" cy="8" r="5.5" fill="#22c55e" stroke="white" stroke-width="2"/>
+  <circle cx="35" cy="8" r="2.5" fill="white" opacity="0.8"/>`
+  :isOff?`<!-- offline dot -->
+  <circle cx="35" cy="8" r="5" fill="#94a3b8" stroke="white" stroke-width="1.5"/>`
+  :`<!-- online dot -->
+  <circle cx="35" cy="8" r="5.5" fill="#22c55e" stroke="white" stroke-width="2"/>`}
 </svg>`;
 
+  // pulse/spin ring div
+  const ringDiv = (isSos||isMov) ? `<div style="position:absolute;inset:-6px;border-radius:50% 50% 50% 50%/45% 45% 55% 55%;border:2.5px ${isSos?'solid':'dashed'} ${ringC};pointer-events:none;${ringAn}"></div>` : '';
+
   return L.divIcon({
-    html:`<div style="position:relative;width:56px;height:56px;filter:drop-shadow(0 4px 8px ${glow})">
-      ${sosRing}${moveRing}${svg}
-    </div>`,
-    className:'',iconSize:[56,56],iconAnchor:[28,52]
+    html:`<div style="position:relative;width:44px;height:54px">${ringDiv}${svg}</div>`,
+    className:'',
+    iconSize:[44,54],
+    iconAnchor:[22,52],
+    popupAnchor:[0,-54]
   });
 }
 
