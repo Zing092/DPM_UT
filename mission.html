@@ -48,36 +48,72 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
 /* ── PAGE BODY ── */
 .page-body{flex:1;display:flex;flex-direction:column;overflow:hidden;}
 
-/* ── SOS BAR ── */
-.sos-bar{display:flex;gap:8px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--border-light);flex-shrink:0;}
-.sos-btn{flex:1;padding:11px;border:none;border-radius:11px;
+/* ── SOS BAR (ลบออก ย้ายไป toolbar) ── */
+.sos-btn{width:100%;padding:11px;border:none;border-radius:11px;
   background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;font-size:14px;font-weight:800;
   font-family:'Kanit',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
   box-shadow:0 4px 14px rgba(239,68,68,0.4);-webkit-user-select:none;user-select:none;touch-action:none;}
 .sos-btn:active{transform:scale(0.97);}
-.sos-cancel-btn{flex:1;padding:11px;border:2px solid #dc2626;border-radius:11px;background:#fff;
+.sos-cancel-btn{width:100%;padding:11px;border:2px solid #dc2626;border-radius:11px;background:#fff;
   color:#dc2626;font-size:13px;font-weight:800;font-family:'Kanit',sans-serif;cursor:pointer;
   display:flex;align-items:center;justify-content:center;gap:7px;}
 .center-btn{padding:11px 13px;border:1px solid var(--border);border-radius:11px;background:#fff;
   color:var(--primary);font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif;font-weight:600;
   display:flex;align-items:center;gap:4px;white-space:nowrap;}
 
-/* ── MEMBER PANEL ── */
-.member-panel{background:#fff;border-bottom:1px solid var(--border-light);flex-shrink:0;}
-.member-panel-hdr{background:linear-gradient(135deg,#064e3b,#065f46);padding:9px 14px;
-  display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+/* ── MEMBER PANEL → ย้ายเป็น sheet slide-up ── */
+.member-panel{display:none;} /* ซ่อน panel เดิม */
+
+/* Member sheet (slide-up เหมือนแชท) */
+.member-sheet{position:fixed;inset:0;z-index:1500;display:flex;flex-direction:column;
+  background:#fff;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.16,1,0.3,1);}
+.member-sheet.open{transform:translateY(0);}
+.member-sheet-hdr{background:linear-gradient(90deg,#064e3b,#065f46);padding:13px 16px;
+  display:flex;align-items:center;gap:10px;flex-shrink:0;padding-top:env(safe-area-inset-top,0px);}
+.member-sheet-hdr.sos-alert{animation:sos-hdr-flash 0.8s infinite;}
+.member-sheet-title{font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:#fff;flex:1;}
+.member-sheet-close{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;}
+.member-sheet-list{flex:1;overflow-y:auto;padding:0;}
+
+/* SOS ปุ่มใน toolbar */
+.mtool.sos-tool{background:linear-gradient(135deg,#dc2626,#ef4444);border-color:#dc2626;color:#fff;}
+.mtool.sos-tool:hover{background:linear-gradient(135deg,#b91c1c,#dc2626);}
+.mtool.sos-active{background:linear-gradient(135deg,#7f1d1d,#991b1b);border-color:#7f1d1d;color:#fff;animation:sos-tool-flash 0.8s infinite;}
+@keyframes sos-tool-flash{0%,100%{background:linear-gradient(135deg,#7f1d1d,#991b1b);}50%{background:linear-gradient(135deg,#dc2626,#ef4444);}}
+
+/* FAB สำหรับ team และ center */
+.team-fab{position:relative;width:48px;height:48px;border-radius:14px;flex-shrink:0;
+  background:linear-gradient(135deg,#064e3b,#065f46);color:#fff;border:none;
+  display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;
+  box-shadow:0 4px 14px rgba(6,78,59,0.4);}
+.team-badge{position:absolute;top:-5px;right:-5px;background:#22c55e;color:#fff;
+  font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;
+  display:none;align-items:center;justify-content:center;padding:0 3px;border:2px solid #fff;}
+.team-badge.show{display:flex;}
+.team-fab.sos-alert{animation:sos-fab-flash 0.8s infinite;}
+@keyframes sos-fab-flash{0%,100%{background:linear-gradient(135deg,#7f1d1d,#991b1b);box-shadow:0 4px 14px rgba(220,38,38,0.5);}50%{background:linear-gradient(135deg,#dc2626,#ef4444);box-shadow:0 4px 22px rgba(220,38,38,0.7);}}
+.center-fab{width:44px;height:44px;border-radius:12px;flex-shrink:0;
+  background:#fff;color:var(--primary);border:1.5px solid var(--border-light);
+  display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;
+  box-shadow:var(--shadow-md);}
+
+/* SOS panel ใน toolbar */
+#sos-toolbar-panel{background:#fff;border-radius:14px;padding:10px;box-shadow:var(--shadow-xl);
+  border:1px solid #fca5a5;display:none;flex-direction:column;gap:7px;min-width:190px;
+  position:absolute;right:60px;top:auto;bottom:10px;z-index:950;}
+#sos-toolbar-panel.show{display:flex;}
+
+
+.mdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 @keyframes sos-hdr-flash{0%,100%{background:linear-gradient(135deg,#7f1d1d,#991b1b);}50%{background:linear-gradient(135deg,#dc2626,#ef4444);}}
-.member-panel-hdr.sos-alert{animation:sos-hdr-flash 0.8s infinite;}
-.panel-title{font-family:'Kanit',sans-serif;font-size:12px;color:#fff;font-weight:700;}
-.panel-toggle{background:none;border:none;color:rgba(255,255,255,0.8);font-size:11px;cursor:pointer;padding:0;transition:transform 0.25s;}
-.panel-toggle.collapsed{transform:rotate(-90deg);}
-.member-list{max-height:155px;overflow-y:auto;transition:max-height 0.3s ease,opacity 0.2s;}
-.member-list.collapsed{max-height:0!important;overflow:hidden;opacity:0;}
+.member-list{overflow-y:auto;flex:1;}
 .member-row{display:flex;align-items:center;gap:9px;padding:7px 12px;border-bottom:1px solid var(--border-light);}
 .member-row:last-child{border-bottom:none;}
 @keyframes sos-row{0%,100%{background:#fff1f1;}50%{background:#fecaca;}}
 .member-row.sos-alert{animation:sos-row 0.8s infinite;border-left:3px solid #dc2626!important;}
-.mdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
 .mdot.online{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,0.2);animation:blink 2s infinite;}
 .mdot.moving{background:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.2);animation:blink 1s infinite;}
 .mdot.sos{background:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,0.3);animation:blink 0.5s infinite;}
@@ -339,23 +375,16 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 <!-- MAIN -->
 <div class="page-body" id="screen-main" style="display:none">
 
-  <!-- SOS -->
-  <div class="sos-bar">
-    <button class="sos-btn" id="sos-btn"><i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน</button>
-    <button class="sos-cancel-btn" id="sos-cancel-btn" style="display:none" onclick="cancelSos()"><i class="fas fa-times-circle"></i> ยกเลิก SOS</button>
-    <button class="center-btn" onclick="centerMap()"><i class="fas fa-compress-arrows-alt"></i> ดูทีม</button>
-  </div>
+  <!-- SOS panel ใน toolbar (ย้ายไปอยู่ใน map-wrap ด้านล่าง) -->
 
-  <!-- MEMBER PANEL -->
-  <div class="member-panel">
-    <div class="member-panel-hdr" id="mem-hdr" onclick="togglePanel()">
-      <div class="panel-title"><i class="fas fa-users" style="margin-right:5px"></i>สมาชิกในทีม</div>
-      <div style="display:flex;align-items:center;gap:7px">
-        <span id="online-count" style="font-size:10px;color:rgba(255,255,255,0.7)">0 ออนไลน์</span>
-        <button class="panel-toggle" id="panel-toggle"><i class="fas fa-chevron-down"></i></button>
-      </div>
+  <!-- MEMBER SHEET (slide-up เหมือนแชท) -->
+  <div class="member-sheet" id="member-sheet">
+    <div class="member-sheet-hdr" id="mem-hdr">
+      <button class="member-sheet-close" onclick="closeMemberSheet()"><i class="fas fa-arrow-down"></i></button>
+      <div class="member-sheet-title"><i class="fas fa-users" style="margin-right:6px;opacity:0.8"></i>สมาชิกในทีม <span id="online-count" style="font-size:10px;color:rgba(255,255,255,0.65);font-weight:500"></span></div>
+      <span class="topbar-live">LIVE</span>
     </div>
-    <div class="member-list" id="member-list"></div>
+    <div class="member-sheet-list" id="member-list"></div>
   </div>
 
   <!-- MAP -->
@@ -369,6 +398,7 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 
     <!-- Floating toolbar (collapsible) -->
     <div class="map-toolbar collapsed" id="map-toolbar">
+      <div class="mtool sos-tool" id="btn-sos" onclick="toggleSosPanel()"><i class="fas fa-exclamation-triangle"></i><span class="mtool-tip">SOS ฉุกเฉิน</span></div>
       <div class="mtool" id="btn-layer" onclick="toggleLayerPicker()"><i class="fas fa-layer-group" style="color:#0891b2"></i><span class="mtool-tip">ชั้นแผนที่</span></div>
       <div class="mtool" id="btn-draw" onclick="toggleDraw()"><i class="fas fa-draw-polygon"></i><span class="mtool-tip">วาดโซน</span></div>
       <div class="mtool" id="btn-pin" onclick="togglePinPicker()"><i class="fas fa-map-pin"></i><span class="mtool-tip">ปักหมุด</span></div>
@@ -412,6 +442,16 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
         <button id="btn-clear-all-grids" class="draw-cancel" style="flex:1" onclick="clearAllGrids()"><i class="fas fa-trash"></i> ลบ (ของฉัน)</button>
         <button class="draw-cancel" style="flex:1;border-color:#e2e8f0;color:#64748b" onclick="closeGridPicker()"><i class="fas fa-times"></i> ปิด</button>
       </div>
+    </div>
+
+    <!-- SOS Panel (ใน toolbar) -->
+    <div id="sos-toolbar-panel">
+      <div style="font-family:'Kanit',sans-serif;font-size:12px;font-weight:800;color:#dc2626;display:flex;align-items:center;gap:6px;padding-bottom:6px;border-bottom:1px solid #fecaca">
+        <i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน
+      </div>
+      <button class="sos-btn" id="sos-btn" style="font-size:13px;padding:10px"><i class="fas fa-exclamation-triangle"></i> ส่ง SOS ทันที</button>
+      <button class="sos-cancel-btn" id="sos-cancel-btn" style="display:none;font-size:12px;padding:9px" onclick="cancelSos()"><i class="fas fa-times-circle"></i> ยกเลิก SOS</button>
+      <button class="draw-cancel" style="border-color:#e2e8f0;color:#64748b;width:100%;justify-content:center" onclick="closeSosPanel()"><i class="fas fa-times"></i> ปิด</button>
     </div>
 
     <!-- Layer Switcher Panel -->
@@ -485,6 +525,13 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
     <button class="chat-fab" id="chat-fab" onclick="openChat()">
       <i class="fas fa-comments"></i>
       <div class="chat-badge" id="chat-badge"></div>
+    </button>
+    <button class="team-fab" id="team-fab" onclick="openMemberSheet()">
+      <i class="fas fa-users"></i>
+      <div class="team-badge" id="team-badge"></div>
+    </button>
+    <button class="center-fab" onclick="centerMap()" title="ดูทีม">
+      <i class="fas fa-compress-arrows-alt"></i>
     </button>
     <button class="leave-btn" onclick="confirmLeave()"><i class="fas fa-sign-out-alt"></i> ออกจากภารกิจ</button>
     <button class="end-btn" id="end-btn" style="display:none" onclick="showEndModal()"><i class="fas fa-flag-checkered"></i> จบภารกิจ</button>
@@ -1367,18 +1414,43 @@ function renderMemPanel(locs,mems){
   const hasSos=Object.values(mems).some(m=>m.status==='sos');
   const hasSosOther=Object.entries(mems).some(([u,m])=>m.status==='sos'&&u!==user.id);
   if(hdrEl) hdrEl.classList.toggle('sos-alert',hasSos);
-  if(hasSosOther&&listEl.classList.contains('collapsed')){listEl.classList.remove('collapsed');document.getElementById('panel-toggle').classList.remove('collapsed');}
+  // อัปเดต team-fab SOS alert
+  const teamFab=document.getElementById('team-fab');
+  if(teamFab) teamFab.classList.toggle('sos-alert',hasSosOther);
   if(hasSosOther&&!listEl._sos){listEl._sos=true;if(navigator.vibrate)navigator.vibrate([200,100,200,100,400]);alertSound();}
   else if(!hasSosOther) listEl._sos=false;
   const on=Object.values(mems).filter((_,i)=>{const uid=Object.keys(mems)[i];const lo=locs[uid];return lo&&(Date.now()-(lo.ts||0))<120000;}).length;
   if(cntEl) cntEl.textContent=`${on} ออนไลน์`;
+  // อัปเดต team badge จำนวนออนไลน์
+  const tb=document.getElementById('team-badge');
+  if(tb){tb.textContent=on>0?on:'';tb.classList.toggle('show',on>0);}
 }
-function togglePanel(){
-  const l=document.getElementById('member-list'),t=document.getElementById('panel-toggle');
-  if(!l) return;
-  const c=l.classList.toggle('collapsed');
-  if(t) t.classList.toggle('collapsed',c);
+function openMemberSheet(){
+  document.getElementById('member-sheet').classList.add('open');
 }
+function closeMemberSheet(){
+  document.getElementById('member-sheet').classList.remove('open');
+}
+window.openMemberSheet=openMemberSheet; window.closeMemberSheet=closeMemberSheet;
+
+function toggleSosPanel(){
+  _ensureToolbarOpen();
+  const p=document.getElementById('sos-toolbar-panel');
+  // ปิด picker อื่น
+  document.getElementById('pin-picker').classList.remove('show');
+  document.getElementById('btn-pin').classList.remove('active');
+  document.getElementById('grid-picker').classList.remove('show');
+  document.getElementById('btn-grid').classList.remove('active');
+  closeLayerPicker();
+  const show=p.classList.toggle('show');
+  document.getElementById('btn-sos').classList.toggle('active',show);
+}
+function closeSosPanel(){
+  document.getElementById('sos-toolbar-panel').classList.remove('show');
+  document.getElementById('btn-sos').classList.remove('active');
+}
+window.toggleSosPanel=toggleSosPanel; window.closeSosPanel=closeSosPanel;
+
 function alertSound(){
   try{const ctx=new(window.AudioContext||window.webkitAudioContext)();[0,0.3,0.6].forEach(t=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.setValueAtTime(0.3,ctx.currentTime+t);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.25);o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+0.25);});}catch(e){}
 }
@@ -1398,6 +1470,8 @@ async function trigSos(){
   toast('🆘 ส่ง SOS แล้ว! ทีมจะเห็นตำแหน่งคุณ','error');
   document.getElementById('sos-cancel-btn').style.display='flex';
   document.getElementById('sos-btn').style.display='none';
+  const tb=document.getElementById('btn-sos');
+  if(tb){tb.classList.remove('sos-tool');tb.classList.add('sos-active');}
   setTimeout(()=>{_sosOn=false;_sosExp=0;resetSos();},60000);
 }
 function cancelSos(){
@@ -1408,7 +1482,10 @@ function cancelSos(){
 }
 function resetSos(){
   document.getElementById('sos-cancel-btn').style.display='none';
-  const b=document.getElementById('sos-btn');b.style.display='flex';b.style.background='';b.style.opacity='1';b.innerHTML='<i class="fas fa-exclamation-triangle"></i> SOS ฉุกเฉิน';
+  const b=document.getElementById('sos-btn');
+  if(b){b.style.display='flex';b.style.background='';b.style.opacity='1';b.innerHTML='<i class="fas fa-exclamation-triangle"></i> ส่ง SOS ทันที';}
+  const tb=document.getElementById('btn-sos');
+  if(tb){tb.classList.remove('sos-active');tb.classList.add('sos-tool');}
 }
 function centerMap(){
   if(!_map) return;
@@ -2416,6 +2493,7 @@ function toggleGridPicker(){
   document.getElementById('pin-picker').classList.remove('show');
   document.getElementById('btn-pin').classList.remove('active');
   closeLayerPicker();
+  closeSosPanel();
   const show = p.classList.toggle('show');
   document.getElementById('btn-grid').classList.toggle('active', show || _gridLayers.length > 0);
   // อัปเดตป้ายปุ่มลบตามสิทธิ์
