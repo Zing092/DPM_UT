@@ -125,6 +125,8 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
 .pin-picker{position:absolute;right:60px;top:10px;z-index:950;background:#fff;border-radius:14px;
   padding:10px;box-shadow:var(--shadow-xl);border:1px solid var(--border-light);display:none;flex-direction:column;gap:5px;min-width:160px;}
 .pin-picker.show{display:flex;}
+/* grid picker reuses pin-picker style but positioned for 5th button */
+#grid-picker{top:auto;bottom:10px;right:60px;}
 .pin-picker-title{font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;color:var(--primary);padding-bottom:5px;border-bottom:1px solid var(--border-light);}
 .pin-type-btn{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:9px;border:none;
   background:transparent;cursor:pointer;font-size:12px;font-weight:600;font-family:'Sarabun',sans-serif;
@@ -333,6 +335,20 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
       <div class="mtool" id="btn-pin" onclick="togglePinPicker()"><i class="fas fa-map-pin"></i><span class="mtool-tip">ปักหมุด</span></div>
       <div class="mtool trail-on" id="btn-trail" onclick="toggleTrail()"><i class="fas fa-route"></i><span class="mtool-tip">ซ่อนเส้นทาง</span></div>
       <div class="mtool" id="btn-zones" onclick="toggleZones()"><i class="fas fa-layer-group"></i><span class="mtool-tip">โซน</span></div>
+      <div class="mtool" id="btn-grid" onclick="toggleGridPicker()"><i class="fas fa-th"></i><span class="mtool-tip">กริด</span></div>
+    </div>
+
+    <!-- Grid picker -->
+    <div class="pin-picker" id="grid-picker" style="min-width:170px">
+      <div class="pin-picker-title"><i class="fas fa-th" style="margin-right:4px"></i>กริดค้นหา</div>
+      <div style="font-size:11px;color:var(--text-muted);padding:2px 0 6px">เลือกขนาดกริด</div>
+      <button class="pin-type-btn" onclick="addGrid(100)"><div class="pin-ico" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-th"></i></div>100 × 100 ม.</button>
+      <button class="pin-type-btn" onclick="addGrid(250)"><div class="pin-ico" style="background:#dcfce7;color:#16a34a"><i class="fas fa-th-large"></i></div>250 × 250 ม.</button>
+      <button class="pin-type-btn" onclick="addGrid(500)"><div class="pin-ico" style="background:#fef3c7;color:#d97706"><i class="fas fa-border-all"></i></div>500 × 500 ม.</button>
+      <button class="pin-type-btn" onclick="addGrid(1000)"><div class="pin-ico" style="background:#f5f3ff;color:#7c3aed"><i class="fas fa-border-outer"></i></div>1000 × 1000 ม.</button>
+      <div style="border-top:1px solid var(--border-light);margin:4px 0"></div>
+      <button class="pin-type-btn" onclick="clearAllGrids()" style="color:#dc2626"><div class="pin-ico" style="background:#fee2e2;color:#dc2626"><i class="fas fa-trash"></i></div>ลบกริดทั้งหมด</button>
+      <button class="draw-cancel" onclick="closeGridPicker()"><i class="fas fa-times"></i> ปิด</button>
     </div>
 
     <!-- Draw toolbar -->
@@ -537,6 +553,8 @@ let _fPts=[], _fLine=null, _rStart=null, _rRect=null, _cCtr=null, _cCirc=null;
 let _pendingZone=null, _zoneColor='#3b82f6';
 let _pendingPinType=null, _pendingPinLL=null, _pendingPinPhoto=null;
 let _endPhotos=[];
+let _gridLayers=[], _gridOn=false;
+let _memberNames={}; // uid -> display name cache
 
 const COLORS=['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1'];
 const PIN_CFG={
@@ -562,6 +580,8 @@ W.showEndModal=showEndModal; W.endMission=endMission;
 W.handleEndImgs=handleEndImgs; W.confirmLeave=confirmLeave;
 W.closeModal=closeModal; W.openLB=openLB; W.closeLB=closeLB;
 W.flyTo=(la,ln)=>_map?.flyTo([la,ln],17,{animate:true,duration:0.8});
+W.toggleGridPicker=toggleGridPicker; W.closeGridPicker=closeGridPicker;
+W.addGrid=addGrid; W.clearAllGrids=clearAllGrids;
 W.showNav=showNav; W.delZone=delZone; W.delPin=delPin;
 W.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
 
@@ -733,10 +753,23 @@ function heartbeat(){
 
 // ─── Markers ─────────────────────────────────────────────
 function gc(i){return COLORS[i%COLORS.length];}
-function mkIcon(lbl,color,status){
-  const pulse=status==='sos'?'sos-pulse':'', bg=status==='sos'?'#dc2626':status==='offline'?'#94a3b8':color;
-  const ring=status==='online'?`box-shadow:0 0 0 3px ${color}55,0 2px 8px rgba(0,0,0,0.3)`:'box-shadow:0 2px 8px rgba(0,0,0,0.3)';
-  return L.divIcon({html:`<div class="${pulse}" style="width:32px;height:32px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;font-family:'Kanit',sans-serif;border:2.5px solid #fff;${ring}">${status==='sos'?'🆘':lbl.slice(0,2)}</div>`,className:'',iconSize:[32,32],iconAnchor:[16,16]});
+function mkIcon(lbl,color,status,fullName){
+  const isSos=status==='sos',isOff=status==='offline',isMov=status==='moving';
+  const bg=isSos?'linear-gradient(135deg,#dc2626,#b91c1c)':isOff?'linear-gradient(135deg,#94a3b8,#64748b)':`linear-gradient(135deg,${color},${color}bb)`;
+  const border=isSos?'#fca5a5':'#fff';
+  const shadow=isSos?`0 0 0 5px rgba(220,38,38,0.35),0 4px 14px rgba(0,0,0,0.45)`:`0 0 0 3px ${color}55,0 4px 12px rgba(0,0,0,0.3)`;
+  const inner=isSos?'🆘':isMov?'<i class="fas fa-walking" style="font-size:13px"></i>':lbl.slice(0,2);
+  const pulse=isSos?'sos-pulse':'';
+  const shortName=(fullName||lbl).split(' ')[0].slice(0,8);
+  const nameTag=`<div style="position:absolute;top:41px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(15,23,42,0.85);color:#fff;font-size:10px;font-weight:700;font-family:'Kanit',sans-serif;padding:2px 7px;border-radius:5px;border-left:3px solid ${isSos?'#ef4444':color};pointer-events:none">${shortName}</div>`;
+  const movDot=isMov?`<div style="position:absolute;bottom:-2px;right:-2px;width:11px;height:11px;border-radius:50%;background:#22c55e;border:2px solid #fff;animation:blink 1s infinite"></div>`:'';
+  return L.divIcon({
+    html:`<div style="position:relative;width:38px;height:55px">
+      <div class="${pulse}" style="width:38px;height:38px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:800;font-family:'Kanit',sans-serif;border:3px solid ${border};box-shadow:${shadow}">${inner}</div>
+      ${movDot}${nameTag}
+    </div>`,
+    className:'',iconSize:[38,55],iconAnchor:[19,19]
+  });
 }
 function renderMarkers(locs,mems){
   if(!_map) return;
@@ -746,8 +779,8 @@ function renderMarkers(locs,mems){
     let st='offline';
     if(lo){const age=now-(lo.ts||0); if(me.status==='sos') st='sos'; else if(age<120000) st=lo.status||'online';}
     if(!lo){if(_markers[uid]){_markers[uid].remove();delete _markers[uid];}return;}
-    if(_markers[uid]){_markers[uid].setLatLng([lo.lat,lo.lng]);_markers[uid].setIcon(mkIcon(id,c,st));}
-    else{_markers[uid]=L.marker([lo.lat,lo.lng],{icon:mkIcon(id,c,st),zIndexOffset:uid===user.id?1000:0}).addTo(_map);}
+    if(_markers[uid]){_markers[uid].setLatLng([lo.lat,lo.lng]);_markers[uid].setIcon(mkIcon(id,c,st,me.name));}
+    else{_markers[uid]=L.marker([lo.lat,lo.lng],{icon:mkIcon(id,c,st,me.name),zIndexOffset:uid===user.id?1000:0}).addTo(_map);}
     const self=uid===user.id,ls=lo.ts?ago(lo.ts):'-';
     _markers[uid].bindPopup(`
       <div class="pp-title">${self?'📍 คุณ':'👤'} ${me.name||id}</div>
@@ -771,14 +804,40 @@ function listenTrails(){
 }
 function drawTrailLayers(){
   if(!_map) return;
-  // Always clear first
   Object.values(_trailLayers).forEach(l=>l.remove()); _trailLayers={};
   if(!_trailOn) return;
   Object.entries(_trailData).forEach(([uid,pts],i)=>{
     if(!pts||pts.length<2) return;
     const c=gc(i);
-    _trailLayers[uid]=L.polyline(pts.map(p=>[p[0],p[1]]),{color:c,weight:3,opacity:0.7,dashArray:'6,4'}).addTo(_map);
+    // Draw shadow trail for visibility
+    L.polyline(pts.map(p=>[p[0],p[1]]),{color:'#000',weight:5,opacity:0.15,dashArray:null}).addTo(_map);
+    _trailLayers[uid]=L.polyline(pts.map(p=>[p[0],p[1]]),{color:c,weight:3.5,opacity:0.85,dashArray:'8,5'}).addTo(_map);
   });
+  renderTrailLegend();
+}
+function renderTrailLegend(){
+  const ex=document.getElementById('trail-legend');if(ex)ex.remove();
+  if(!_trailOn||!Object.keys(_trailData).length) return;
+  const el=document.createElement('div');
+  el.id='trail-legend';
+  el.style.cssText='position:absolute;bottom:12px;left:12px;z-index:900;background:rgba(255,255,255,0.93);border-radius:10px;padding:8px 11px;box-shadow:0 2px 12px rgba(0,0,0,0.15);border:1px solid #e2e8f0;max-width:160px;backdrop-filter:blur(6px)';
+  const items=Object.entries(_trailData).map(([uid,pts],i)=>{
+    const c=gc(i);
+    const name=_memberNames[uid]||uid.slice(-6);
+    const dist=pts&&pts.length>1?calcTotalDist(pts):0;
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+      <div style="width:20px;height:3px;border-radius:2px;background:${c};border-top:2px dashed ${c}66;flex-shrink:0"></div>
+      <div style="font-size:10px;font-weight:700;font-family:'Kanit',sans-serif;color:#0f172a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
+      <div style="font-size:9px;color:#64748b;flex-shrink:0">${fmtD(dist)}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML=`<div style="font-size:10px;font-weight:800;color:#0a2463;font-family:'Kanit',sans-serif;margin-bottom:5px;border-bottom:1px solid #e2e8f0;padding-bottom:4px"><i class="fas fa-route" style="margin-right:4px"></i>เส้นทางเดิน</div>${items}`;
+  document.getElementById('map-wrap').appendChild(el);
+}
+function calcTotalDist(pts){
+  let d=0;
+  for(let i=1;i<pts.length;i++) d+=calcD(pts[i-1][0],pts[i-1][1],pts[i][0],pts[i][1]);
+  return d;
 }
 function toggleTrail(){
   _trailOn=!_trailOn;
@@ -788,11 +847,14 @@ function toggleTrail(){
   if(tip) tip.textContent=_trailOn?'ซ่อนเส้นทาง':'แสดงเส้นทาง';
   btn.blur();
   drawTrailLayers();
+  if(!_trailOn){const l=document.getElementById('trail-legend');if(l)l.remove();}
   toast(_trailOn?'แสดงเส้นทางการเดิน ✅':'ซ่อนเส้นทางการเดิน','info');
 }
 
 // ─── Member panel ─────────────────────────────────────────
 function renderMemPanel(locs,mems){
+  // cache member names for trail legend
+  Object.entries(mems).forEach(([uid,me])=>{if(me.name)_memberNames[uid]=me.name;});
   const listEl=document.getElementById('member-list'), cntEl=document.getElementById('online-count'), hdrEl=document.getElementById('mem-hdr');
   if(!listEl) return;
   const now=Date.now(), myL=locs[user.id];
@@ -1149,6 +1211,71 @@ function confirmLeave(){
   [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails].forEach(f=>f&&f());
   Promise.all([remove(ref(db,`search_missions/${missionId}/members/${user.id}`)),remove(ref(db,`search_missions/${missionId}/locations/${user.id}`))]).catch(()=>{});
   localStorage.removeItem('sm_active_mission');location.replace('index.html?tab=search-mission');
+}
+
+// ══════════════════════════════════════════════════════════
+// ─── GRID SYSTEM ──────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+function toggleGridPicker(){
+  const p=document.getElementById('grid-picker');
+  // close other pickers first
+  document.getElementById('pin-picker').classList.remove('show');
+  document.getElementById('btn-pin').classList.remove('active');
+  const show=p.classList.toggle('show');
+  document.getElementById('btn-grid').classList.toggle('active',show);
+}
+function closeGridPicker(){
+  document.getElementById('grid-picker').classList.remove('show');
+  document.getElementById('btn-grid').classList.toggle('active',_gridLayers.length>0);
+}
+function addGrid(sizeMeters){
+  if(!_map){return;}
+  const bounds=_map.getBounds();
+  const sw=bounds.getSouthWest(), ne=bounds.getNorthEast();
+  // convert meters to degrees approx
+  const latDeg=sizeMeters/111320;
+  const lngDeg=sizeMeters/(111320*Math.cos(((sw.lat+ne.lat)/2)*Math.PI/180));
+  const color='#3b82f6';
+  const lines=[];
+  // vertical lines
+  for(let lng=Math.floor(sw.lng/lngDeg)*lngDeg; lng<=ne.lng+lngDeg; lng+=lngDeg){
+    const line=L.polyline([[sw.lat-latDeg,lng],[ne.lat+latDeg,lng]],{color,weight:1,opacity:0.5,dashArray:'4,4'}).addTo(_map);
+    lines.push(line);
+  }
+  // horizontal lines
+  for(let lat=Math.floor(sw.lat/latDeg)*latDeg; lat<=ne.lat+latDeg; lat+=latDeg){
+    const line=L.polyline([[lat,sw.lng-lngDeg],[lat,ne.lng+lngDeg]],{color,weight:1,opacity:0.5,dashArray:'4,4'}).addTo(_map);
+    lines.push(line);
+  }
+  // label each cell
+  const labels=[];
+  let row=0;
+  for(let lat=Math.floor(sw.lat/latDeg)*latDeg; lat<=ne.lat; lat+=latDeg,row++){
+    let col=0;
+    for(let lng=Math.floor(sw.lng/lngDeg)*lngDeg; lng<=ne.lng; lng+=lngDeg,col++){
+      const cellLabel=`${String.fromCharCode(65+row)}${col+1}`;
+      const marker=L.marker([lat+latDeg/2,lng+lngDeg/2],{
+        icon:L.divIcon({html:`<div style="background:rgba(37,99,235,0.12);color:#1d4ed8;font-size:10px;font-weight:800;font-family:'Kanit',sans-serif;border:1px solid rgba(37,99,235,0.3);border-radius:4px;padding:2px 5px;white-space:nowrap">${cellLabel}</div>`,className:'',iconAnchor:[0,0]}),
+        interactive:false
+      }).addTo(_map);
+      labels.push(marker);
+    }
+  }
+  _gridLayers.push({lines,labels,size:sizeMeters});
+  _gridOn=true;
+  document.getElementById('btn-grid').classList.add('active');
+  closeGridPicker();
+  toast(`เพิ่มกริด ${sizeMeters>=1000?sizeMeters/1000+'กม.':sizeMeters+'ม.'} แล้ว ✅ (${_gridLayers.length} กริด)`,'success');
+}
+function clearAllGrids(){
+  _gridLayers.forEach(g=>{
+    g.lines.forEach(l=>l.remove());
+    g.labels.forEach(l=>l.remove());
+  });
+  _gridLayers=[];_gridOn=false;
+  document.getElementById('btn-grid').classList.remove('active');
+  closeGridPicker();
+  toast('ลบกริดทั้งหมดแล้ว','info');
 }
 
 // ─── Helpers ─────────────────────────────────────────────
