@@ -346,16 +346,39 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
     </div>
 
     <!-- Grid picker -->
-    <div class="pin-picker" id="grid-picker" style="min-width:170px">
+    <div class="pin-picker" id="grid-picker" style="min-width:200px">
       <div class="pin-picker-title"><i class="fas fa-th" style="margin-right:4px"></i>กริดค้นหา</div>
-      <div style="font-size:11px;color:var(--text-muted);padding:2px 0 6px">เลือกขนาดกริด</div>
-      <button class="pin-type-btn" onclick="addGrid(100)"><div class="pin-ico" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-th"></i></div>100 × 100 ม.</button>
-      <button class="pin-type-btn" onclick="addGrid(250)"><div class="pin-ico" style="background:#dcfce7;color:#16a34a"><i class="fas fa-th-large"></i></div>250 × 250 ม.</button>
-      <button class="pin-type-btn" onclick="addGrid(500)"><div class="pin-ico" style="background:#fef3c7;color:#d97706"><i class="fas fa-border-all"></i></div>500 × 500 ม.</button>
-      <button class="pin-type-btn" onclick="addGrid(1000)"><div class="pin-ico" style="background:#f5f3ff;color:#7c3aed"><i class="fas fa-border-outer"></i></div>1000 × 1000 ม.</button>
-      <div style="border-top:1px solid var(--border-light);margin:4px 0"></div>
-      <button class="pin-type-btn" onclick="clearAllGrids()" style="color:#dc2626"><div class="pin-ico" style="background:#fee2e2;color:#dc2626"><i class="fas fa-trash"></i></div>ลบกริดทั้งหมด</button>
-      <button class="draw-cancel" onclick="closeGridPicker()"><i class="fas fa-times"></i> ปิด</button>
+
+      <!-- preset sizes -->
+      <div style="font-size:10px;color:var(--text-muted);padding:2px 0 5px;font-weight:600">ขนาดมาตรฐาน</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px">
+        <button class="dmbtn" style="font-size:11px;padding:6px 8px" onclick="startGridDraw(100)"><i class="fas fa-th" style="color:#1d4ed8;margin-right:4px"></i>100 ม.</button>
+        <button class="dmbtn" style="font-size:11px;padding:6px 8px" onclick="startGridDraw(250)"><i class="fas fa-th-large" style="color:#16a34a;margin-right:4px"></i>250 ม.</button>
+        <button class="dmbtn" style="font-size:11px;padding:6px 8px" onclick="startGridDraw(500)"><i class="fas fa-border-all" style="color:#d97706;margin-right:4px"></i>500 ม.</button>
+        <button class="dmbtn" style="font-size:11px;padding:6px 8px" onclick="startGridDraw(1000)"><i class="fas fa-border-outer" style="color:#7c3aed;margin-right:4px"></i>1 กม.</button>
+      </div>
+
+      <!-- custom size -->
+      <div style="font-size:10px;color:var(--text-muted);padding:2px 0 5px;font-weight:600">กำหนดเอง</div>
+      <div style="display:flex;gap:5px;margin-bottom:8px">
+        <input id="grid-custom-size" type="number" min="10" max="10000" value="200"
+          style="flex:1;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'Sarabun',sans-serif;outline:none"
+          placeholder="ระยะ (ม.)">
+        <button class="dmbtn" style="padding:6px 10px;font-size:11px;white-space:nowrap" onclick="startGridDrawCustom()">
+          <i class="fas fa-pencil-ruler" style="color:#2563eb"></i> วาด
+        </button>
+      </div>
+
+      <!-- draw hint -->
+      <div id="grid-draw-hint" style="display:none;font-size:10px;color:#2563eb;background:#eff6ff;border-radius:7px;padding:5px 8px;margin-bottom:6px;border-left:3px solid #2563eb">
+        <i class="fas fa-hand-pointer" style="margin-right:4px"></i><span id="grid-hint-text">ลากบนแผนที่เพื่อเลือกพื้นที่</span>
+      </div>
+
+      <div style="border-top:1px solid var(--border-light);margin:4px 0 6px"></div>
+      <div style="display:flex;gap:6px">
+        <button class="draw-cancel" style="flex:1" onclick="clearAllGrids()"><i class="fas fa-trash"></i> ลบทั้งหมด</button>
+        <button class="draw-cancel" style="flex:1;border-color:#e2e8f0;color:#64748b" onclick="closeGridPicker()"><i class="fas fa-times"></i> ปิด</button>
+      </div>
     </div>
 
     <!-- Draw toolbar -->
@@ -561,6 +584,7 @@ let _pendingZone=null, _zoneColor='#3b82f6';
 let _pendingPinType=null, _pendingPinLL=null, _pendingPinPhoto=null;
 let _endPhotos=[];
 let _gridLayers=[], _gridOn=false;
+let _gridDrawing=false, _gridSize=100, _gridStart=null, _gridRect=null, _gridDrawLayer=null;
 let _memberNames={}; // uid -> display name cache
 let _memberColors={}; // uid -> color cache
 
@@ -590,6 +614,7 @@ W.closeModal=closeModal; W.openLB=openLB; W.closeLB=closeLB;
 W.flyTo=(la,ln)=>_map?.flyTo([la,ln],17,{animate:true,duration:0.8});
 W.toggleGridPicker=toggleGridPicker; W.closeGridPicker=closeGridPicker;
 W.addGrid=addGrid; W.clearAllGrids=clearAllGrids;
+W.startGridDraw=startGridDraw; W.startGridDrawCustom=startGridDrawCustom; W.cancelGridDraw=cancelGridDraw;
 W.showNav=showNav; W.delZone=delZone; W.delPin=delPin;
 W.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
 
@@ -708,11 +733,14 @@ function startGps(){
       const{latitude:la,longitude:ln}=p.coords;
       const tRef=ref(db,`search_missions/${missionId}/trails/${user.id}`);
       get(tRef).then(s=>{
-        const data=s.val()||{points:[],name:user.name||user.id,leftAt:null};
-        const arr=Array.isArray(data)?data:data.points||[];
-        arr.push([+la.toFixed(6),+ln.toFixed(6),Date.now()]);
-        if(arr.length>500) arr.splice(0,arr.length-500);
-        set(tRef,{points:arr,name:user.name||user.id,color:_memberColors[user.id]||null,leftAt:null}).catch(()=>{});
+        const raw=s.val();
+        const prev=raw&&!Array.isArray(raw)?raw:{points:Array.isArray(raw)?raw:[],name:user.name||user.id,color:null,leftAt:null};
+        prev.points.push([+la.toFixed(6),+ln.toFixed(6),Date.now()]);
+        if(prev.points.length>500) prev.points.splice(0,prev.points.length-500);
+        prev.name=user.name||user.id;
+        prev.color=_memberColors[user.id]||null;
+        prev.leftAt=null;
+        set(tRef,prev).catch(()=>{});
       });
     },()=>{},{enableHighAccuracy:false,timeout:8000,maximumAge:20000});
   },30000);
@@ -883,19 +911,12 @@ function listenTrails(){
   if(_unTrails){_unTrails();_unTrails=null;}
   _unTrails=onValue(ref(db,`search_missions/${missionId}/trails`),s=>{
     const raw=s.val()||{};
-    // normalise: support both old array format and new {points,name,color,leftAt} format
     _trailData={};
     Object.entries(raw).forEach(([uid,val])=>{
       if(Array.isArray(val)){
         _trailData[uid]={points:val,name:_memberNames[uid]||uid.slice(-6),color:null,leftAt:null};
       } else {
-        _trailData[uid]={
-          points:val.points||[],
-          name:val.name||_memberNames[uid]||uid.slice(-6),
-          color:val.color||null,
-          leftAt:val.leftAt||null
-        };
-        // cache name for legend
+        _trailData[uid]={points:val.points||[],name:val.name||_memberNames[uid]||uid.slice(-6),color:val.color||null,leftAt:val.leftAt||null};
         if(val.name) _memberNames[uid]=val.name;
         if(val.color) _memberColors[uid]=val.color;
       }
@@ -911,30 +932,50 @@ function syncMemberColors(mems){
 }
 function drawTrailLayers(){
   if(!_map) return;
-  Object.values(_trailLayers).forEach(l=>{if(l.remove)l.remove();else if(l.line)l.line.remove()}); _trailLayers={};
+  Object.values(_trailLayers).forEach(l=>l.remove()); _trailLayers={};
   if(!_trailOn) return;
   const memberUids=Object.keys(_memberColors);
   Object.entries(_trailData).forEach(([uid,data])=>{
-    const pts=data.points||[];
+    const pts=Array.isArray(data)?data:(data.points||[]);
     if(pts.length<2) return;
-    const hasLeft=!!data.leftAt;
+    const hasLeft=!Array.isArray(data)&&!!data.leftAt;
     const idx=memberUids.indexOf(uid);
-    const c=data.color||_memberColors[uid]||(idx>=0?gc(idx):gc(0));
-    // left members: faded, grey-tinted, thinner dashes
-    const opacity = hasLeft ? 0.38 : 0.9;
-    const weight  = hasLeft ? 2.5  : 4;
-    const dash    = hasLeft ? '6,8' : '10,6';
-    const lineColor = hasLeft ? '#94a3b8' : c;
-    const line=L.polyline(pts.map(p=>[p[0],p[1]]),{color:lineColor,weight,opacity,dashArray:dash}).addTo(_map);
+    const c=(Array.isArray(data)?null:data.color)||_memberColors[uid]||(idx>=0?gc(idx):gc(0));
+    const name=(Array.isArray(data)?null:data.name)||_memberNames[uid]||uid.slice(-6);
+    const line=L.polyline(pts.map(p=>[p[0],p[1]]),{
+      color: hasLeft?'#94a3b8':c,
+      weight: hasLeft?2.5:4,
+      opacity: hasLeft?0.45:0.9,
+      dashArray: hasLeft?'6,9':'10,6'
+    }).addTo(_map);
     if(hasLeft){
-      // popup on click for left member trail
+      const dist=calcTotalDist(pts);
       const leftTime=new Date(data.leftAt).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+      const startTime=pts[0][2]?new Date(pts[0][2]).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}):'-';
+      line.bindPopup(`
+        <div style="min-width:180px">
+          <div class="pp-title" style="color:#64748b;margin-bottom:8px">
+            <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${c};margin-right:6px;vertical-align:middle"></span>
+            ${esc(name)}
+          </div>
+          <div class="pp-row"><i class="fas fa-sign-out-alt" style="color:#ef4444;margin-right:5px;width:14px"></i>ออกจากภารกิจ <b>${leftTime} น.</b></div>
+          <div class="pp-row"><i class="fas fa-play-circle" style="color:#22c55e;margin-right:5px;width:14px"></i>เริ่มเดิน <b>${startTime} น.</b></div>
+          <div class="pp-row"><i class="fas fa-route" style="color:#3b82f6;margin-right:5px;width:14px"></i>ระยะทางรวม <b>${fmtD(dist)}</b></div>
+          <div class="pp-row"><i class="fas fa-map-marker-alt" style="color:#f59e0b;margin-right:5px;width:14px"></i>จุดบันทึก <b>${pts.length} จุด</b></div>
+          <div style="margin-top:7px;padding:5px 8px;background:#f8fafc;border-radius:7px;border-left:3px solid #94a3b8;font-size:10px;color:#94a3b8">ออกจากภารกิจแล้ว — เส้นทางย้อนหลัง</div>
+        </div>
+      `);
+    } else {
       const dist=calcTotalDist(pts);
       line.bindPopup(`
-        <div class="pp-title" style="color:#64748b"><i class="fas fa-sign-out-alt" style="margin-right:5px"></i>${data.name||uid.slice(-6)}</div>
-        <div class="pp-row" style="color:#94a3b8"><i class="fas fa-clock" style="margin-right:4px"></i>ออกจากภารกิจเมื่อ ${leftTime}</div>
-        <div class="pp-row" style="color:#94a3b8"><i class="fas fa-route" style="margin-right:4px"></i>ระยะทางรวม ${fmtD(dist)}</div>
-        <div style="margin-top:6px;font-size:10px;background:#f1f5f9;border-radius:6px;padding:4px 8px;color:#94a3b8">เส้นทางของผู้ที่ออกจากภารกิจแล้ว</div>
+        <div>
+          <div class="pp-title" style="color:${c}">
+            <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${c};margin-right:6px;vertical-align:middle"></span>
+            ${esc(name)}
+          </div>
+          <div class="pp-row"><i class="fas fa-route" style="color:${c};margin-right:5px;width:14px"></i>ระยะทางรวม <b>${fmtD(dist)}</b></div>
+          <div class="pp-row"><i class="fas fa-map-marker-alt" style="color:${c};margin-right:5px;width:14px"></i>จุดบันทึก <b>${pts.length} จุด</b></div>
+        </div>
       `);
     }
     _trailLayers[uid]=line;
@@ -948,16 +989,18 @@ function renderTrailLegend(){
   el.id='trail-legend';
   el.style.cssText='position:absolute;bottom:12px;left:12px;z-index:900;background:rgba(255,255,255,0.93);border-radius:10px;padding:8px 11px;box-shadow:0 2px 12px rgba(0,0,0,0.15);border:1px solid #e2e8f0;max-width:160px;backdrop-filter:blur(6px)';
   const items=Object.entries(_trailData).map(([uid,data],i)=>{
-    const pts=data.points||[];
-    const hasLeft=!!data.leftAt;
-    const c=hasLeft?'#94a3b8':(data.color||_memberColors[uid]||gc(i));
-    const name=data.name||_memberNames[uid]||uid.slice(-6);
+    const pts=Array.isArray(data)?data:(data.points||[]);
+    const hasLeft=!Array.isArray(data)&&!!data.leftAt;
+    const idx=Object.keys(_memberColors).indexOf(uid);
+    const c=(Array.isArray(data)?null:data.color)||_memberColors[uid]||(idx>=0?gc(idx):gc(i));
+    const name=(Array.isArray(data)?null:data.name)||_memberNames[uid]||uid.slice(-6);
     const dist=pts.length>1?calcTotalDist(pts):0;
-    const leftTag=hasLeft?`<span style="font-size:8px;background:#f1f5f9;color:#94a3b8;border-radius:3px;padding:1px 4px;margin-left:2px">ออกแล้ว</span>`:'';
-    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;opacity:${hasLeft?0.6:1}">
-      <div style="width:20px;height:3px;border-radius:2px;background:${c};opacity:${hasLeft?0.5:1};flex-shrink:0"></div>
-      <div style="font-size:10px;font-weight:700;font-family:'Kanit',sans-serif;color:${hasLeft?'#94a3b8':'#0f172a'};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}${leftTag}</div>
-      <div style="font-size:9px;color:#64748b;flex-shrink:0">${fmtD(dist)}</div>
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;opacity:${hasLeft?0.65:1}">
+      <div style="width:18px;height:4px;border-radius:2px;background:${hasLeft?'#94a3b8':c};flex-shrink:0;${hasLeft?'border-top:2px dashed #94a3b8':''}"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10px;font-weight:700;font-family:'Kanit',sans-serif;color:${hasLeft?'#94a3b8':'#0f172a'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}${hasLeft?'<span style="font-size:8px;background:#f1f5f9;color:#94a3b8;border-radius:3px;padding:1px 4px;margin-left:3px">ออกแล้ว</span>':''}</div>
+        <div style="font-size:9px;color:#94a3b8">${fmtD(dist)}</div>
+      </div>
     </div>`;
   }).join('');
   el.innerHTML=`<div style="font-size:10px;font-weight:800;color:#0a2463;font-family:'Kanit',sans-serif;margin-bottom:5px;border-bottom:1px solid #e2e8f0;padding-bottom:4px"><i class="fas fa-route" style="margin-right:4px"></i>เส้นทางเดิน</div>${items}`;
@@ -1107,6 +1150,33 @@ function setupDrawEvents(){
     if(_drawMode==='rect'&&_rStart){const b=L.latLngBounds(_rStart,ll);if(_rRect){_rRect.setBounds(b);}else{_rRect=L.rectangle(b,{color:_zoneColor,weight:2,fillOpacity:0.2,dashArray:'6,3'}).addTo(_map);}}
     if(_drawMode==='circle'&&_cCtr){const r=_cCtr.distanceTo(ll);if(_cCirc){_cCirc.setRadius(r);}else{_cCirc=L.circle(_cCtr,{radius:r,color:_zoneColor,weight:2,fillOpacity:0.15,dashArray:'6,3'}).addTo(_map);}}
   });
+  // ── Grid area draw events ──────────────────────────────
+  _map.on('mousedown touchstart',eg=>{
+    if(!_gridDrawing) return;
+    const ll=getLL(eg); if(!ll) return;
+    _gridStart=ll;
+    if(_gridRect){_gridRect.remove();_gridRect=null;}
+    _gridRect=L.rectangle([ll,ll],{color:'#2563eb',weight:2,fillColor:'#3b82f6',fillOpacity:0.08,dashArray:'6,4'}).addTo(_map);
+  });
+  _map.on('mousemove touchmove',eg=>{
+    if(!_gridDrawing||!_gridStart) return;
+    const ll=getLL(eg); if(!ll) return;
+    _gridRect?.setBounds(L.latLngBounds(_gridStart,ll));
+  });
+  _map.on('mouseup touchend',eg=>{
+    if(!_gridDrawing||!_gridStart) return;
+    const ll=getLL(eg)||_gridStart;
+    const b=L.latLngBounds(_gridStart,ll);
+    if(b.getNorth()===b.getSouth()||b.getEast()===b.getWest()){cancelGridDraw();return;}
+    if(_gridRect){_gridRect.remove();_gridRect=null;}
+    _map.dragging.enable();
+    _map.getContainer().style.cursor='';
+    _gridDrawing=false;
+    document.getElementById('grid-draw-hint').style.display='none';
+    addGrid(_gridSize, b.getSouthWest(), b.getNorthEast());
+    _gridStart=null;
+  });
+
   _map.on('mouseup touchend',e=>{
     if(!_drawOn||!_drawMode) return;
     const ll=getLL(e)||(e.changedTouches?_map.containerPointToLatLng(L.point(e.changedTouches[0].clientX-_map.getContainer().getBoundingClientRect().left,e.changedTouches[0].clientY-_map.getContainer().getBoundingClientRect().top)):null);
@@ -1338,11 +1408,19 @@ function confirmLeave(){
   if(!confirm('ยืนยันออกจากภารกิจ?\nระบบจะหยุดส่งตำแหน่งของคุณ')) return;
   _gps=false;stopGps();
   [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails].forEach(f=>f&&f());
-  // stamp leftAt on trail so others can still see it as "left"
+  // stamp leftAt so others can still see trail with info
   const myColor=_memberColors[user.id]||null;
-  update(ref(db,`search_missions/${missionId}/trails/${user.id}`),{leftAt:Date.now(),name:user.name||user.id,color:myColor}).catch(()=>{});
+  const myName=user.name||user.id;
+  get(ref(db,`search_missions/${missionId}/trails/${user.id}`)).then(s=>{
+    const raw=s.val();
+    if(raw){
+      const prev=Array.isArray(raw)?{points:raw,name:myName,color:myColor,leftAt:Date.now()}:{...raw,name:myName,color:myColor,leftAt:Date.now()};
+      set(ref(db,`search_missions/${missionId}/trails/${user.id}`),prev).catch(()=>{});
+    }
+  }).catch(()=>{});
   Promise.all([remove(ref(db,`search_missions/${missionId}/members/${user.id}`)),remove(ref(db,`search_missions/${missionId}/locations/${user.id}`))]).catch(()=>{});
-  localStorage.removeItem('sm_active_mission');location.replace('index.html?tab=search-mission');
+  localStorage.removeItem('sm_active_mission');
+  setTimeout(()=>location.replace('index.html?tab=search-mission'),800);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1350,63 +1428,86 @@ function confirmLeave(){
 // ══════════════════════════════════════════════════════════
 function toggleGridPicker(){
   const p=document.getElementById('grid-picker');
-  // close other pickers first
   document.getElementById('pin-picker').classList.remove('show');
   document.getElementById('btn-pin').classList.remove('active');
   const show=p.classList.toggle('show');
-  document.getElementById('btn-grid').classList.toggle('active',show);
+  document.getElementById('btn-grid').classList.toggle('active',show||_gridLayers.length>0);
 }
 function closeGridPicker(){
   document.getElementById('grid-picker').classList.remove('show');
   document.getElementById('btn-grid').classList.toggle('active',_gridLayers.length>0);
 }
-function addGrid(sizeMeters){
-  if(!_map){return;}
-  const bounds=_map.getBounds();
-  const sw=bounds.getSouthWest(), ne=bounds.getNorthEast();
-  // convert meters to degrees approx
+function startGridDraw(size){
+  _gridSize=size;
+  _startGridDrawMode();
+}
+function startGridDrawCustom(){
+  const v=parseInt(document.getElementById('grid-custom-size').value)||200;
+  _gridSize=Math.max(10,Math.min(10000,v));
+  _startGridDrawMode();
+}
+function _startGridDrawMode(){
+  // close picker, enter draw mode
+  document.getElementById('grid-picker').classList.remove('show');
+  _gridDrawing=true;
+  _gridStart=null;
+  if(_gridRect){_gridRect.remove();_gridRect=null;}
+  _map.dragging.disable();
+  _map.getContainer().style.cursor='crosshair';
+  document.getElementById('grid-draw-hint').style.display='block';
+  document.getElementById('grid-hint-text').textContent=`วาดพื้นที่สำหรับกริด ${_gridSize>=1000?_gridSize/1000+'กม.':_gridSize+'ม.'} — ลากเพื่อเลือก`;
+  document.getElementById('btn-grid').classList.add('active');
+  toast(`เลือกพื้นที่: ลากบนแผนที่สำหรับกริด ${_gridSize>=1000?_gridSize/1000+'กม.':_gridSize+'ม.'}`, 'info');
+}
+function cancelGridDraw(){
+  _gridDrawing=false; _gridStart=null;
+  if(_gridRect){_gridRect.remove();_gridRect=null;}
+  _map.dragging.enable();
+  _map.getContainer().style.cursor='';
+  document.getElementById('grid-draw-hint').style.display='none';
+  document.getElementById('btn-grid').classList.toggle('active',_gridLayers.length>0);
+}
+function addGrid(sizeMeters, sw, ne){
+  if(!_map) return;
+  if(!sw||!ne){sw=_map.getBounds().getSouthWest();ne=_map.getBounds().getNorthEast();}
+  const midLat=(sw.lat+ne.lat)/2;
   const latDeg=sizeMeters/111320;
-  const lngDeg=sizeMeters/(111320*Math.cos(((sw.lat+ne.lat)/2)*Math.PI/180));
+  const lngDeg=sizeMeters/(111320*Math.cos(midLat*Math.PI/180));
   const color='#3b82f6';
   const lines=[];
-  // vertical lines
-  for(let lng=Math.floor(sw.lng/lngDeg)*lngDeg; lng<=ne.lng+lngDeg; lng+=lngDeg){
-    const line=L.polyline([[sw.lat-latDeg,lng],[ne.lat+latDeg,lng]],{color,weight:1,opacity:0.5,dashArray:'4,4'}).addTo(_map);
-    lines.push(line);
+  for(let lng=Math.floor(sw.lng/lngDeg)*lngDeg;lng<=ne.lng+lngDeg;lng+=lngDeg){
+    lines.push(L.polyline([[sw.lat,lng],[ne.lat,lng]],{color,weight:1.2,opacity:0.55,dashArray:'4,4'}).addTo(_map));
   }
-  // horizontal lines
-  for(let lat=Math.floor(sw.lat/latDeg)*latDeg; lat<=ne.lat+latDeg; lat+=latDeg){
-    const line=L.polyline([[lat,sw.lng-lngDeg],[lat,ne.lng+lngDeg]],{color,weight:1,opacity:0.5,dashArray:'4,4'}).addTo(_map);
-    lines.push(line);
+  for(let lat=Math.floor(sw.lat/latDeg)*latDeg;lat<=ne.lat+latDeg;lat+=latDeg){
+    lines.push(L.polyline([[lat,sw.lng],[lat,ne.lng]],{color,weight:1.2,opacity:0.55,dashArray:'4,4'}).addTo(_map));
   }
-  // label each cell
+  // boundary highlight
+  const boundary=L.rectangle([[sw.lat,sw.lng],[ne.lat,ne.lng]],{color:'#2563eb',weight:2,fill:false,opacity:0.7}).addTo(_map);
+  lines.push(boundary);
   const labels=[];
   let row=0;
-  for(let lat=Math.floor(sw.lat/latDeg)*latDeg; lat<=ne.lat; lat+=latDeg,row++){
+  for(let lat=Math.floor(sw.lat/latDeg)*latDeg;lat<=ne.lat;lat+=latDeg,row++){
     let col=0;
-    for(let lng=Math.floor(sw.lng/lngDeg)*lngDeg; lng<=ne.lng; lng+=lngDeg,col++){
+    for(let lng=Math.floor(sw.lng/lngDeg)*lngDeg;lng<=ne.lng;lng+=lngDeg,col++){
       const cellLabel=`${String.fromCharCode(65+row)}${col+1}`;
-      const marker=L.marker([lat+latDeg/2,lng+lngDeg/2],{
-        icon:L.divIcon({html:`<div style="background:rgba(37,99,235,0.12);color:#1d4ed8;font-size:10px;font-weight:800;font-family:'Kanit',sans-serif;border:1px solid rgba(37,99,235,0.3);border-radius:4px;padding:2px 5px;white-space:nowrap">${cellLabel}</div>`,className:'',iconAnchor:[0,0]}),
+      const m=L.marker([lat+latDeg/2,lng+lngDeg/2],{
+        icon:L.divIcon({html:`<div style="background:rgba(37,99,235,0.1);color:#1d4ed8;font-size:10px;font-weight:800;font-family:'Kanit',sans-serif;border:1px solid rgba(37,99,235,0.25);border-radius:4px;padding:2px 5px;white-space:nowrap">${cellLabel}</div>`,className:'',iconAnchor:[0,0]}),
         interactive:false
       }).addTo(_map);
-      labels.push(marker);
+      labels.push(m);
     }
   }
   _gridLayers.push({lines,labels,size:sizeMeters});
   _gridOn=true;
   document.getElementById('btn-grid').classList.add('active');
-  closeGridPicker();
-  toast(`เพิ่มกริด ${sizeMeters>=1000?sizeMeters/1000+'กม.':sizeMeters+'ม.'} แล้ว ✅ (${_gridLayers.length} กริด)`,'success');
+  toast(`กริด ${sizeMeters>=1000?sizeMeters/1000+'กม.':sizeMeters+'ม.'} ✅ — ${_gridLayers.length} กริด`,'success');
 }
 function clearAllGrids(){
-  _gridLayers.forEach(g=>{
-    g.lines.forEach(l=>l.remove());
-    g.labels.forEach(l=>l.remove());
-  });
+  _gridLayers.forEach(g=>{g.lines.forEach(l=>l.remove());g.labels.forEach(l=>l.remove());});
   _gridLayers=[];_gridOn=false;
+  if(_gridRect){_gridRect.remove();_gridRect=null;}
   document.getElementById('btn-grid').classList.remove('active');
-  closeGridPicker();
+  document.getElementById('grid-draw-hint').style.display='none';
   toast('ลบกริดทั้งหมดแล้ว','info');
 }
 
