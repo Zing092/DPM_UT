@@ -45,40 +45,6 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
   background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);padding:4px 9px;border-radius:8px;flex-shrink:0;}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:0.3;}}
 
-/* ── MISSION INFO DRAWER ── */
-.btn-info{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.1);
-  border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;
-  cursor:pointer;color:#fff;font-size:13px;transition:all 0.2s;flex-shrink:0;}
-.btn-info:hover{background:rgba(255,255,255,0.22);}
-.btn-info.active{background:rgba(255,255,255,0.25);border-color:rgba(255,255,255,0.5);}
-
-.mission-info-drawer{
-  position:fixed;
-  top:var(--topbar-h);left:0;right:0;z-index:1800;
-  background:linear-gradient(135deg,#020c2e,#0a2463);
-  transform:translateY(-120%);transition:transform 0.35s cubic-bezier(0.16,1,0.3,1);
-  box-shadow:0 8px 32px rgba(0,0,0,0.4);
-  border-bottom-left-radius:16px;border-bottom-right-radius:16px;
-}
-.mission-info-drawer.open{transform:translateY(0);}
-.mission-info-body{padding:16px 18px 14px;display:flex;flex-direction:column;gap:12px;}
-.mission-info-row{display:flex;align-items:flex-start;gap:10px;}
-.mission-info-icon{width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,0.1);
-  display:flex;align-items:center;justify-content:center;font-size:13px;color:rgba(255,255,255,0.7);flex-shrink:0;margin-top:1px;}
-.mission-info-label{font-size:10px;color:rgba(255,255,255,0.45);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;}
-.mission-info-value{font-size:13px;color:#fff;font-weight:600;line-height:1.5;}
-.mission-info-value.big{font-family:'Kanit',sans-serif;font-size:16px;font-weight:800;}
-.mission-info-divider{height:1px;background:rgba(255,255,255,0.08);margin:2px 0;}
-.mission-info-close{
-  margin:0 18px 16px;padding:10px;border:1px solid rgba(255,255,255,0.15);border-radius:11px;
-  background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);font-size:13px;font-weight:700;
-  font-family:'Kanit',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
-  transition:background 0.2s;}
-.mission-info-close:hover{background:rgba(255,255,255,0.15);}
-/* overlay คลิกปิด */
-.mission-info-overlay{position:fixed;inset:0;z-index:1799;display:none;}
-.mission-info-overlay.show{display:block;}
-
 /* ── PAGE BODY ── */
 .page-body{flex:1;display:flex;flex-direction:column;overflow:hidden;}
 
@@ -391,14 +357,8 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 <!-- TOPBAR -->
 <div class="topbar">
   <a href="index.html" class="topbar-back" onclick="return handleBack(event)"><i class="fas fa-arrow-left"></i></a>
-  <div class="topbar-info">
-    <div class="topbar-title" id="mission-title">กำลังโหลด...</div>
-    <div class="topbar-sub" id="mission-area"></div>
-  </div>
+  
   <div class="topbar-timer" id="mission-timer" style="display:none">00:00</div>
-  <button class="btn-info" id="btn-info" onclick="toggleMissionInfo()" title="รายละเอียดภารกิจ" style="display:none">
-    <i class="fas fa-info-circle"></i>
-  </button>
   <span class="topbar-live" id="live-badge" style="display:none">LIVE</span>
   <button class="btn-fullscreen" id="btn-fs" onclick="toggleFullscreen()" title="เต็มจอ">
     <i class="fas fa-expand" id="fs-icon"></i>
@@ -861,20 +821,6 @@ addEventListener('DOMContentLoaded', async () => {
     document.getElementById('mission-area').textContent  = m.area||'';
     document.getElementById('live-badge').style.display  = 'inline-flex';
     document.getElementById('mission-timer').style.display = 'block';
-    document.getElementById('btn-info').style.display = 'flex';
-    // ตั้งค่า info drawer
-    document.getElementById('info-title').textContent = m.title||'ภารกิจค้นหา';
-    document.getElementById('info-area').textContent  = m.area||'ไม่ระบุพื้นที่';
-    if(m.createdByName||m.createdBy){
-      document.getElementById('info-creator').textContent = m.createdByName||m.createdBy;
-      document.getElementById('info-created-row').style.display='flex';
-    }
-    if(m.createdAt){
-      const d=new Date(m.createdAt);
-      document.getElementById('info-date').textContent =
-        `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()+543} เวลา ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} น.`;
-      document.getElementById('info-date-row').style.display='flex';
-    }
     startTimer();
     if (m.createdBy===user.id || user.role==='admin')
       document.getElementById('end-btn').style.display = 'flex';
@@ -2654,7 +2600,7 @@ function showNav(la,ln,name){const ex=document.getElementById('nav-sheet');if(ex
 
 // ─── Window Exports (ต้องอยู่หลัง function declarations ทั้งหมด) ─────────
 window.handleBack=handleBack; window.cancelSos=cancelSos; window.centerMap=centerMap;
-window.toggleFullscreen=toggleFullscreen; window.toggleMissionInfo=toggleMissionInfo; window.closeMissionInfo=closeMissionInfo;
+window.toggleFullscreen=toggleFullscreen;
 window.toggleDraw=toggleDraw; window.setDrawMode=setDrawMode;
 window.cancelDraw=cancelDraw; window.saveZone=saveZone; window.cancelZone=cancelZone; window.pickColor=pickColor;
 window.togglePinPicker=togglePinPicker; window.closePinPicker=closePinPicker;
@@ -2677,30 +2623,6 @@ window.toggleGridVisibility=toggleGridVisibility; window.deleteGrid=deleteGrid;
 window.showNav=showNav; window.delZone=delZone; window.delPin=delPin;
 window.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
 window.showToast=toast;
-
-// ─── Mission Info Drawer ──────────────────────────────────
-function toggleMissionInfo(){
-  const drawer=document.getElementById('mission-info-drawer');
-  const overlay=document.getElementById('info-overlay');
-  const btn=document.getElementById('btn-info');
-  const isOpen=drawer.classList.contains('open');
-  if(isOpen){
-    drawer.classList.remove('open');
-    overlay.classList.remove('show');
-    btn.classList.remove('active');
-  } else {
-    drawer.classList.add('open');
-    overlay.classList.add('show');
-    btn.classList.add('active');
-  }
-}
-function closeMissionInfo(){
-  document.getElementById('mission-info-drawer').classList.remove('open');
-  document.getElementById('info-overlay').classList.remove('show');
-  document.getElementById('btn-info').classList.remove('active');
-  // บอก Leaflet ว่า container size อาจเปลี่ยน
-  setTimeout(()=>{ if(_map) _map.invalidateSize(); }, 360);
-}
 
 // ─── Fullscreen ───────────────────────────────────────────
 function toggleFullscreen(){
@@ -2734,44 +2656,5 @@ addEventListener('beforeunload',beacon);
 addEventListener('freeze',beacon);
 addEventListener('resume',()=>{if(_gps){stopGps();startGps();}});
 </script>
-
-<!-- MISSION INFO DRAWER -->
-<div class="mission-info-overlay" id="info-overlay" onclick="closeMissionInfo()"></div>
-<div class="mission-info-drawer" id="mission-info-drawer">
-  <div class="mission-info-body">
-    <div class="mission-info-row">
-      <div class="mission-info-icon"><i class="fas fa-search"></i></div>
-      <div style="flex:1;min-width:0">
-        <div class="mission-info-label">ชื่อภารกิจ</div>
-        <div class="mission-info-value big" id="info-title">-</div>
-      </div>
-    </div>
-    <div class="mission-info-divider"></div>
-    <div class="mission-info-row">
-      <div class="mission-info-icon"><i class="fas fa-map-marker-alt"></i></div>
-      <div style="flex:1;min-width:0">
-        <div class="mission-info-label">พื้นที่ / รายละเอียด</div>
-        <div class="mission-info-value" id="info-area">-</div>
-      </div>
-    </div>
-    <div class="mission-info-row" id="info-created-row" style="display:none">
-      <div class="mission-info-icon"><i class="fas fa-user-shield"></i></div>
-      <div style="flex:1;min-width:0">
-        <div class="mission-info-label">ผู้สร้างภารกิจ</div>
-        <div class="mission-info-value" id="info-creator">-</div>
-      </div>
-    </div>
-    <div class="mission-info-row" id="info-date-row" style="display:none">
-      <div class="mission-info-icon"><i class="fas fa-clock"></i></div>
-      <div style="flex:1;min-width:0">
-        <div class="mission-info-label">เริ่มภารกิจ</div>
-        <div class="mission-info-value" id="info-date">-</div>
-      </div>
-    </div>
-  </div>
-  <button class="mission-info-close" onclick="closeMissionInfo()">
-    <i class="fas fa-chevron-up"></i> ปิด
-  </button>
-</div>
 </body>
 </html>
