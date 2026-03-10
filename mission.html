@@ -28,15 +28,20 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
 
 /* ── TOPBAR ── */
 .topbar{
-  min-height:var(--topbar-h);
   background:linear-gradient(90deg,#020c2e,#0a2463,#1b3d8f);
   border-bottom:1px solid rgba(255,255,255,0.08);
   box-shadow:0 2px 12px rgba(0,0,0,0.3);
-  display:flex;align-items:flex-end;
-  padding:0 14px;
-  padding-top:env(safe-area-inset-top,0px);
-  padding-bottom:10px;
-  gap:10px;flex-shrink:0;position:relative;z-index:100;
+  display:flex;flex-direction:column;
+  flex-shrink:0;position:relative;z-index:100;
+}
+.topbar::before{
+  content:'';display:block;
+  height:env(safe-area-inset-top,0px);
+}
+.topbar-inner{
+  height:var(--topbar-h);
+  display:flex;align-items:center;
+  padding:0 14px;gap:10px;width:100%;
 }
 .topbar-back{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.1);
   border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;
@@ -400,17 +405,19 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <a href="index.html" class="topbar-back" onclick="return handleBack(event)"><i class="fas fa-arrow-left"></i></a>
-  <div style="flex:1"></div>
-  <div style="display:flex;align-items:center;gap:8px">
-    <div class="topbar-timer" id="mission-timer" style="display:none">00:00</div>
-    <span class="topbar-live" id="live-badge" style="display:none">LIVE</span>
-    <button class="btn-info" id="btn-info" onclick="toggleMissionInfo()" title="รายละเอียดภารกิจ" style="width:auto;padding:0 10px;gap:5px;font-size:12px;font-family:'Kanit',sans-serif;font-weight:700">
-      <i class="fas fa-clipboard-list" style="font-size:13px"></i> ภารกิจ
-    </button>
-    <button class="btn-fullscreen" id="btn-fs" onclick="toggleFullscreen()" title="เต็มจอ">
-      <i class="fas fa-expand" id="fs-icon"></i>
-    </button>
+  <div class="topbar-inner">
+    <a href="index.html" class="topbar-back" onclick="return handleBack(event)"><i class="fas fa-arrow-left"></i></a>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="topbar-timer" id="mission-timer" style="display:none">00:00</div>
+      <span class="topbar-live" id="live-badge" style="display:none">LIVE</span>
+      <button class="btn-info" id="btn-info" onclick="toggleMissionInfo()" title="รายละเอียดภารกิจ" style="width:auto;padding:0 10px;gap:5px;font-size:12px;font-family:'Kanit',sans-serif;font-weight:700">
+        <i class="fas fa-clipboard-list" style="font-size:13px"></i> ภารกิจ
+      </button>
+      <button class="btn-fullscreen" id="btn-fs" onclick="toggleFullscreen()" title="เต็มจอ">
+        <i class="fas fa-expand" id="fs-icon"></i>
+      </button>
+    </div>
   </div>
 </div>
 
