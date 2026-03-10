@@ -683,6 +683,13 @@ function initMap(){
   _map=L.map('track-map',{zoomControl:true,attributionControl:false});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_map);
   _map.setView([15.7,100.0],13);
+
+  // Custom panes: gridPane (200) < zonePane (300) < pinPane (400)
+  // ทำให้ Zone อยู่บน Grid clickZone เสมอ → คลิกในโซนได้ popup โซน ไม่ใช่กริด
+  _map.createPane('gridPane');  _map.getPane('gridPane').style.zIndex  = 200;
+  _map.createPane('zonePane');  _map.getPane('zonePane').style.zIndex  = 300;
+  _map.createPane('pinPane');   _map.getPane('pinPane').style.zIndex   = 400;
+
   setupDrawEvents();
 
   // Event delegation for popup buttons (Leaflet sanitizes inline onclick)
@@ -1223,7 +1230,7 @@ function renderZones(zones){
     const s=z.shape,c=z.color||'#3b82f6',canDel=z.createdBy===user.id||user.role==='admin';
     let layer=null, areaSqm=0;
     if(s.type==='polygon'){
-      layer=L.polygon(s.latlngs.map(p=>[p.lat,p.lng]),{color:c,weight:2.5,fillOpacity:0.15});
+      layer=L.polygon(s.latlngs.map(p=>[p.lat,p.lng]),{color:c,weight:2.5,fillOpacity:0.15,pane:'zonePane'});
       // คำนวณพื้นที่ polygon (Shoelace + Haversine)
       const pts=s.latlngs;
       let a=0;
@@ -1237,10 +1244,10 @@ function renderZones(zones){
       }
       areaSqm=Math.abs(a/2);
     } else if(s.type==='rectangle'){
-      layer=L.rectangle([[s.sw.lat,s.sw.lng],[s.ne.lat,s.ne.lng]],{color:c,weight:2.5,fillOpacity:0.15});
+      layer=L.rectangle([[s.sw.lat,s.sw.lng],[s.ne.lat,s.ne.lng]],{color:c,weight:2.5,fillOpacity:0.15,pane:'zonePane'});
       areaSqm=calcRectArea(s.sw.lat,s.sw.lng,s.ne.lat,s.ne.lng);
     } else if(s.type==='circle'){
-      layer=L.circle([s.center.lat,s.center.lng],{radius:s.radius,color:c,weight:2.5,fillOpacity:0.15});
+      layer=L.circle([s.center.lat,s.center.lng],{radius:s.radius,color:c,weight:2.5,fillOpacity:0.15,pane:'zonePane'});
       areaSqm=Math.PI*s.radius*s.radius;
     }
     if(!layer) return;
@@ -1342,7 +1349,7 @@ function renderPins(pins){
   if(!_map) return;
   Object.values(_pinMarkers).forEach(m=>m.remove());_pinMarkers={};
   Object.entries(pins).forEach(([id,p])=>{
-    const m=L.marker([p.lat,p.lng],{icon:mkPinIcon(p.type),zIndexOffset:500}).addTo(_map);
+    const m=L.marker([p.lat,p.lng],{icon:mkPinIcon(p.type),zIndexOffset:500,pane:'pinPane'}).addTo(_map);
     m.on('click',()=>showPinDetail(id,p));
     _pinMarkers[id]=m;
   });
@@ -1599,7 +1606,8 @@ function _renderGridLocally(gridId, sizeMeters, sw, ne, createdBy, createdByName
   const timeStr   = createdAt ? new Date(createdAt).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) : '-';
 
   const clickZone = L.rectangle([[sw.lat,sw.lng],[ne.lat,ne.lng]], {
-    color:'transparent', weight:0, fillColor:'#3b82f6', fillOpacity:0.03
+    color:'transparent', weight:0, fillColor:'#3b82f6', fillOpacity:0.03,
+    pane:'gridPane'
   }).addTo(_map);
 
   clickZone.on('click', function(e){
