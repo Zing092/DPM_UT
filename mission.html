@@ -817,8 +817,8 @@ addEventListener('DOMContentLoaded', async () => {
     if (m.status==='closed') return errScreen('ภารกิจสิ้นสุดแล้ว','ภารกิจนี้ปิดไปแล้ว กรุณากลับหน้าหลัก');
 
     _mStart = m.createdAt || Date.now();
-    document.getElementById('mission-title').textContent = m.title||'ภารกิจค้นหา';
-    document.getElementById('mission-area').textContent  = m.area||'';
+    const titleEl=document.getElementById('mission-title'); if(titleEl) titleEl.textContent = m.title||'ภารกิจค้นหา';
+    const areaEl=document.getElementById('mission-area'); if(areaEl) areaEl.textContent = m.area||'';
     document.getElementById('live-badge').style.display  = 'inline-flex';
     document.getElementById('mission-timer').style.display = 'block';
     startTimer();
