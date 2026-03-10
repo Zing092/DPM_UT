@@ -1127,16 +1127,26 @@ function setDrawMode(mode){
   _drawMode=mode;_drawOn=true;
   document.querySelectorAll('.dmbtn').forEach(b=>b.classList.remove('active'));
   document.getElementById(`dm-${mode}`).classList.add('active');
-  const hints={free:'🖊️ แตะแล้วลากอิสระ',rect:'⬜ คลิกจุดเริ่ม แล้วลาก',circle:'⭕ คลิกจุดกลาง แล้วลาก'};
+  const hints={free:'🖊️ แตะแล้วลากนิ้วอิสระ',rect:'⬜ แตะจุดเริ่ม แล้วลากนิ้ว',circle:'⭕ แตะจุดกลาง แล้วลากนิ้ว'};
   document.getElementById('draw-hint').textContent=hints[mode]||'';
-  if(_map){_map.dragging.disable();_map.getContainer().style.cursor='crosshair';}
+  if(_map){
+    _map.dragging.disable();
+    if(_map.tap) _map.tap.disable(); // ปิด tap handler ของ Leaflet บน mobile
+    _map.getContainer().style.cursor='crosshair';
+    _map.getContainer().style.touchAction='none'; // ป้องกัน browser scroll ขณะวาด
+  }
   clearPrev();
 }
 function cancelDraw(){
   _drawMode=null;_drawOn=false;_pendingZone=null;
   document.getElementById('draw-tb').classList.remove('show');
   document.getElementById('btn-draw').classList.remove('active');
-  if(_map){_map.dragging.enable();_map.getContainer().style.cursor='';}
+  if(_map){
+    _map.dragging.enable();
+    if(_map.tap) _map.tap.enable();
+    _map.getContainer().style.cursor='';
+    _map.getContainer().style.touchAction='';
+  }
   clearPrev();
 }
 function clearPrev(){
@@ -1145,69 +1155,113 @@ function clearPrev(){
   _cCtr=null;if(_cCirc){_cCirc.remove();_cCirc=null;}
 }
 function getLL(e){
+  // Leaflet wrap native event ใน e.originalEvent
+  const oe = e.originalEvent || e;
+
+  // 1) Leaflet คำนวณ latlng ให้แล้ว (mousedown/mousemove)
   if(e.latlng) return e.latlng;
-  if(e.touches){const r=_map.getContainer().getBoundingClientRect();return _map.containerPointToLatLng(L.point(e.touches[0].clientX-r.left,e.touches[0].clientY-r.top));}
-  return null;
+
+  // 2) touchstart / touchmove → ใช้ touches[0]
+  const src = oe.touches && oe.touches.length ? oe.touches[0]
+             // 3) touchend → touches ว่าง ใช้ changedTouches[0]
+             : oe.changedTouches && oe.changedTouches.length ? oe.changedTouches[0]
+             : null;
+  if(!src) return null;
+
+  const r = _map.getContainer().getBoundingClientRect();
+  return _map.containerPointToLatLng(
+    L.point(src.clientX - r.left, src.clientY - r.top)
+  );
 }
+
 function setupDrawEvents(){
-  _map.on('mousedown touchstart',e=>{
-    if(!_drawOn||!_drawMode) return;
-    const ll=getLL(e); if(!ll) return;
-    if(_drawMode==='free'){_fPts=[ll];if(_fLine){_fLine.remove();}_fLine=L.polyline([ll],{color:_zoneColor,weight:3,dashArray:'6,3'}).addTo(_map);}
-    if(_drawMode==='rect'){_rStart=ll;}
-    if(_drawMode==='circle'){_cCtr=ll;}
-  });
-  _map.on('mousemove touchmove',e=>{
-    if(!_drawOn||!_drawMode) return;
-    const ll=getLL(e); if(!ll) return;
-    if(_drawMode==='free'&&_fPts.length){_fPts.push(ll);_fLine?.setLatLngs(_fPts);}
-    if(_drawMode==='rect'&&_rStart){const b=L.latLngBounds(_rStart,ll);if(_rRect){_rRect.setBounds(b);}else{_rRect=L.rectangle(b,{color:_zoneColor,weight:2,fillOpacity:0.2,dashArray:'6,3'}).addTo(_map);}}
-    if(_drawMode==='circle'&&_cCtr){const r=_cCtr.distanceTo(ll);if(_cCirc){_cCirc.setRadius(r);}else{_cCirc=L.circle(_cCtr,{radius:r,color:_zoneColor,weight:2,fillOpacity:0.15,dashArray:'6,3'}).addTo(_map);}}
-  });
-  // ── Grid area draw events ──────────────────────────────
-  _map.on('mousedown touchstart',eg=>{
-    if(!_gridDrawing) return;
-    const ll=getLL(eg); if(!ll) return;
-    _gridStart=ll;
-    if(_gridRect){_gridRect.remove();_gridRect=null;}
-    _gridRect=L.rectangle([ll,ll],{color:'#2563eb',weight:2,fillColor:'#3b82f6',fillOpacity:0.08,dashArray:'6,4'}).addTo(_map);
-  });
-  _map.on('mousemove touchmove',eg=>{
-    if(!_gridDrawing||!_gridStart) return;
-    const ll=getLL(eg); if(!ll) return;
-    _gridRect?.setBounds(L.latLngBounds(_gridStart,ll));
-  });
-  _map.on('mouseup touchend',eg=>{
-    if(!_gridDrawing||!_gridStart) return;
-    const ll=getLL(eg)||_gridStart;
-    const b=L.latLngBounds(_gridStart,ll);
-    if(b.getNorth()===b.getSouth()||b.getEast()===b.getWest()){cancelGridDraw();return;}
-    if(_gridRect){_gridRect.remove();_gridRect=null;}
-    _map.dragging.enable();
-    _map.getContainer().style.cursor='';
-    _gridDrawing=false;
-    document.getElementById('grid-draw-hint').style.display='none';
-    addGrid(_gridSize, b.getSouthWest(), b.getNorthEast());
-    _gridStart=null;
+  // ─── Zone draw ────────────────────────────────────────────
+  _map.on('mousedown touchstart', e=>{
+    if(!_drawOn || !_drawMode) return;
+    const ll = getLL(e); if(!ll) return;
+    L.DomEvent.preventDefault(e.originalEvent || e);
+    if(_drawMode==='free'){
+      _fPts=[ll];
+      if(_fLine) _fLine.remove();
+      _fLine = L.polyline([ll],{color:_zoneColor,weight:3,dashArray:'6,3'}).addTo(_map);
+    }
+    if(_drawMode==='rect')   _rStart = ll;
+    if(_drawMode==='circle') _cCtr   = ll;
   });
 
-  _map.on('mouseup touchend',e=>{
-    if(!_drawOn||!_drawMode) return;
-    const ll=getLL(e)||(e.changedTouches?_map.containerPointToLatLng(L.point(e.changedTouches[0].clientX-_map.getContainer().getBoundingClientRect().left,e.changedTouches[0].clientY-_map.getContainer().getBoundingClientRect().top)):null);
+  _map.on('mousemove touchmove', e=>{
+    if(!_drawOn || !_drawMode) return;
+    const ll = getLL(e); if(!ll) return;
+    L.DomEvent.preventDefault(e.originalEvent || e);
+    if(_drawMode==='free' && _fPts.length){
+      _fPts.push(ll); _fLine?.setLatLngs(_fPts);
+    }
+    if(_drawMode==='rect' && _rStart){
+      const b = L.latLngBounds(_rStart,ll);
+      if(_rRect) _rRect.setBounds(b);
+      else _rRect = L.rectangle(b,{color:_zoneColor,weight:2,fillOpacity:0.2,dashArray:'6,3'}).addTo(_map);
+    }
+    if(_drawMode==='circle' && _cCtr){
+      const r = _cCtr.distanceTo(ll);
+      if(_cCirc) _cCirc.setRadius(r);
+      else _cCirc = L.circle(_cCtr,{radius:r,color:_zoneColor,weight:2,fillOpacity:0.15,dashArray:'6,3'}).addTo(_map);
+    }
+  });
+
+  _map.on('mouseup touchend', e=>{
+    if(!_drawOn || !_drawMode) return;
+    const ll = getLL(e);
     if(_drawMode==='free'){
-      if(_fPts.length<3){clearPrev();return;}
-      _pendingZone={type:'polygon',latlngs:_fPts.map(p=>({lat:p.lat,lng:p.lng}))};
-    } else if(_drawMode==='rect'&&_rStart&&ll){
-      const b=L.latLngBounds(_rStart,ll);
-      _pendingZone={type:'rectangle',sw:{lat:b.getSouth(),lng:b.getWest()},ne:{lat:b.getNorth(),lng:b.getEast()}};
-    } else if(_drawMode==='circle'&&_cCtr&&ll){
-      const r=_cCtr.distanceTo(ll); if(r<10){clearPrev();return;}
-      _pendingZone={type:'circle',center:{lat:_cCtr.lat,lng:_cCtr.lng},radius:Math.round(r)};
+      if(_fPts.length < 3){ clearPrev(); return; }
+      _pendingZone = {type:'polygon', latlngs:_fPts.map(p=>({lat:p.lat,lng:p.lng}))};
+    } else if(_drawMode==='rect' && _rStart && ll){
+      const b = L.latLngBounds(_rStart,ll);
+      if(b.getNorth()===b.getSouth() || b.getEast()===b.getWest()){ clearPrev(); return; }
+      _pendingZone = {type:'rectangle', sw:{lat:b.getSouth(),lng:b.getWest()}, ne:{lat:b.getNorth(),lng:b.getEast()}};
+    } else if(_drawMode==='circle' && _cCtr && ll){
+      const r = _cCtr.distanceTo(ll); if(r < 10){ clearPrev(); return; }
+      _pendingZone = {type:'circle', center:{lat:_cCtr.lat,lng:_cCtr.lng}, radius:Math.round(r)};
     } else return;
-    if(_map){_map.dragging.enable();_map.getContainer().style.cursor='';}
-    document.getElementById('zone-name').value='';
+    _map.dragging.enable();
+    if(_map.tap) _map.tap.enable();
+    _map.getContainer().style.cursor = '';
+    _map.getContainer().style.touchAction = '';
+    document.getElementById('zone-name').value = '';
     document.querySelectorAll('.cswatch').forEach(s=>s.classList.toggle('sel',s.dataset.c===_zoneColor));
     openModal('modal-zone');
+  });
+
+  // ─── Grid draw ────────────────────────────────────────────
+  _map.on('mousedown touchstart', eg=>{
+    if(!_gridDrawing) return;
+    const ll = getLL(eg); if(!ll) return;
+    L.DomEvent.preventDefault(eg.originalEvent || eg);
+    _gridStart = ll;
+    if(_gridRect){ _gridRect.remove(); _gridRect=null; }
+    _gridRect = L.rectangle([ll,ll],{color:'#2563eb',weight:2,fillColor:'#3b82f6',fillOpacity:0.08,dashArray:'6,4'}).addTo(_map);
+  });
+
+  _map.on('mousemove touchmove', eg=>{
+    if(!_gridDrawing || !_gridStart) return;
+    const ll = getLL(eg); if(!ll) return;
+    L.DomEvent.preventDefault(eg.originalEvent || eg);
+    _gridRect?.setBounds(L.latLngBounds(_gridStart,ll));
+  });
+
+  _map.on('mouseup touchend', eg=>{
+    if(!_gridDrawing || !_gridStart) return;
+    const ll = getLL(eg) || _gridStart;
+    const b  = L.latLngBounds(_gridStart,ll);
+    if(b.getNorth()===b.getSouth() || b.getEast()===b.getWest()){ cancelGridDraw(); return; }
+    if(_gridRect){ _gridRect.remove(); _gridRect=null; }
+    _map.dragging.enable();
+    if(_map.tap) _map.tap.enable();
+    _map.getContainer().style.cursor = '';
+    _map.getContainer().style.touchAction = '';
+    _gridDrawing = false;
+    document.getElementById('grid-draw-hint').style.display = 'none';
+    addGrid(_gridSize, b.getSouthWest(), b.getNorthEast());
+    _gridStart = null;
   });
 }
 function pickColor(el){document.querySelectorAll('.cswatch').forEach(s=>s.classList.remove('sel'));el.classList.add('sel');_zoneColor=el.dataset.c;}
@@ -1724,17 +1778,22 @@ function _startGridDrawMode(){
   _gridDrawing = true; _gridStart = null;
   if(_gridRect){ _gridRect.remove(); _gridRect = null; }
   _map.dragging.disable();
+  if(_map.tap) _map.tap.disable();
   _map.getContainer().style.cursor = 'crosshair';
+  _map.getContainer().style.touchAction = 'none';
   document.getElementById('grid-draw-hint').style.display = 'block';
   document.getElementById('grid-hint-text').textContent =
-    `วาดพื้นที่สำหรับกริด ${_gridSize>=1000?_gridSize/1000+'กม.':_gridSize+'ม.'} — ลากเพื่อเลือก`;
+    `วาดพื้นที่สำหรับกริด ${_gridSize>=1000?_gridSize/1000+'กม.':_gridSize+'ม.'} — ลากนิ้วเพื่อเลือก`;
   document.getElementById('btn-grid').classList.add('active');
-  toast(`ลากบนแผนที่เพื่อกำหนดพื้นที่กริด ${_gridSize>=1000?_gridSize/1000+'กม.':_gridSize+'ม.'}`, 'info');
+  toast(`ลากนิ้วบนแผนที่เพื่อกำหนดพื้นที่กริด ${_gridSize>=1000?_gridSize/1000+'กม.':_gridSize+'ม.'}`, 'info');
 }
 function cancelGridDraw(){
   _gridDrawing = false; _gridStart = null;
   if(_gridRect){ _gridRect.remove(); _gridRect = null; }
-  _map.dragging.enable(); _map.getContainer().style.cursor = '';
+  _map.dragging.enable();
+  if(_map.tap) _map.tap.enable();
+  _map.getContainer().style.cursor = '';
+  _map.getContainer().style.touchAction = '';
   document.getElementById('grid-draw-hint').style.display = 'none';
   document.getElementById('btn-grid').classList.toggle('active', _gridLayers.length > 0);
 }
