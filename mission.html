@@ -679,7 +679,7 @@ const p2=n=>String(n).padStart(2,'0');
 
 // ─── Map ─────────────────────────────────────────────────
 function initMap(){
-  if(_map){_map.remove();_map=null;_markers={};_trailLayers={};_zoneLayers={};_pinMarkers={};}
+  if(_map){_map.remove();_map=null;_markers={};_trailLayers={};_zoneLayers={};_pinMarkers={};_mapZoneClickBound=false;}
   _map=L.map('track-map',{zoomControl:true,attributionControl:false});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_map);
   _map.setView([15.7,100.0],13);
@@ -1278,16 +1278,17 @@ async function saveZone(){
 function cancelZone(){closeModal('modal-zone');cancelDraw();}
 function renderZones(zones){
   if(!_map) return;
-  Object.values(_zoneLayers).forEach(l=>l.remove());_zoneLayers={};
+  Object.values(_zoneLayers).forEach(l=>{ try{l.remove();}catch(e){} });
+  _zoneLayers={};
   if(!_zonesOn) return;
+
   Object.entries(zones).forEach(([id,z])=>{
-    const s=z.shape,c=z.color||'#3b82f6',canDel=z.createdBy===user.id||user.role==='admin';
+    const s=z.shape, c=z.color||'#3b82f6';
     let layer=null, areaSqm=0;
+
     if(s.type==='polygon'){
       layer=L.polygon(s.latlngs.map(p=>[p.lat,p.lng]),{color:c,weight:2.5,fillOpacity:0.15,pane:'zonePane'});
-      // คำนวณพื้นที่ polygon (Shoelace + Haversine)
-      const pts=s.latlngs;
-      let a=0;
+      const pts=s.latlngs; let a=0;
       for(let i=0;i<pts.length;i++){
         const j=(i+1)%pts.length;
         const xi=pts[i].lng*(Math.PI/180)*6371000*Math.cos(pts[i].lat*(Math.PI/180));
@@ -1307,38 +1308,161 @@ function renderZones(zones){
     if(!layer) return;
     layer.addTo(_map);
 
-    // ── Popup with area ──────────────────────────────────
-    const areaStr=areaSqm>0?fmtArea(areaSqm):'—';
-    const shapeIcon=s.type==='circle'?'⭕':s.type==='polygon'?'🔷':'⬛';
-    const shapeLabel=s.type==='circle'?'วงกลม':s.type==='polygon'?'ฟรีแฮนด์':'สี่เหลี่ยม';
-    const extraInfo=s.type==='circle'?`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9"><span style="color:#94a3b8">รัศมี</span><span style="font-weight:700;color:#0f172a">${s.radius>=1000?(s.radius/1000).toFixed(1)+'กม.':s.radius+'ม.'}</span></div>`
-      :s.type==='rectangle'?`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9"><span style="color:#94a3b8">กว้าง × ยาว</span><span style="font-weight:700;color:#0f172a">${fmtD(Math.round((s.ne.lng-s.sw.lng)*111320*Math.cos((s.sw.lat+s.ne.lat)/2*Math.PI/180)))} × ${fmtD(Math.round((s.ne.lat-s.sw.lat)*111320))}</span></div>`:'';
+    // เก็บ metadata ไว้ใน layer
+    layer._zoneId   = id;
+    layer._zoneData = z;
+    layer._areaSqm  = areaSqm;
 
-    layer.bindPopup(`
+    // ไม่ bind click ที่ layer โดยตรง — ใช้ map-level click แทน
+    // เพื่อหาทุกโซนที่จุดคลิกได้อย่างแม่นยำ (ดู listenMapClickForZones)
+
+    _zoneLayers[id]=layer;
+  });
+
+  // ผูก map-level click ใหม่ทุกครั้งที่ render zones
+  _bindMapZoneClick();
+}
+
+// ── Point-in-polygon (Ray casting) ───────────────────────
+function _pointInPolygon(latlng, latlngs){
+  const x=latlng.lng, y=latlng.lat;
+  let inside=false;
+  for(let i=0,j=latlngs.length-1;i<latlngs.length;j=i++){
+    const xi=latlngs[i].lng||latlngs[i][1], yi=latlngs[i].lat||latlngs[i][0];
+    const xj=latlngs[j].lng||latlngs[j][1], yj=latlngs[j].lat||latlngs[j][0];
+    if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+
+// ── ตรวจว่า latlng อยู่ในโซนไหม ────────────────────────
+function _latlngInZone(latlng, z){
+  const s = z.shape;
+  if(s.type==='circle'){
+    const d = latlng.distanceTo(L.latLng(s.center.lat, s.center.lng));
+    return d <= s.radius;
+  }
+  if(s.type==='rectangle'){
+    return latlng.lat>=s.sw.lat && latlng.lat<=s.ne.lat &&
+           latlng.lng>=s.sw.lng && latlng.lng<=s.ne.lng;
+  }
+  if(s.type==='polygon'){
+    return _pointInPolygon(latlng, s.latlngs);
+  }
+  return false;
+}
+
+// ── Map-level click handler สำหรับโซน ───────────────────
+let _mapZoneClickBound = false;
+function _bindMapZoneClick(){
+  if(_mapZoneClickBound) return;
+  _mapZoneClickBound = true;
+
+  _map.on('click', function(ev){
+    if(_drawOn || _gridDrawing) return;
+    const latlng = ev.latlng;
+
+    // หาทุกโซนที่จุดคลิก ด้วย precise point-in-shape
+    const hits = Object.entries(_zoneLayers)
+      .filter(([,ol]) => ol._zoneData && _latlngInZone(latlng, ol._zoneData))
+      .map(([oid, ol]) => ({id:oid, z:ol._zoneData, areaSqm:ol._areaSqm||0}));
+
+    if(hits.length === 0) return;
+
+    if(hits.length === 1){
+      _openZonePopup(hits[0].id, hits[0].z, hits[0].areaSqm, latlng);
+    } else {
+      // เรียงจากเล็กสุดขึ้นก่อน (precise first)
+      hits.sort((a,b) => a.areaSqm - b.areaSqm);
+      _openZoneSelector(latlng, hits);
+    }
+  });
+}
+// reset เมื่อ map ถูก reinit
+function _resetMapZoneClick(){ _mapZoneClickBound = false; }
+
+// ── เปิด popup รายละเอียดโซน ที่จุดที่คลิก ───────────────
+function _openZonePopup(id, z, areaSqm, latlng){
+  const s=z.shape, c=z.color||'#3b82f6';
+  const canDel = z.createdBy===user.id || user.role==='admin';
+  const areaStr = areaSqm>0 ? fmtArea(areaSqm) : '—';
+  const shapeIcon  = s.type==='circle'?'⭕':s.type==='polygon'?'🔷':'⬛';
+  const shapeLabel = s.type==='circle'?'วงกลม':s.type==='polygon'?'ฟรีแฮนด์':'สี่เหลี่ยม';
+  const extraInfo  = s.type==='circle'
+    ? `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9"><span style="color:#94a3b8">รัศมี</span><span style="font-weight:700;color:#0f172a">${s.radius>=1000?(s.radius/1000).toFixed(1)+'กม.':s.radius+'ม.'}</span></div>`
+    : s.type==='rectangle'
+    ? `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9"><span style="color:#94a3b8">กว้าง × ยาว</span><span style="font-weight:700;color:#0f172a">${fmtD(Math.round((s.ne.lng-s.sw.lng)*111320*Math.cos((s.sw.lat+s.ne.lat)/2*Math.PI/180)))} × ${fmtD(Math.round((s.ne.lat-s.sw.lat)*111320))}</span></div>`
+    : '';
+
+  L.popup({maxWidth:260, className:'zone-popup'})
+    .setLatLng(latlng)
+    .setContent(`
       <div style="min-width:200px;font-family:'Sarabun',sans-serif">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <div style="width:32px;height:32px;border-radius:9px;background:${c}18;border:2px solid ${c}44;display:flex;align-items:center;justify-content:center;font-size:15px">${shapeIcon}</div>
+          <div style="width:32px;height:32px;border-radius:9px;background:${c}22;border:2px solid ${c}55;display:flex;align-items:center;justify-content:center;font-size:15px">${shapeIcon}</div>
           <div>
-            <div style="font-family:'Kanit',sans-serif;font-size:14px;font-weight:800;color:${c}">${z.name}</div>
+            <div style="font-family:'Kanit',sans-serif;font-size:14px;font-weight:800;color:${c}">${esc(z.name)}</div>
             <div style="font-size:10px;color:#94a3b8">${shapeLabel}</div>
           </div>
         </div>
-        <div style="background:${c}0d;border:1px solid ${c}33;border-radius:9px;padding:8px 10px;margin-bottom:8px;text-align:center">
+        <div style="background:${c}12;border:1px solid ${c}33;border-radius:9px;padding:8px 10px;margin-bottom:8px;text-align:center">
           <div style="font-family:'Kanit',sans-serif;font-size:20px;font-weight:800;color:${c}">${areaStr}</div>
           <div style="font-size:9px;color:${c}99;font-weight:600;margin-top:1px">พื้นที่โซน</div>
         </div>
         <div style="font-size:11px;color:#475569;margin-bottom:6px">
           ${extraInfo}
-          <div style="display:flex;justify-content:space-between;padding:3px 0">
+          <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9">
             <span style="color:#94a3b8">สร้างโดย</span>
-            <span style="font-weight:700;color:#0f172a">${z.createdByName||'-'}</span>
+            <span style="font-weight:700;color:#0f172a">${esc(z.createdByName||'-')}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0">
+            <span style="color:#94a3b8">พิกัด</span>
+            <span style="font-weight:600;color:#0f172a;font-family:monospace;font-size:10px">${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}</span>
           </div>
         </div>
-        ${canDel?`<button class="pp-btn pp-del-zone-btn" style="width:100%;background:linear-gradient(135deg,#fee2e2,#fecaca);color:#dc2626;border:1.5px solid #fca5a5;border-radius:9px;padding:8px;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px" data-zoneid="${id}"><i class="fas fa-trash"></i> ลบโซน</button>`:''}
+        ${canDel?`<button class="pp-btn pp-del-zone-btn" style="width:100%;background:linear-gradient(135deg,#fee2e2,#fecaca);color:#dc2626;border:1.5px solid #fca5a5;border-radius:9px;padding:8px;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px" data-zoneid="${id}"><i class="fas fa-trash"></i> ลบโซนนี้</button>`:''}
       </div>
-    `);
-    _zoneLayers[id]=layer;
-  });
+    `)
+    .openOn(_map);
+}
+
+// ── Selector เมื่อมีโซนซ้อนกัน ───────────────────────────
+function _openZoneSelector(latlng, zones){
+  const items = zones.map(({id,z,areaSqm})=>{
+    const c = z.color||'#3b82f6';
+    const shapeIcon = z.shape.type==='circle'?'⭕':z.shape.type==='polygon'?'🔷':'⬛';
+    return `
+      <div onclick="window._selectZone('${id}',${latlng.lat},${latlng.lng})"
+        style="display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:10px;cursor:pointer;border:1.5px solid ${c}44;background:${c}08;margin-bottom:6px;transition:background 0.15s"
+        onmouseover="this.style.background='${c}18'" onmouseout="this.style.background='${c}08'">
+        <div style="width:28px;height:28px;border-radius:7px;background:${c}22;border:1.5px solid ${c}55;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">${shapeIcon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Kanit',sans-serif;font-size:12px;font-weight:800;color:${c};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(z.name)}</div>
+          <div style="font-size:10px;color:#94a3b8">${areaSqm>0?fmtArea(areaSqm):'—'}</div>
+        </div>
+        <i class="fas fa-chevron-right" style="color:${c}88;font-size:10px;flex-shrink:0"></i>
+      </div>`;
+  }).join('');
+
+  L.popup({maxWidth:240, className:'zone-popup'})
+    .setLatLng(latlng)
+    .setContent(`
+      <div style="font-family:'Sarabun',sans-serif">
+        <div style="font-family:'Kanit',sans-serif;font-size:12px;font-weight:800;color:#0a2463;margin-bottom:9px;display:flex;align-items:center;gap:5px">
+          <i class="fas fa-layer-group" style="color:#2563eb"></i> พบ ${zones.length} โซนซ้อนกัน — เลือกโซน
+        </div>
+        ${items}
+      </div>
+    `)
+    .openOn(_map);
+
+  // callback เมื่อเลือกโซนจาก selector
+  window._selectZone = function(id, lat, lng){
+    _map.closePopup();
+    const ol = _zoneLayers[id];
+    if(!ol) return;
+    _openZonePopup(id, ol._zoneData, ol._areaSqm, L.latLng(lat, lng));
+  };
 }
 function delZone(id){if(!confirm('ลบโซนนี้?')) return;remove(ref(db,`search_missions/${missionId}/zones/${id}`));toast('ลบโซนแล้ว','info');}
 function toggleZones(){
