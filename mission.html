@@ -393,7 +393,7 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
       <div style="border-top:1px solid var(--border-light);margin:4px 0 6px"></div>
       <button id="btn-grid-vis" class="draw-cancel" style="flex:1;border-color:#dbeafe;color:#2563eb;background:#eff6ff;margin-bottom:4px;width:100%;justify-content:center;display:flex;gap:5px;align-items:center" onclick="toggleGridVisibility()"><i class="fas fa-eye-slash"></i> ซ่อนกริด (เฉพาะคุณ)</button>
       <div style="display:flex;gap:6px">
-        <button class="draw-cancel" style="flex:1" onclick="clearAllGrids()"><i class="fas fa-trash"></i> ลบทั้งหมด</button>
+        <button id="btn-clear-all-grids" class="draw-cancel" style="flex:1" onclick="clearAllGrids()"><i class="fas fa-trash"></i> ลบ (ของฉัน)</button>
         <button class="draw-cancel" style="flex:1;border-color:#e2e8f0;color:#64748b" onclick="closeGridPicker()"><i class="fas fa-times"></i> ปิด</button>
       </div>
     </div>
@@ -636,6 +636,26 @@ let _pendingZone=null, _zoneColor='#3b82f6';
 let _pendingPinType=null, _pendingPinLL=null, _pendingPinPhoto=null;
 let _endPhotos=[];
 let _gridLayers=[], _gridOn=false;
+const _hiddenGridsKey = ()=>`sm_hidden_grids_${missionId||'x'}`;
+let _hiddenGrids = new Set(JSON.parse(localStorage.getItem(_hiddenGridsKey())||'[]'));
+function _saveHiddenGrids(){ localStorage.setItem(_hiddenGridsKey(), JSON.stringify([..._hiddenGrids])); }
+function toggleHideGrid(gridId, btn){
+  const isHidden = _hiddenGrids.has(gridId);
+  if(isHidden) _hiddenGrids.delete(gridId); else _hiddenGrids.add(gridId);
+  _saveHiddenGrids();
+  // อัปเดต layer บนแผนที่
+  const g = _gridLayers.find(x=>x.gridId===gridId);
+  if(g){
+    const hide = _hiddenGrids.has(gridId);
+    g.lines.forEach(l=>{ try{ l.setStyle({opacity: hide?0:0.55}); }catch(e){} });
+    g.labels.forEach(l=>{ try{ l.setOpacity(hide?0:1); }catch(e){} });
+    try{ g.boundary.setStyle({opacity: hide?0:0.7}); }catch(e){}
+    try{ g.clickZone.setStyle({fillOpacity: hide?0:0.03}); }catch(e){}
+  }
+  _map?.closePopup();
+  toast(_hiddenGrids.has(gridId)?'ซ่อนกริดนี้แล้ว (เฉพาะคุณ)':'แสดงกริดนี้แล้ว','info');
+}
+window.toggleHideGrid = toggleHideGrid;
 let _gridDrawing=false, _gridSize=100, _gridStart=null, _gridRect=null, _gridDrawLayer=null;
 let _unGrids=null; // Firebase listener for shared grids
 let _gridVisible=true; // local visibility toggle
@@ -2222,16 +2242,34 @@ function _renderGridLocally(gridId, sizeMeters, sw, ne, createdBy, createdByName
         </div>
 
         ${canDel ? `
-        <button onclick="deleteGrid('${gridId}')" style="width:100%;margin-top:6px;padding:9px;border-radius:9px;background:linear-gradient(135deg,#fee2e2,#fecaca);border:1.5px solid #fca5a5;color:#dc2626;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
-          <i class="fas fa-trash"></i> ลบกริดนี้ (ทุกคนจะไม่เห็น)
-        </button>` :
-        `<div style="font-size:10px;color:#94a3b8;text-align:center;margin-top:6px;padding:5px;background:#f8fafc;border-radius:7px">เฉพาะผู้สร้างหรือ Admin ลบได้</div>`}
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button onclick="toggleHideGrid('${gridId}',this)" style="flex:1;padding:8px;border-radius:9px;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#16a34a;font-family:'Kanit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px">
+            <i class="fas fa-eye-slash"></i> ซ่อน (เฉพาะคุณ)
+          </button>
+          <button onclick="deleteGrid('${gridId}')" style="flex:1;padding:8px;border-radius:9px;background:linear-gradient(135deg,#fee2e2,#fecaca);border:1.5px solid #fca5a5;color:#dc2626;font-family:'Kanit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px">
+            <i class="fas fa-trash"></i> ลบ (ทุกคน)
+          </button>
+        </div>` :
+        `<button onclick="toggleHideGrid('${gridId}',this)" style="width:100%;margin-top:6px;padding:8px;border-radius:9px;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#16a34a;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+          <i class="fas fa-eye-slash"></i> ซ่อนกริดนี้ (เฉพาะคุณ)
+        </button>
+        <div style="font-size:10px;color:#94a3b8;text-align:center;margin-top:5px;padding:4px 8px;background:#f8fafc;border-radius:7px">
+          <i class="fas fa-lock" style="margin-right:3px"></i>เฉพาะผู้สร้างหรือ Admin ลบได้
+        </div>`}
       </div>
     `;
     clickZone.bindPopup(popHtml, {maxWidth:260}).openPopup(e.latlng);
   });
 
   _gridLayers.push({gridId, lines, labels, boundary, clickZone, size: sizeMeters});
+
+  // apply local hidden state (คงค่าซ่อนไว้หลัง re-render)
+  if(_hiddenGrids.has(gridId)){
+    lines.forEach(l=>{ try{ l.setStyle({opacity:0}); }catch(e){} });
+    labels.forEach(l=>{ try{ l.setOpacity(0); }catch(e){} });
+    try{ boundary.setStyle({opacity:0}); }catch(e){}
+    try{ clickZone.setStyle({fillOpacity:0}); }catch(e){}
+  }
 }
 
 // ── ซ่อน/แสดงกริด (local เท่านั้น) ──────────────────────
@@ -2273,6 +2311,15 @@ function toggleGridPicker(){
   document.getElementById('btn-pin').classList.remove('active');
   const show = p.classList.toggle('show');
   document.getElementById('btn-grid').classList.toggle('active', show || _gridLayers.length > 0);
+  // อัปเดตป้ายปุ่มลบตามสิทธิ์
+  const delBtn = document.getElementById('btn-clear-all-grids');
+  if(delBtn){
+    if(user.role==='admin'){
+      delBtn.innerHTML='<i class="fas fa-trash"></i> ลบทั้งหมด';
+    } else {
+      delBtn.innerHTML='<i class="fas fa-trash"></i> ลบของฉัน';
+    }
+  }
 }
 function closeGridPicker(){
   document.getElementById('grid-picker').classList.remove('show');
@@ -2329,8 +2376,22 @@ function addGrid(sizeMeters, sw, ne){
 }
 
 // ── ลบกริดทั้งหมดออกจาก Firebase ────────────────────────
-function clearAllGrids(){
+async function clearAllGrids(){
   if(_gridLayers.length === 0){ toast('ยังไม่มีกริด','info'); return; }
+  // ตรวจสิทธิ์: admin ลบได้ทั้งหมด, คนอื่นลบได้เฉพาะกริดที่ตัวเองสร้าง
+  const isAdmin = user.role === 'admin';
+  if(!isAdmin){
+    // ดึงข้อมูลกริดจาก Firebase เพื่อตรวจ createdBy
+    const snap = await get(ref(db, `search_missions/${missionId}/grids`));
+    const grids = snap.val() || {};
+    const myGridIds = Object.entries(grids).filter(([,g])=>g.createdBy===user.id).map(([id])=>id);
+    const othersCount = Object.keys(grids).length - myGridIds.length;
+    if(myGridIds.length === 0){ toast('คุณไม่มีกริดที่สร้างไว้','info'); return; }
+    if(!confirm(`ลบกริดที่คุณสร้าง ${myGridIds.length} ชุด?\n${othersCount>0?`(กริดของคนอื่น ${othersCount} ชุดจะไม่ถูกลบ)`:''}`)){ return; }
+    await Promise.all(myGridIds.map(id=>remove(ref(db,`search_missions/${missionId}/grids/${id}`))));
+    toast(`ลบกริดของคุณ ${myGridIds.length} ชุดแล้ว`,'info');
+    return;
+  }
   if(!confirm('ลบกริดทั้งหมด?\nทุกคนจะไม่เห็นกริดอีก')) return;
   remove(ref(db, `search_missions/${missionId}/grids`))
     .then(() => {
