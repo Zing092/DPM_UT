@@ -18,6 +18,7 @@
   --shadow-sm:0 1px 3px rgba(10,36,99,0.1);--shadow-md:0 4px 16px rgba(10,36,99,0.12);
   --shadow-lg:0 8px 32px rgba(10,36,99,0.16);--shadow-xl:0 20px 60px rgba(10,36,99,0.2);
   --topbar-h:58px;
+  --topbar-total:calc(58px + env(safe-area-inset-top, 0px));
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primary);
@@ -26,10 +27,16 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
 ::-webkit-scrollbar-thumb{background:var(--primary-light);border-radius:2px;}
 
 /* ── TOPBAR ── */
-.topbar{height:var(--topbar-h);background:linear-gradient(90deg,#020c2e,#0a2463,#1b3d8f);
-  border-bottom:1px solid rgba(255,255,255,0.08);box-shadow:0 2px 12px rgba(0,0,0,0.3);
-  display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0;
-  padding-top:env(safe-area-inset-top,0px);}
+.topbar{
+  min-height:var(--topbar-h);
+  background:linear-gradient(90deg,#020c2e,#0a2463,#1b3d8f);
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  box-shadow:0 2px 12px rgba(0,0,0,0.3);
+  display:flex;align-items:center;
+  padding:0 14px;
+  padding-top:env(safe-area-inset-top,0px);
+  gap:10px;flex-shrink:0;position:relative;z-index:100;
+}
 .topbar-back{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.1);
   border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;
   cursor:pointer;color:#fff;font-size:14px;text-decoration:none;transition:all 0.2s;flex-shrink:0;}
@@ -363,7 +370,7 @@ textarea.form-ctrl{min-height:70px;resize:vertical;}
 
 /* ── MISSION INFO DRAWER ── */
 .mission-info-drawer{
-  position:fixed;top:var(--topbar-h);left:0;right:0;z-index:1800;
+  position:fixed;top:var(--topbar-total);left:0;right:0;z-index:1800;
   background:linear-gradient(160deg,#0a1628 0%,#0a2463 100%);
   transform:translateY(-110%);transition:transform 0.38s cubic-bezier(0.16,1,0.3,1);
   box-shadow:0 12px 40px rgba(0,0,0,0.5);
