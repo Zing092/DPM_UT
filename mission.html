@@ -10,13 +10,13 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{
-  --primary:#061a40;--primary-mid:#0f307a;--primary-light:#1d4ed8;--primary-glow:#3b82f6;
-  --accent-red:#dc2626;--accent-green:#059669;--accent-orange:#f59e0b;--accent-purple:#7c3aed;
-  --surface:#fff;--surface-2:#f1f5fb;--surface-3:#e4ebf9;
-  --text-primary:#0b1120;--text-secondary:#3d5169;--text-muted:#8096ae;
-  --border:#c2cfe0;--border-light:#dce6f0;
-  --shadow-sm:0 1px 4px rgba(6,26,64,0.08),0 0 1px rgba(6,26,64,0.05);--shadow-md:0 4px 18px rgba(6,26,64,0.11),0 1px 4px rgba(6,26,64,0.07);
-  --shadow-lg:0 10px 36px rgba(6,26,64,0.15),0 2px 8px rgba(6,26,64,0.08);--shadow-xl:0 24px 64px rgba(6,26,64,0.22),0 4px 16px rgba(6,26,64,0.1);
+  --primary:#0a2463;--primary-mid:#1b3d8f;--primary-light:#2563eb;--primary-glow:#3b82f6;
+  --accent-red:#ef4444;--accent-green:#10b981;--accent-orange:#f59e0b;--accent-purple:#8b5cf6;
+  --surface:#fff;--surface-2:#f0f4ff;--surface-3:#e8eeff;
+  --text-primary:#0f172a;--text-secondary:#475569;--text-muted:#94a3b8;
+  --border:#cbd5e1;--border-light:#e2e8f0;
+  --shadow-sm:0 1px 3px rgba(10,36,99,0.1);--shadow-md:0 4px 16px rgba(10,36,99,0.12);
+  --shadow-lg:0 8px 32px rgba(10,36,99,0.16);--shadow-xl:0 20px 60px rgba(10,36,99,0.2);
   --topbar-h:58px;
   --topbar-total:calc(58px + env(safe-area-inset-top, 0px));
 }
@@ -28,9 +28,9 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
 
 /* ── TOPBAR ── */
 .topbar{
-  background:linear-gradient(105deg,#010a1e,#061a40,#0f307a,#1a4db0);
-  border-bottom:1px solid rgba(59,130,246,0.12);
-  box-shadow:0 3px 20px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.05) inset;
+  background:linear-gradient(90deg,#020c2e,#0a2463,#1b3d8f);
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  box-shadow:0 2px 12px rgba(0,0,0,0.3);
   display:flex;flex-direction:column;
   flex-shrink:0;position:relative;z-index:200;
   overflow:hidden;
@@ -44,32 +44,29 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
   display:flex;align-items:center;
   padding:0 14px;gap:10px;width:100%;
 }
-.topbar-back{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,0.1);
-  border:1px solid rgba(255,255,255,0.14);display:flex;align-items:center;justify-content:center;
-  cursor:pointer;color:#fff;font-size:14px;text-decoration:none;transition:all 0.2s;flex-shrink:0;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);}
+.topbar-back{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:#fff;font-size:14px;text-decoration:none;transition:all 0.2s;flex-shrink:0;}
 .topbar-back:hover{background:rgba(255,255,255,0.2);}
 .topbar-info{flex:1;min-width:0;}
-.topbar-title{font-family:'Kanit',sans-serif;font-size:14px;font-weight:800;color:#fff;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:0.1px;}
-.topbar-sub{font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px;}
-.topbar-live{display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#14532d;
-  font-size:10px;font-weight:800;padding:3px 8px;border-radius:20px;flex-shrink:0;
-  box-shadow: 0 2px 8px rgba(21,128,61,0.3);}
+.topbar-title{font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.topbar-sub{font-size:10px;color:rgba(255,255,255,0.5);margin-top:1px;}
+.topbar-live{display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#166534;
+  font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;flex-shrink:0;}
 .topbar-live::before{content:'';width:5px;height:5px;border-radius:50%;background:#16a34a;animation:blink 1.5s infinite;}
-.topbar-timer{font-family:'Kanit',sans-serif;font-size:12px;font-weight:800;color:rgba(255,255,255,0.9);
-  background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.14);padding:4px 9px;border-radius:9px;flex-shrink:0;}
+.topbar-timer{font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;color:rgba(255,255,255,0.85);
+  background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);padding:4px 9px;border-radius:8px;flex-shrink:0;}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:0.3;}}
 
 /* ── PAGE BODY ── */
 .page-body{flex:1;display:flex;flex-direction:column;overflow:hidden;}
 
 /* ── SOS BAR (ลบออก ย้ายไป toolbar) ── */
-.sos-btn{width:100%;padding:11px;border:none;border-radius:12px;
-  background:linear-gradient(135deg,#b91c1c,#dc2626,#ef4444);color:#fff;font-size:14px;font-weight:800;
+.sos-btn{width:100%;padding:11px;border:none;border-radius:11px;
+  background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;font-size:14px;font-weight:800;
   font-family:'Kanit',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
-  box-shadow:0 6px 18px rgba(220,38,38,0.45),0 1px 0 rgba(255,255,255,0.12) inset;-webkit-user-select:none;user-select:none;touch-action:none;
-  letter-spacing:0.3px;}
+  box-shadow:0 4px 14px rgba(239,68,68,0.4);-webkit-user-select:none;user-select:none;touch-action:none;}
 .sos-btn:active{transform:scale(0.97);}
 .sos-cancel-btn{width:100%;padding:11px;border:2px solid #dc2626;border-radius:11px;background:#fff;
   color:#dc2626;font-size:13px;font-weight:800;font-family:'Kanit',sans-serif;cursor:pointer;
@@ -85,9 +82,8 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
 .member-sheet{position:fixed;inset:0;z-index:1500;display:flex;flex-direction:column;
   background:#fff;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.16,1,0.3,1);}
 .member-sheet.open{transform:translateY(0);}
-.member-sheet-hdr{background:linear-gradient(105deg,#014737,#065f46,#047857);padding:13px 16px;
-  display:flex;align-items:center;gap:10px;flex-shrink:0;padding-top:env(safe-area-inset-top,0px);
-  box-shadow: 0 2px 12px rgba(5,150,105,0.3);}
+.member-sheet-hdr{background:linear-gradient(90deg,#064e3b,#065f46);padding:13px 16px;
+  display:flex;align-items:center;gap:10px;flex-shrink:0;padding-top:env(safe-area-inset-top,0px);}
 .member-sheet-hdr.sos-alert{animation:sos-hdr-flash 0.8s infinite;}
 .member-sheet-title{font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:#fff;flex:1;}
 .member-sheet-close{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.12);
