@@ -1836,6 +1836,9 @@ function _bindMapZoneClick(){
   if(_mapZoneClickBound) return;
   _mapZoneClickBound = true;
 
+  // ── ตัวแปร marker สำหรับจุดที่กดบนแผนที่ ──
+  let _tapMarker = null;
+
   _map.on('click', function(ev){
     if(_drawOn || _gridDrawing) return;
 
@@ -1846,15 +1849,67 @@ function _bindMapZoneClick(){
       .filter(([,ol]) => ol._zoneData && _latlngInZone(latlng, ol._zoneData))
       .map(([oid, ol]) => ({id:oid, z:ol._zoneData, areaSqm:ol._areaSqm||0}));
 
-    if(hits.length === 0) return;
-
     if(hits.length === 1){
       _openZonePopup(hits[0].id, hits[0].z, hits[0].areaSqm, latlng);
-    } else {
-      // เรียงจากเล็กสุดขึ้นก่อน (precise first)
+      return;
+    } else if(hits.length > 1){
       hits.sort((a,b) => a.areaSqm - b.areaSqm);
       _openZoneSelector(latlng, hits);
+      return;
     }
+
+    // ── กดพื้นที่ว่าง → แสดง popup พิกัด + นำทาง ──
+    const lat = latlng.lat.toFixed(6);
+    const lng = latlng.lng.toFixed(6);
+
+    if(_tapMarker) { _map.removeLayer(_tapMarker); _tapMarker = null; }
+
+    const tapIcon = L.divIcon({
+      html: `<div style="width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid #0a2463;box-shadow:0 2px 10px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center"><div style="width:9px;height:9px;border-radius:50%;background:#0a2463"></div></div>`,
+      className:'', iconSize:[26,26], iconAnchor:[13,13], popupAnchor:[0,-16]
+    });
+
+    _tapMarker = L.marker(latlng, { icon: tapIcon })
+      .bindPopup(`
+        <div style="min-width:215px;padding:3px 2px;font-family:'Sarabun',sans-serif">
+          <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:800;color:#0a2463;margin-bottom:9px;display:flex;align-items:center;gap:7px">
+            <span style="width:28px;height:28px;border-radius:8px;background:#eff6ff;display:inline-flex;align-items:center;justify-content:center">
+              <i class="fas fa-map-pin" style="color:#ef4444;font-size:13px"></i>
+            </span>
+            พิกัดที่เลือก
+          </div>
+          <div style="background:#f0f4ff;border-radius:9px;padding:9px 11px;margin-bottom:10px">
+            <div style="font-size:12px;color:#475569;margin-bottom:4px">
+              <i class="fas fa-crosshairs" style="color:#2563eb;width:14px"></i>
+              ละติจูด: <strong style="color:#0a2463;font-family:'Kanit',sans-serif">${lat}</strong>
+            </div>
+            <div style="font-size:12px;color:#475569">
+              <i class="fas fa-crosshairs" style="color:#2563eb;width:14px"></i>
+              ลองจิจูด: <strong style="color:#0a2463;font-family:'Kanit',sans-serif">${lng}</strong>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px">
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank"
+              style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;border-radius:11px;border:2px solid #4285f4;text-decoration:none;color:#4285f4;font-family:'Kanit',sans-serif;font-size:11px;font-weight:700;background:#fff">
+              <i class="fas fa-map-marked-alt" style="font-size:18px"></i>Google Maps
+            </a>
+            <a href="https://waze.com/ul?ll=${lat},${lng}&navigate=yes" target="_blank"
+              style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;border-radius:11px;border:2px solid #33ccff;text-decoration:none;color:#00b5e6;font-family:'Kanit',sans-serif;font-size:11px;font-weight:700;background:#fff">
+              <i class="fas fa-route" style="font-size:18px"></i>Waze
+            </a>
+          </div>
+          <button onclick="if(navigator.clipboard){navigator.clipboard.writeText('${lat}, ${lng}').then(()=>{var b=this;b.innerHTML='<i class=\'fas fa-check\'></i> คัดลอกแล้ว!';b.style.background='#dcfce7';b.style.color='#15803d';setTimeout(()=>{b.innerHTML='<i class=\'fas fa-copy\'></i> คัดลอกพิกัด';b.style.background='';b.style.color='';},1800)})}"
+            style="width:100%;padding:8px;border:1.5px solid #cbd5e1;border-radius:9px;background:#fff;font-size:12px;font-family:'Sarabun',sans-serif;cursor:pointer;color:#475569;display:flex;align-items:center;justify-content:center;gap:6px">
+            <i class="fas fa-copy"></i> คัดลอกพิกัด
+          </button>
+        </div>
+      `, { maxWidth: 260 })
+      .addTo(_map)
+      .openPopup();
+
+    _tapMarker.on('popupclose', function(){
+      if(_tapMarker){ _map.removeLayer(_tapMarker); _tapMarker = null; }
+    });
   });
 }
 // reset เมื่อ map ถูก reinit
