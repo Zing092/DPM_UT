@@ -2338,23 +2338,26 @@ async function endMission(){
     const ms=m.members?JSON.parse(JSON.stringify(m.members)):{};
     const ph=_endPhotos.filter(p=>!p.loading&&p.url).map(p=>({data:p.url}));
 
-    // ── snapshot ข้อมูลเพิ่มเติมก่อนจบภารกิจ ──────────────
+    // ── snapshot ข้อมูลเพิ่มเติมก่อนจบภารกิจ (เต็มรูปแบบ) ──
     const closedNow = Date.now();
 
-    // Pins snapshot
+    // Pins snapshot (เต็ม — พิกัด, ประเภท, รูป)
     let pinsSnapshot = {};
     try { const ps=await get(ref(db,`search_missions/${missionId}/pins`)); pinsSnapshot=ps.val()||{}; } catch(e){}
 
-    // Zones snapshot
+    // Zones snapshot (เต็ม — ทุก polygon/circle)
     let zonesSnapshot = {};
     try { const zs=await get(ref(db,`search_missions/${missionId}/zones`)); zonesSnapshot=zs.val()||{}; } catch(e){}
 
-    // Trails snapshot (บันทึกเฉพาะ metadata เพื่อประหยัดพื้นที่ — points อาจใหญ่มาก)
+    // Grids snapshot (เต็ม)
+    let gridsSnapshot = {};
+    try { const gs=await get(ref(db,`search_missions/${missionId}/grids`)); gridsSnapshot=gs.val()||{}; } catch(e){}
+
+    // Trails snapshot — เก็บ FULL points เพื่อ replay บนแผนที่
     let trailsSnapshot = {};
     try {
       const ts=await get(ref(db,`search_missions/${missionId}/trails`));
       const rawTrails=ts.val()||{};
-      // เก็บเฉพาะ name, color, pointCount, leftAt (ไม่เก็บ points ทั้งหมด)
       Object.entries(rawTrails).forEach(([uid,t])=>{
         const pts=Array.isArray(t)?t:(t.points||[]);
         // คำนวณระยะทางรวม (Haversine)
@@ -2367,13 +2370,23 @@ async function endMission(){
           distM+=6371000*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
         }
         trailsSnapshot[uid]={
-          name: Array.isArray(t)?'สมาชิก':(t.name||uid),
-          color: Array.isArray(t)?null:(t.color||null),
+          name:   Array.isArray(t)?'สมาชิก':(t.name||uid),
+          color:  Array.isArray(t)?null:(t.color||null),
+          points: pts,               // ← เก็บทุก point เพื่อ replay
           pointCount: pts.length,
           distanceM: Math.round(distM),
           leftAt: Array.isArray(t)?null:(t.leftAt||null)
         };
       });
+    } catch(e){}
+
+    // Map state snapshot (center, zoom ณ เวลาจบ)
+    let mapState = {};
+    try {
+      if(_map){
+        const c=_map.getCenter();
+        mapState = { lat:c.lat, lng:c.lng, zoom:_map.getZoom(), layer:_activeLayerId||'street' };
+      }
     } catch(e){}
 
     // Duration
@@ -2389,7 +2402,7 @@ async function endMission(){
       status:'closed', closedAt:closedNow, closedBy:user.id, closedByName:user.name||user.id,
       summary:sum, memberSnapshot:ms, memberCount,
       duration:durationStr, durationMs,
-      pinsSnapshot, zonesSnapshot, trailsSnapshot,
+      pinsSnapshot, zonesSnapshot, gridsSnapshot, trailsSnapshot, mapState,
       ...(ph.length&&{photos:ph})
     };
 

@@ -2652,7 +2652,6 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, get, push, update, remove, onValue, query, orderByChild } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, deleteUser as deleteAuthUser, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD4i4tIdswvYaRLP3EpEHHg_miOJIu-k7o",
@@ -2668,12 +2667,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const storage = getStorage(app);
-const auth = getAuth(app);
-
-// helper: แปลงรหัสพนักงาน → fake email สำหรับ Firebase Auth
-function toAuthEmail(employeeId) {
-  return `${employeeId.toLowerCase()}@fire-rescue-app.local`;
-}
 
 // ===== GLOBAL STATE =====
 window._state = {
@@ -2754,49 +2747,22 @@ function startClock() {
 }
 
 function checkSession() {
-  // ใช้ onAuthStateChanged แทน localStorage เพื่อความปลอดภัย
-  onAuthStateChanged(auth, async (firebaseUser) => {
-    if(firebaseUser) {
-      // Firebase Auth ยืนยันว่า login อยู่ — ดึงข้อมูลพนักงานจาก DB
-      const saved = localStorage.getItem('fire_user');
-      if(saved) {
-        S.user = JSON.parse(saved);
-        showApp();
-      } else {
-        // หา employeeId จาก email (undo fake email)
-        const employeeId = firebaseUser.email.split('@')[0].toUpperCase();
-        const snap = await get(ref(db, 'users/' + employeeId));
-        if(snap.exists()) {
-          S.user = { ...snap.val(), id: employeeId };
-          localStorage.setItem('fire_user', JSON.stringify(S.user));
-          showApp();
-        } else {
-          await signOut(auth);
-        }
-      }
-    } else {
-      // ไม่ได้ login — แสดงหน้า login
-      localStorage.removeItem('fire_user');
-    }
-  });
+  const saved = localStorage.getItem('fire_user');
+  if(saved) {
+    S.user = JSON.parse(saved);
+    showApp();
+  }
 }
 
 async function initDefaultData() {
-  // สร้าง admin เริ่มต้นถ้ายังไม่มี
-  const adminRef = ref(db, 'users/ADMIN001');
+  // Check if admin exists, create if not
+  const adminRef = ref(db,'users/ADMIN001');
   const snap = await get(adminRef);
   if(!snap.exists()) {
-    try {
-      const fakeEmail = toAuthEmail('ADMIN001');
-      await createUserWithEmailAndPassword(auth, fakeEmail, 'admin1234');
-      await set(adminRef, {
-        id: 'ADMIN001', name: 'หัวหน้ากองป้องกันฯ',
-        position: 'หัวหน้ากองป้องกันและบรรเทาสาธารณภัย', role: 'admin'
-      });
-    } catch(e) {
-      // Admin อาจมีอยู่ใน Auth แล้ว ข้ามได้เลย
-      if(e.code !== 'auth/email-already-in-use') console.warn('initDefaultData:', e.message);
-    }
+    await set(adminRef, {
+      id:'ADMIN001', name:'หัวหน้ากองป้องกันฯ', position:'หัวหน้ากองป้องกันและบรรเทาสาธารณภัย',
+      role:'admin', password:'admin1234'
+    });
   }
 }
 
@@ -2807,30 +2773,22 @@ window.doLogin = async function() {
   if(!id || !pass) { showLoginError('กรุณากรอกรหัสพนักงานและรหัสผ่าน'); return; }
   showLoading(true);
   try {
-    // แปลงรหัสพนักงานเป็น fake email แล้วล็อคอินกับ Firebase Auth
-    const fakeEmail = toAuthEmail(id);
-    const userCredential = await signInWithEmailAndPassword(auth, fakeEmail, pass);
-
-    // ดึงข้อมูลพนักงานจาก Database
-    const snap = await get(ref(db, 'users/' + id));
-    if(!snap.exists()) {
-      await signOut(auth);
-      showLoading(false);
-      showLoginError('ไม่พบข้อมูลพนักงาน กรุณาติดต่อผู้ดูแลระบบ');
-      return;
+    const snap = await get(ref(db,'users/'+id));
+    if(snap.exists()) {
+      const u = snap.val();
+      if(u.password === pass) {
+        S.user = {...u, id};
+        localStorage.setItem('fire_user', JSON.stringify(S.user));
+        showApp();
+        showLoading(false);
+        return;
+      }
     }
-    const u = snap.val();
-    S.user = { ...u, id };
-    localStorage.setItem('fire_user', JSON.stringify(S.user));
-    showApp();
     showLoading(false);
+    showLoginError('รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง');
   } catch(e) {
     showLoading(false);
-    if(e.code === 'auth/invalid-credential' || e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password') {
-      showLoginError('รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง');
-    } else {
-      showLoginError('เกิดข้อผิดพลาด: ' + e.message);
-    }
+    showLoginError('เกิดข้อผิดพลาด กรุณาลองใหม่');
   }
 };
 
@@ -2843,8 +2801,7 @@ function showLoginError(msg) {
   setTimeout(()=>el.style.display='none',3000);
 }
 
-window.doLogout = async function() {
-  try { await signOut(auth); } catch(e) {}
+window.doLogout = function() {
   localStorage.removeItem('fire_user');
   S.user = null;
   document.getElementById('app').style.display='none';
@@ -4211,55 +4168,17 @@ window.saveUser = async function() {
   const name = document.getElementById('au-name').value.trim();
   const position = document.getElementById('au-position').value.trim();
   const role = document.getElementById('au-role').value;
-  if(!id || !name) { showToast('กรุณากรอกข้อมูลที่จำเป็น', 'error'); return; }
-
-  const fakeEmail = toAuthEmail(id);
-
-  try {
-    if(!editId) {
-      // === สร้างพนักงานใหม่ ===
-      if(!pass) { showToast('กรุณากรอกรหัสผ่าน', 'error'); return; }
-      // สร้าง Firebase Auth user ก่อน
-      await createUserWithEmailAndPassword(auth, fakeEmail, pass);
-      // บันทึกข้อมูลลง Database (ไม่เก็บ password แล้ว)
-      await set(ref(db, 'users/' + id), { id, name, position, role });
-      showToast('เพิ่มพนักงานสำเร็จ', 'success');
-    } else {
-      // === แก้ไขพนักงานที่มีอยู่ ===
-      // อัปเดตข้อมูลใน Database
-      const updateData = { id, name, position, role };
-      await set(ref(db, 'users/' + id), updateData);
-      // ถ้ามีการเปลี่ยน password ด้วย
-      if(pass) {
-        showToast('บันทึกข้อมูลสำเร็จ (หากต้องการเปลี่ยนรหัสผ่าน ให้ใช้ Firebase Console)', 'info');
-      } else {
-        showToast('บันทึกข้อมูลสำเร็จ', 'success');
-      }
-    }
-    closeModal('modal-add-user');
-    // อัปเดต local user ถ้าแก้ตัวเอง
-    if(id === S.user.id) {
-      S.user = { ...S.user, name, position, role };
-      localStorage.setItem('fire_user', JSON.stringify(S.user));
-      showApp();
-    }
-  } catch(e) {
-    if(e.code === 'auth/email-already-in-use') {
-      showToast('รหัสพนักงานนี้มีอยู่ในระบบแล้ว', 'error');
-    } else {
-      showToast('เกิดข้อผิดพลาด: ' + e.message, 'error');
-    }
-  }
+  if(!id||!pass||!name){ showToast('กรุณากรอกข้อมูลที่จำเป็น','error'); return; }
+  await set(ref(db,'users/'+id), {id,password:pass,name,position,role});
+  closeModal('modal-add-user');
+  showToast('บันทึกข้อมูลสำเร็จ','success');
+  // Update local user if editing self
+  if(id===S.user.id) { S.user={...S.user,name,position,role}; localStorage.setItem('fire_user',JSON.stringify(S.user)); showApp(); }
 };
 window.deleteUser = async function(id) {
-  if(!confirm('ยืนยันลบพนักงาน ' + id + '?')) return;
-  try {
-    // ลบข้อมูลจาก Database
-    await remove(ref(db, 'users/' + id));
-    showToast('ลบพนักงานแล้ว (กรุณาลบ Auth user ใน Firebase Console ด้วย)', 'info');
-  } catch(e) {
-    showToast('เกิดข้อผิดพลาด: ' + e.message, 'error');
-  }
+  if(!confirm('ยืนยันลบพนักงาน '+id+'?')) return;
+  await remove(ref(db,'users/'+id));
+  showToast('ลบพนักงานแล้ว','info');
 };
 
 // Vehicle CRUD
@@ -7061,15 +6980,63 @@ window.smEndMission = async function() {
       return;
     }
 
-    // 3. Save ทุกอย่างใน request เดียว (รูป + ข้อมูลภารกิจ)
+    // 3. ดึง snapshot เต็มรูปแบบ (trails, zones, pins, grids)
+    const closedNow = Date.now();
+
+    let pinsSnapshot = {};
+    try { const ps = await get(ref(db, `search_missions/${_smActiveMissionId}/pins`)); pinsSnapshot = ps.val() || {}; } catch(e){}
+
+    let zonesSnapshot = {};
+    try { const zs = await get(ref(db, `search_missions/${_smActiveMissionId}/zones`)); zonesSnapshot = zs.val() || {}; } catch(e){}
+
+    let gridsSnapshot = {};
+    try { const gs = await get(ref(db, `search_missions/${_smActiveMissionId}/grids`)); gridsSnapshot = gs.val() || {}; } catch(e){}
+
+    let trailsSnapshot = {};
+    try {
+      const ts = await get(ref(db, `search_missions/${_smActiveMissionId}/trails`));
+      const rawTrails = ts.val() || {};
+      Object.entries(rawTrails).forEach(([uid, t]) => {
+        const pts = Array.isArray(t) ? t : (t.points || []);
+        let distM = 0;
+        for (let i = 1; i < pts.length; i++) {
+          const a = pts[i-1], b = pts[i];
+          const la1 = a[0]*Math.PI/180, la2 = b[0]*Math.PI/180;
+          const dLa = (b[0]-a[0])*Math.PI/180, dLo = (b[1]-a[1])*Math.PI/180;
+          const x = Math.sin(dLa/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLo/2)**2;
+          distM += 6371000 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+        }
+        trailsSnapshot[uid] = {
+          name:       Array.isArray(t) ? 'สมาชิก' : (t.name || uid),
+          color:      Array.isArray(t) ? null : (t.color || null),
+          points:     pts,
+          pointCount: pts.length,
+          distanceM:  Math.round(distM),
+          leftAt:     Array.isArray(t) ? null : (t.leftAt || null)
+        };
+      });
+    } catch(e){}
+
+    const durationMs = closedNow - (mission.createdAt || closedNow);
+    const dH = Math.floor(durationMs / 3600000), dM2 = Math.floor((durationMs % 3600000) / 60000);
+    const durationStr = dH > 0 ? `${dH} ชั่วโมง ${dM2} นาที` : `${dM2} นาที`;
+
+    // 4. Save ทุกอย่างใน request เดียว
     await withTimeout(
       update(ref(db, `search_missions/${_smActiveMissionId}`), {
         status: 'closed',
-        closedAt: Date.now(),
+        closedAt: closedNow,
         closedBy: S.user?.id || 'unknown',
         closedByName: S.user?.name || S.user?.id || 'ไม่ระบุ',
         summary,
         memberSnapshot,
+        memberCount: Object.keys(memberSnapshot).length,
+        duration: durationStr,
+        durationMs,
+        pinsSnapshot,
+        zonesSnapshot,
+        gridsSnapshot,
+        trailsSnapshot,
         ...(photos.length > 0 && { photos })
       }),
       15000, 'บันทึกข้อมูล'
@@ -7164,6 +7131,52 @@ window.smShowDetail = async function(missionId) {
 
   const duration = smCalcDuration(m.createdAt, m.closedAt);
 
+  // stats summary chips
+  const trails = m.trailsSnapshot || {};
+  const trailCount = Object.keys(trails).length;
+  const totalDist = Object.values(trails).reduce((s,t)=>s+(t.distanceM||0),0);
+  const pinCount = Object.keys(m.pinsSnapshot||{}).length;
+  const zoneCount = Object.keys(m.zonesSnapshot||{}).length;
+  const gridCount = Object.keys(m.gridsSnapshot||{}).length;
+
+  function fmtDist(m){ if(m>=1000) return (m/1000).toFixed(1)+'กม.'; return m+'ม.'; }
+
+  // Trail detail rows
+  const TRAIL_COLORS = ['#2563eb','#9333ea','#f97316','#16a34a','#dc2626','#0891b2','#db2777','#ca8a04'];
+  const trailRows = Object.entries(trails).map(([uid,t],i)=>{
+    const color = t.color || TRAIL_COLORS[i%TRAIL_COLORS.length];
+    const dist = t.distanceM ? fmtDist(t.distanceM) : '-';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9">
+      <div style="width:12px;height:12px;border-radius:50%;background:${color};flex-shrink:0;border:2px solid #fff;box-shadow:0 0 0 1px ${color}"></div>
+      <div style="flex:1;font-size:12px;font-weight:600;color:var(--text-primary)">${t.name||uid}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${t.pointCount||0} จุด · ${dist}</div>
+    </div>`;
+  }).join('') || '<div style="color:var(--text-muted);font-size:12px">ไม่มีข้อมูลเส้นทาง</div>';
+
+  // Pin rows
+  const PIN_ICONS = {safe:'✅',clue:'🔍',danger:'⚠️',rally:'🏁',note:'💬'};
+  const pinRows = Object.values(m.pinsSnapshot||{}).map(p=>{
+    const ico = PIN_ICONS[p.type]||'📍';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f1f5f9">
+      <span style="font-size:14px">${ico}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--text-primary)">${p.label||p.type}</div>
+        ${p.detail?`<div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.detail}</div>`:''}
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);flex-shrink:0">${(p.lat||0).toFixed(4)}, ${(p.lng||0).toFixed(4)}</div>
+    </div>`;
+  }).join('') || '<div style="color:var(--text-muted);font-size:12px">ไม่มีหมุด</div>';
+
+  // Zone rows
+  const zoneRows = Object.values(m.zonesSnapshot||{}).map(z=>{
+    const color = z.color||'#3b82f6';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f1f5f9">
+      <div style="width:14px;height:14px;border-radius:3px;background:${color};opacity:0.7;flex-shrink:0"></div>
+      <div style="font-size:12px;font-weight:600;color:var(--text-primary);flex:1">${z.name||'โซน'}</div>
+      <div style="font-size:10px;color:var(--text-muted)">${z.type||''}</div>
+    </div>`;
+  }).join('') || '<div style="color:var(--text-muted);font-size:12px">ไม่มีโซน</div>';
+
   document.getElementById('sm-detail-content').innerHTML = `
     <div class="sm-detail-block">
       <div class="sm-detail-label"><i class="fas fa-search-location" style="margin-right:4px;color:var(--primary-light)"></i>ชื่อภารกิจ</div>
@@ -7188,11 +7201,29 @@ window.smShowDetail = async function(missionId) {
       <div class="sm-detail-label"><i class="fas fa-user-shield" style="margin-right:4px;color:#7c3aed"></i>ผู้สร้างภารกิจ</div>
       <div class="sm-detail-value">${m.createdByName || m.createdBy || '-'}</div>
     </div>
+
+    <!-- ── Stats Chips ── -->
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:5px;padding:5px 11px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:20px;font-size:12px;font-weight:700;color:#1d4ed8"><i class="fas fa-route"></i>${trailCount} เส้นทาง · ${fmtDist(totalDist)}</div>
+      <div style="display:flex;align-items:center;gap:5px;padding:5px 11px;background:#f0fdf4;border:1px solid #86efac;border-radius:20px;font-size:12px;font-weight:700;color:#15803d"><i class="fas fa-map-pin"></i>${pinCount} หมุด</div>
+      <div style="display:flex;align-items:center;gap:5px;padding:5px 11px;background:#faf5ff;border:1px solid #d8b4fe;border-radius:20px;font-size:12px;font-weight:700;color:#6d28d9"><i class="fas fa-draw-polygon"></i>${zoneCount} โซน</div>
+      ${gridCount?`<div style="display:flex;align-items:center;gap:5px;padding:5px 11px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:20px;font-size:12px;font-weight:700;color:#0369a1"><i class="fas fa-th"></i>${gridCount} กริด</div>`:''}
+    </div>
+
+    <!-- ── Mini Map ── -->
+    <div class="sm-detail-block" style="padding:0;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px">
+        <div class="sm-detail-label" style="margin:0"><i class="fas fa-map" style="margin-right:4px;color:#0891b2"></i>แผนที่ภารกิจ (snapshot)</div>
+      </div>
+      <div id="sm-replay-map-${missionId}" style="width:100%;height:260px;background:#e8eeff;border-radius:0 0 12px 12px"></div>
+    </div>
+
     ${m.summary ? `
     <div class="sm-summary-box">
       <div class="label"><i class="fas fa-clipboard-check"></i>สรุปผลภารกิจ</div>
       <div class="value">${m.summary}</div>
     </div>` : ''}
+
     ${m.photos && m.photos.length > 0 ? `
     <div class="sm-detail-block">
       <div class="sm-detail-label" style="margin-bottom:8px"><i class="fas fa-images" style="margin-right:4px;color:#0ea5e9"></i>รูปภาพประกอบ (${m.photos.length} รูป)</div>
@@ -7205,13 +7236,136 @@ window.smShowDetail = async function(missionId) {
         }).join('')}
       </div>
     </div>` : ''}
+
+    <!-- ── Trails ── -->
+    ${trailCount>0 ? `<div class="sm-detail-block">
+      <div class="sm-detail-label" style="margin-bottom:8px"><i class="fas fa-route" style="margin-right:4px;color:#2563eb"></i>เส้นทางการค้นหา (${trailCount} คน)</div>
+      ${trailRows}
+    </div>` : ''}
+
+    <!-- ── Pins ── -->
+    ${pinCount>0 ? `<div class="sm-detail-block">
+      <div class="sm-detail-label" style="margin-bottom:8px"><i class="fas fa-map-pin" style="margin-right:4px;color:#16a34a"></i>หมุดที่ปักไว้ (${pinCount} หมุด)</div>
+      ${pinRows}
+    </div>` : ''}
+
+    <!-- ── Zones ── -->
+    ${zoneCount>0 ? `<div class="sm-detail-block">
+      <div class="sm-detail-label" style="margin-bottom:8px"><i class="fas fa-draw-polygon" style="margin-right:4px;color:#7c3aed"></i>โซนค้นหา (${zoneCount} โซน)</div>
+      ${zoneRows}
+    </div>` : ''}
+
+    <!-- ── Members ── -->
     <div class="sm-detail-block">
       <div class="sm-detail-label" style="margin-bottom:10px"><i class="fas fa-users" style="margin-right:4px;color:var(--primary-light)"></i>สมาชิกร่วมภารกิจ (${Object.keys(members).length} คน)</div>
       ${memberNames}
     </div>
   `;
   openModal('modal-sm-detail');
+
+  // ── Render mini-map after modal open ─────────────────
+  setTimeout(() => smRenderReplayMap(missionId, m), 350);
 };
+
+function smRenderReplayMap(missionId, m) {
+  const mapEl = document.getElementById(`sm-replay-map-${missionId}`);
+  if(!mapEl || typeof L === 'undefined') return;
+  // destroy any existing map
+  if(mapEl._leaflet_id) try{ L.DomUtil.get(`sm-replay-map-${missionId}`)._leaflet_remove(); }catch(e){}
+
+  const trails = m.trailsSnapshot || {};
+  const pins   = m.pinsSnapshot   || {};
+  const zones  = m.zonesSnapshot  || {};
+  const grids  = m.gridsSnapshot  || {};
+
+  // Determine initial view from mapState or trails
+  let initCenter = [13.75, 100.5], initZoom = 13;
+  if(m.mapState && m.mapState.lat) {
+    initCenter = [m.mapState.lat, m.mapState.lng];
+    initZoom   = m.mapState.zoom || 13;
+  } else {
+    // Auto-fit from trail points
+    const allPts = Object.values(trails).flatMap(t => t.points||[]);
+    if(allPts.length > 0) {
+      const lats = allPts.map(p=>p[0]), lngs = allPts.map(p=>p[1]);
+      initCenter = [(Math.min(...lats)+Math.max(...lats))/2, (Math.min(...lngs)+Math.max(...lngs))/2];
+    }
+  }
+
+  const replayMap = L.map(`sm-replay-map-${missionId}`, {
+    center: initCenter, zoom: initZoom,
+    zoomControl: true, attributionControl: false,
+    dragging: true, scrollWheelZoom: false
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, subdomains: ['a','b','c']
+  }).addTo(replayMap);
+
+  const TRAIL_COLORS = ['#2563eb','#9333ea','#f97316','#16a34a','#dc2626','#0891b2','#db2777','#ca8a04'];
+  const bounds = [];
+
+  // Draw trails
+  Object.entries(trails).forEach(([uid,t],i) => {
+    const pts = (t.points||[]).map(p=>Array.isArray(p)?[p[0],p[1]]:[p.lat,p.lng]).filter(p=>p[0]&&p[1]);
+    if(!pts.length) return;
+    const color = t.color || TRAIL_COLORS[i % TRAIL_COLORS.length];
+    L.polyline(pts, { color, weight:3, opacity:0.8 }).addTo(replayMap)
+      .bindTooltip(t.name||uid, {sticky:true, className:'trail-name-tip'});
+    // start marker
+    const startPt = pts[0];
+    L.circleMarker(startPt, {radius:5,color:'#fff',weight:2,fillColor:color,fillOpacity:1}).addTo(replayMap);
+    // end marker
+    const endPt = pts[pts.length-1];
+    L.circleMarker(endPt, {radius:6,color:'#fff',weight:2,fillColor:color,fillOpacity:1}).addTo(replayMap)
+      .bindPopup(`<b>${t.name||uid}</b><br>${t.distanceM ? ((t.distanceM>=1000?(t.distanceM/1000).toFixed(1)+'กม.':t.distanceM+'ม.')) : ''}`);
+    pts.forEach(p => bounds.push(p));
+  });
+
+  // Draw pins
+  const PIN_ICONS = {safe:'✅',clue:'🔍',danger:'⚠️',rally:'🏁',note:'💬'};
+  Object.values(pins).forEach(p => {
+    if(!p.lat||!p.lng) return;
+    const ico = PIN_ICONS[p.type]||'📍';
+    L.marker([p.lat,p.lng], {
+      icon: L.divIcon({ html:`<div style="font-size:20px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))">${ico}</div>`, className:'', iconAnchor:[10,20] })
+    }).addTo(replayMap).bindPopup(`<b>${p.label||p.type}</b>${p.detail?'<br>'+p.detail:''}`);
+    bounds.push([p.lat,p.lng]);
+  });
+
+  // Draw zones
+  Object.values(zones).forEach(z => {
+    const color = z.color||'#3b82f6';
+    try {
+      if(z.type==='circle' && z.center && z.radius) {
+        L.circle([z.center.lat,z.center.lng], {radius:z.radius,color,fillColor:color,fillOpacity:0.12,weight:2}).addTo(replayMap)
+          .bindTooltip(z.name||'โซน', {sticky:true});
+        bounds.push([z.center.lat,z.center.lng]);
+      } else if(z.points && z.points.length) {
+        const lls = z.points.map(p=>[p.lat||p[0],p.lng||p[1]]);
+        L.polygon(lls, {color,fillColor:color,fillOpacity:0.12,weight:2}).addTo(replayMap)
+          .bindTooltip(z.name||'โซน', {sticky:true});
+        lls.forEach(p=>bounds.push(p));
+      }
+    } catch(e){}
+  });
+
+  // Draw grids
+  Object.values(grids).forEach(g => {
+    if(!g.swLat) return;
+    try {
+      L.rectangle([[g.swLat,g.swLng],[g.neLat,g.neLng]], {color:'#3b82f6',weight:1.5,fill:false,opacity:0.6,dashArray:'4,4'}).addTo(replayMap);
+      bounds.push([g.swLat,g.swLng],[g.neLat,g.neLng]);
+    } catch(e){}
+  });
+
+  // Auto fit bounds
+  if(bounds.length > 0) {
+    try { replayMap.fitBounds(L.latLngBounds(bounds), {padding:[20,20],maxZoom:16}); } catch(e){}
+  }
+  // store reference to prevent re-init
+  mapEl._smReplayMap = replayMap;
+}
 
 function smFormatDateTime(ts) {
   if(!ts) return '-';
