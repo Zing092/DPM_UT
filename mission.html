@@ -994,6 +994,26 @@ function initMap(){
 }
 
 // ─── GPS ─────────────────────────────────────────────────
+let _myLastTs=0; // timestamp ของตำแหน่งล่าสุดที่ได้จาก watchPosition
+
+function _recordTrail(la,ln){
+  const tRef=ref(db,`search_missions/${missionId}/trails/${user.id}`);
+  get(tRef).then(s=>{
+    const raw=s.val();
+    const prev=raw&&!Array.isArray(raw)?raw:{points:Array.isArray(raw)?raw:[],name:user.name||user.id,color:null,leftAt:null};
+    const newPt=[+la.toFixed(6),+ln.toFixed(6),Date.now()];
+    const lastPt=prev.points.length?prev.points[prev.points.length-1]:null;
+    // กรอง GPS jitter — บันทึกเฉพาะเมื่อเคลื่อนที่ > 5 เมตร
+    const moved=lastPt?calcD(lastPt[0],lastPt[1],newPt[0],newPt[1]):999;
+    if(moved>=5) prev.points.push(newPt);
+    if(prev.points.length>800) prev.points.splice(0,prev.points.length-800);
+    prev.name=user.name||user.id;
+    prev.color=_memberColors[user.id]||null;
+    prev.leftAt=null;
+    set(tRef,prev).catch(()=>{});
+  });
+}
+
 function startGps(){
   if(!navigator.geolocation){toast('อุปกรณ์ไม่รองรับ GPS','error');return;}
   stopGps(); _gps=true;
@@ -1003,6 +1023,8 @@ function startGps(){
     if(!_gps||(_sosOn&&Date.now()<_sosExp)) return;
     const{latitude:la,longitude:ln,heading:hd,speed:sp}=pos.coords;
     const s=sp||0, st=s>0.5?'moving':'online';
+    // cache ตำแหน่งล่าสุดจาก watchPosition ไว้ใช้บันทึก trail
+    _myLat=la; _myLng=ln; _myLastTs=Date.now();
     set(locR,{lat:la,lng:ln,heading:hd||0,speed:Math.round(s*3.6),status:st,ts:Date.now()}).catch(()=>{});
     restPut(la,ln,sp,hd);
     update(memR,{status:st,lastSeen:Date.now()}).catch(()=>{});
@@ -1012,28 +1034,21 @@ function startGps(){
     if(!_gps){clearInterval(_bgInt);return;}
     navigator.geolocation.getCurrentPosition(p=>restPut(p.coords.latitude,p.coords.longitude,p.coords.speed,p.coords.heading),()=>{},{enableHighAccuracy:true,timeout:8000,maximumAge:10000});
   },15000);
-  // Trail: record every 30s
+  // Trail: บันทึกทุก 15 วิ โดยใช้ตำแหน่ง cache จาก watchPosition เป็นหลัก
+  // หาก cache เก่าเกิน 35 วิ (เช่น watchPosition ขาด) จึง fallback ไป getCurrentPosition
   _trailInt=setInterval(()=>{
     if(!_gps) return;
-    navigator.geolocation.getCurrentPosition(p=>{
-      const{latitude:la,longitude:ln}=p.coords;
-      const tRef=ref(db,`search_missions/${missionId}/trails/${user.id}`);
-      get(tRef).then(s=>{
-        const raw=s.val();
-        const prev=raw&&!Array.isArray(raw)?raw:{points:Array.isArray(raw)?raw:[],name:user.name||user.id,color:null,leftAt:null};
-        const newPt=[+la.toFixed(6),+ln.toFixed(6),Date.now()];
-        const lastPt=prev.points.length?prev.points[prev.points.length-1]:null;
-        // กรอง GPS jitter — บันทึกเฉพาะเมื่อเคลื่อนที่ > 5 เมตร
-        const moved=lastPt?calcD(lastPt[0],lastPt[1],newPt[0],newPt[1]):999;
-        if(moved >= 5) prev.points.push(newPt);
-        if(prev.points.length>800) prev.points.splice(0,prev.points.length-800);
-        prev.name=user.name||user.id;
-        prev.color=_memberColors[user.id]||null;
-        prev.leftAt=null;
-        set(tRef,prev).catch(()=>{});
-      });
-    },()=>{},{enableHighAccuracy:false,timeout:8000,maximumAge:20000});
-  },30000);
+    if(_myLat&&_myLng&&(Date.now()-_myLastTs)<35000){
+      // ใช้ตำแหน่งล่าสุดจาก watchPosition — แม่นยำและไม่สิ้นเปลือง
+      _recordTrail(_myLat,_myLng);
+    } else {
+      // fallback: ขอตำแหน่งใหม่เมื่อ watchPosition ไม่ตอบสนอง
+      navigator.geolocation.getCurrentPosition(p=>{
+        _myLat=p.coords.latitude; _myLng=p.coords.longitude; _myLastTs=Date.now();
+        _recordTrail(_myLat,_myLng);
+      },()=>{},{enableHighAccuracy:true,timeout:10000,maximumAge:5000});
+    }
+  },15000);
 }
 function stopGps(){
   _gps=false;
@@ -1044,7 +1059,7 @@ function stopGps(){
 }
 function restPut(la,ln,sp,hd){
   if(!_gps||!la||(_sosOn&&Date.now()<_sosExp)) return;
-  _myLat=la; _myLng=ln; // อัปเดตพิกัดตัวเอง
+  // หมายเหตุ: _myLat/_myLng อัปเดตจาก watchPosition callback แล้ว ไม่ต้อง set ซ้ำที่นี่
   try{
     const s=sp||0, st=s>0.5?'moving':'online';
     const b=FB.databaseURL, p=JSON.stringify({lat:la,lng:ln,heading:hd||0,speed:Math.round(s*3.6),status:st,ts:Date.now()});
