@@ -6465,44 +6465,102 @@ window.smGeneratePdf = async function() {
         </div>`;
 
       const isLast = (mIdx === missions.length - 1);
-      missionPagesHtml += `
-        <!-- ════ MISSION ${mIdx+1} ════ -->
-        <div class="a4-page">
-          <div class="watermark">ราชการ</div>
 
-          <!-- Mini header -->
+      // ── PAGE 1 content: title + pills + detail grid + summary + members ──
+      const page1Content = `
+          ${summaryPills}
+
+          <div class="section-heading"><i class="fas fa-clipboard-list"></i> รายละเอียดภารกิจ</div>
+          <div class="detail-grid">
+            <div class="detail-cell">
+              <div class="detail-label">ชื่อภารกิจ</div>
+              <div class="detail-value">${m.title||'-'}</div>
+            </div>
+            <div class="detail-cell">
+              <div class="detail-label">สถานะภารกิจ</div>
+              <div class="detail-value"><span class="status-badge-inline" style="background:${st.bg};color:${st.color}">${st.label}</span></div>
+            </div>
+            <div class="detail-cell">
+              <div class="detail-label">วันที่เริ่มต้น</div>
+              <div class="detail-value">${fmtDT(m.createdAt)}</div>
+            </div>
+            <div class="detail-cell">
+              <div class="detail-label">วันที่สิ้นสุด</div>
+              <div class="detail-value">${m.closedAt ? fmtDT(m.closedAt) : '-'}</div>
+            </div>
+            <div class="detail-cell">
+              <div class="detail-label">พื้นที่ค้นหา</div>
+              <div class="detail-value">${m.area||'-'}</div>
+            </div>
+            <div class="detail-cell">
+              <div class="detail-label">ผู้สร้างภารกิจ</div>
+              <div class="detail-value">${m.createdByName||m.createdBy||'-'}</div>
+            </div>
+          </div>
+
+          ${summaryHtml}
+          ${membersHtml}
+
+          <div class="doc-footer">
+            <div class="doc-footer-sig">
+              <div class="sig-line"></div>
+              <div class="sig-label">ผู้จัดทำรายงาน</div>
+              <div class="sig-name">${reporter}</div>
+            </div>
+            <div style="text-align:center">
+              <div class="doc-footer-sig">
+                <div class="sig-line"></div>
+                <div class="sig-label">ผู้ตรวจสอบ</div>
+                <div class="sig-name">ร.ต.อ. วิชาญ ศรีสมบูรณ์</div>
+              </div>
+            </div>
+            <div class="doc-footer-page">
+              หน้า ${mIdx*2+1} / ${missions.length*2}<br>
+              <span style="font-size:9px">พิมพ์เมื่อ ${nowShort}</span>
+            </div>
+          </div>
+      `;
+
+      // ── PAGE 2: map + photos ──
+      const hasPage2 = (includeMap && mapSectionHtml) || (includePhotos && photosHtml);
+      const page2Html = hasPage2 ? `
+        </div>
+        <div class="a4-page">
           <div class="mini-header">
             <div style="display:flex;align-items:center;gap:10px">
               <div class="mini-logo"><i class="fas fa-shield-halved"></i></div>
               <div>
                 <div class="mini-org">กองป้องกันและบรรเทาสาธารณภัย</div>
-                <div class="mini-sub">รายงานภารกิจค้นหา — ภารกิจที่ ${mIdx+1} / ${missions.length}</div>
+                <div class="mini-sub">ต่อจากหน้า ${mIdx*2+1} — แผนที่และรูปภาพประกอบ</div>
               </div>
             </div>
-            <span class="official-badge">เอกสารราชการ</span>
           </div>
 
-          <!-- Title block -->
-          <div class="doc-title-block">
-            <div class="doc-title-main">${m.title || 'ไม่มีชื่อภารกิจ'}</div>
-            <div class="doc-title-sub">
-              <span style="background:${st.bg};color:${st.color};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600">${st.label}</span>
-              &nbsp;&nbsp;เริ่ม: ${fmtDT(m.createdAt)}
-            </div>
-          </div>
-
-          ${summaryPills}
-          ${infoTableHtml}
-          ${summaryHtml}
-          ${membersHtml}
           ${mapSectionHtml}
           ${photosHtml}
 
-          ${footerHtml}
+          <div class="doc-footer">
+            <div class="doc-footer-sig">
+              <div class="sig-line"></div>
+              <div class="sig-label">ผู้จัดทำรายงาน</div>
+              <div class="sig-name">${reporter}</div>
+            </div>
+            <div style="text-align:center">
+              <div class="doc-footer-sig">
+                <div class="sig-line"></div>
+                <div class="sig-label">ผู้ตรวจสอบ</div>
+                <div class="sig-name">ร.ต.อ. วิชาญ ศรีสมบูรณ์</div>
+              </div>
+            </div>
+            <div class="doc-footer-page">
+              หน้า ${mIdx*2+2} / ${missions.length*2}<br>
+              <span style="font-size:9px">พิมพ์เมื่อ ${nowShort}</span>
+            </div>
+          </div>
         </div>
-        ${!isLast ? `<div class="page-divider">ภารกิจที่ ${mIdx+2} — ${missions[mIdx+1]?.title || ''}</div>` : ''}
-      `;
-    }
+      ` : '';
+
+      missionPagesHtml += page1Content + (hasPage2 ? page2Html : `</div>`);
 
     // ════════════════════════════════════════
     // Full HTML document (mimics pdf_preview.html style)
@@ -6611,6 +6669,12 @@ body{background:#e8edf2;font-family:'Sarabun',sans-serif;padding:24px;min-height
 .toc-list li:last-child{border-bottom:none}
 .toc-num{font-family:'Kanit',sans-serif;font-weight:700;color:#0a2463;margin-right:8px}
 .toc-status{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #dbeafe;border-radius:8px;overflow:hidden;margin-bottom:16px}
+.detail-cell{padding:9px 14px;border-bottom:1px solid #e9eef8;border-right:1px solid #e9eef8}
+.detail-cell:nth-child(even){border-right:none}
+.detail-cell:nth-last-child(-n+2){border-bottom:none}
+.detail-label{font-size:10px;color:#64748b;margin-bottom:3px;font-family:'Kanit',sans-serif}
+.detail-value{font-size:12px;font-weight:500;color:#0f172a}
 </style>
 </head>
 <body>
@@ -6623,63 +6687,31 @@ body{background:#e8edf2;font-family:'Sarabun',sans-serif;padding:24px;min-height
   <div class="browser-label">รายงานสรุปภารกิจค้นหา — กองป้องกันและบรรเทาสาธารณภัย</div>
 </div>
 
-<!-- ════ COVER PAGE ════ -->
-<div class="a4-page" style="padding:0;overflow:hidden">
-  <div class="watermark">ราชการ</div>
-  <div class="cover-header">
-    <div class="cover-logo-row">
-      <div class="cover-logo"><i class="fas fa-shield-halved"></i></div>
-      <div class="cover-org">
-        <div class="main">กองป้องกันและบรรเทาสาธารณภัย</div>
-        <div class="sub">Disaster Prevention and Mitigation Division</div>
+<!-- ════ PAGE 1: MISSION DETAIL ════ -->
+<div class="a4-page">
+  <!-- Header: logo left, meta right -->
+  <div class="doc-header">
+    <div class="doc-header-left">
+      <div class="doc-logo"><i class="fas fa-shield-halved"></i></div>
+      <div>
+        <div class="doc-org-name">กองป้องกันและบรรเทาสาธารณภัย</div>
+        <div class="doc-org-sub">Disaster Prevention and Mitigation Division</div>
       </div>
     </div>
-    <hr class="cover-divider">
-    <div class="cover-title">
-      <div class="main">รายงานสรุปภารกิจค้นหา</div>
-      <div class="sub">Search and Rescue Mission Report</div>
-      <div class="date">วันที่ออกรายงาน: ${nowStr}</div>
-    </div>
-    <div class="cover-stats">
-      <div class="cover-stat"><div class="n">${missions.length}</div><div class="l">จำนวนภารกิจทั้งหมด</div></div>
-      <div class="cover-stat"><div class="n">${active}</div><div class="l">กำลังดำเนินการ</div></div>
-      <div class="cover-stat"><div class="n">${closed}</div><div class="l">จบแล้ว</div></div>
+    <div class="doc-header-right">
+      <div class="doc-meta">วันที่จัดทำ: <span>${nowStr.split(' ').slice(0,4).join(' ')}</span></div>
+      <div class="doc-meta">เวลา: <span>${nowStr.split(' ').slice(-2).join(' ')}</span></div>
+      <div class="doc-meta">จัดทำโดย: <span>${reporter}</span></div>
     </div>
   </div>
-  <div class="cover-body">
-    <div class="cover-info-grid">
-      <div class="cover-info-card">
-        <div class="label">ผู้จัดทำรายงาน</div>
-        <div class="value">${reporter}</div>
-      </div>
-      <div class="cover-info-card">
-        <div class="label">วันที่พิมพ์</div>
-        <div class="value">${nowShort}</div>
-      </div>
-    </div>
-    <div class="section-heading" style="margin-top:0"><i class="fas fa-list-ol"></i> สารบัญภารกิจ</div>
-    <ul class="toc-list">
-      ${missions.map((m,i)=>{
-        const st2 = statusMap[m.status]||statusMap.open;
-        return `<li>
-          <span><span class="toc-num">${i+1}.</span>${m.title||'ไม่มีชื่อ'}</span>
-          <span style="display:flex;align-items:center;gap:10px">
-            <span class="toc-status" style="background:${st2.bg};color:${st2.color}">${st2.label}</span>
-            <span style="color:#94a3b8;font-size:10px">${fmtShort(m.createdAt)}</span>
-          </span>
-        </li>`;
-      }).join('')}
-    </ul>
-  </div>
-  <div class="doc-footer" style="padding:12px 52px;margin-top:0;border-top:1.5px solid #e2e8f0">
-    <div style="font-size:10px;color:#94a3b8">เอกสารนี้จัดทำโดยระบบบันทึกการปฏิบัติงาน กองป้องกันและบรรเทาสาธารณภัย</div>
-    <div class="doc-footer-page">หน้า 1 / ${missions.length+1}<br><span style="font-size:9px">พิมพ์เมื่อ ${nowShort}</span></div>
-  </div>
-</div>
 
-<div class="page-divider">ภารกิจที่ 1 — ${missions[0]?.title||''}</div>
+  <!-- Title block -->
+  <div class="doc-title-block" style="margin-bottom:18px">
+    <div class="doc-title-main">รายงานสรุปภารกิจค้นหา</div>
+    <div class="doc-title-sub">กองป้องกันและบรรเทาสาธารณภัย</div>
+  </div>
 
-${missionPagesHtml}
+  ${missionPagesHtml}
 
 <!-- Print button -->
 <div class="print-btn-wrap no-print" style="padding-bottom:32px">
