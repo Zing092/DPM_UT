@@ -6397,19 +6397,21 @@ window.smGeneratePdf = async function() {
       // ── map section ─────────────────────────────────────
       let mapSectionHtml = '';
       if(includeMap) {
-        const locs = m.locations || {};
-        const locVals = Object.values(locs).filter(l=>l.lat && l.lng);
+        // ใช้ locationSnapshot (บันทึกตอนจบภารกิจ) หรือ locations (ถ้ายังไม่จบ)
+        const locs = m.locationSnapshot || m.locations || {};
+        // Firebase อาจแปลง object เป็น array หรือเป็น object ที่มี key เป็น userId
+        const locVals = Object.values(locs).filter(l => l && l.lat && l.lng);
         if(locVals.length > 0) {
-          const avgLat = locVals.reduce((s,l)=>s+l.lat,0)/locVals.length;
-          const avgLng = locVals.reduce((s,l)=>s+l.lng,0)/locVals.length;
           const mapId = `map-${mIdx}`;
-          const markersJs = locVals.map(l => {
+          const markersJs = locVals.map((l,li) => {
             const ms = memberStatusMap[l.status] || memberStatusMap.offline;
-            return `L.marker([${l.lat},${l.lng}],{icon:L.divIcon({className:'',html:'<div style="width:14px;height:14px;border-radius:50%;background:${ms.color};border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map_${mIdx}).bindPopup('<div style="font-size:12px">${ms.dot} ${ms.label}</div>');`;
+            const color = ms.color;
+            return `L.marker([${l.lat},${l.lng}],{icon:L.divIcon({className:'',html:'<div style="width:16px;height:16px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>',iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map_${mIdx}).bindPopup('<b>${l.name||l.userId||''}</b><br>${ms.label}');`;
           }).join('\n');
-          const onlineLegend = onlineCount > 0 ? `<span><i class="fas fa-circle" style="color:#16a34a;font-size:9px"></i> ออนไลน์ (${onlineCount} คน)</span>` : '';
-          const sosLegend    = sosCount    > 0 ? `<span><i class="fas fa-circle" style="color:#dc2626;font-size:9px"></i> SOS (${sosCount} คน)</span>` : '';
-          const offLegend    = offlineCount> 0 ? `<span><i class="fas fa-circle" style="color:#94a3b8;font-size:9px"></i> ออฟไลน์ (${offlineCount} คน)</span>` : '';
+          const boundsArr = locVals.map(l=>`[${l.lat},${l.lng}]`).join(',');
+          const onlineLegend = onlineCount > 0 ? `<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:#16a34a;display:inline-block"></span> ออนไลน์ (${onlineCount} คน)</span>` : '';
+          const sosLegend    = sosCount    > 0 ? `<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:#dc2626;display:inline-block"></span> SOS (${sosCount} คน)</span>` : '';
+          const offLegend    = offlineCount> 0 ? `<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:#94a3b8;display:inline-block"></span> ออฟไลน์ (${offlineCount} คน)</span>` : '';
           mapSectionHtml = `
             <div class="section-heading"><i class="fas fa-map-location-dot"></i> แผนที่สรุปตำแหน่งสมาชิกในภารกิจ</div>
             <div id="${mapId}" class="map-box"></div>
@@ -6417,11 +6419,11 @@ window.smGeneratePdf = async function() {
             <script>
             (function(){
               var map_${mIdx} = L.map('${mapId}',{zoomControl:true,attributionControl:false});
-              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:17}).addTo(map_${mIdx});
-              var bounds_${mIdx}=[];
+              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map_${mIdx});
               ${markersJs}
-              ${locVals.map(l=>`bounds_${mIdx}.push([${l.lat},${l.lng}]);`).join('')}
-              if(bounds_${mIdx}.length) map_${mIdx}.fitBounds(bounds_${mIdx},{padding:[20,20]});
+              var b=[${boundsArr}];
+              if(b.length===1) map_${mIdx}.setView(b[0],15);
+              else if(b.length>1) map_${mIdx}.fitBounds(b,{padding:[30,30]});
             })();
             <\/script>`;
         }
@@ -6429,18 +6431,36 @@ window.smGeneratePdf = async function() {
 
       // ── photos section ───────────────────────────────────
       let photosHtml = '';
-      if(includePhotos && m.photos && m.photos.length > 0) {
-        const photosToShow = m.photos.slice(0, 6);
-        const photoCards = photosToShow.map((photo, idx) => {
-          const src = typeof photo === 'string' ? photo : photo.data;
-          return `<div class="photo-card">
-            <img src="${src}" alt="รูปที่ ${idx+1}" onerror="this.style.display='none'">
-            <div class="photo-card-caption"><strong>รูปที่ ${idx+1}</strong>${photo.caption ? ` — ${photo.caption}` : ''}</div>
-          </div>`;
-        }).join('');
-        photosHtml = `
-          <div class="section-heading"><i class="fas fa-images"></i> รูปภาพประกอบภารกิจ (${m.photos.length} รูป)</div>
-          <div class="photo-grid">${photoCards}</div>`;
+      if(includePhotos) {
+        // Firebase อาจแปลง array เป็น object {0:{...},1:{...}} — ต้องแปลงกลับ
+        let rawPhotos = m.photos || null;
+        let photosArr = [];
+        if(rawPhotos) {
+          if(Array.isArray(rawPhotos)) {
+            photosArr = rawPhotos.filter(Boolean);
+          } else if(typeof rawPhotos === 'object') {
+            // Firebase object-as-array: keys เป็น "0","1","2"...
+            photosArr = Object.keys(rawPhotos).sort((a,b)=>Number(a)-Number(b)).map(k=>rawPhotos[k]).filter(Boolean);
+          }
+        }
+        if(photosArr.length > 0) {
+          const photosToShow = photosArr.slice(0, 8);
+          const photoCards = photosToShow.map((photo, idx) => {
+            const src = typeof photo === 'string' ? photo : (photo.data || photo.url || '');
+            if(!src) return '';
+            const caption = photo.caption || photo.note || '';
+            const timeStr = photo.time ? ` | ${photo.time}` : '';
+            return `<div class="photo-card">
+              <img src="${src}" alt="รูปที่ ${idx+1}" onerror="this.parentElement.style.display='none'">
+              <div class="photo-card-caption"><strong>รูปที่ ${idx+1}</strong>${caption ? ` — ${caption}` : ''}${timeStr}</div>
+            </div>`;
+          }).filter(Boolean).join('');
+          if(photoCards) {
+            photosHtml = `
+              <div class="section-heading"><i class="fas fa-images"></i> รูปภาพประกอบภารกิจ (${photosArr.length} รูป)</div>
+              <div class="photo-grid">${photoCards}</div>`;
+          }
+        }
       }
 
       // ── footer ───────────────────────────────────────────
@@ -6927,6 +6947,8 @@ window.smEndMission = async function() {
     );
     const mission = snap.val() || {};
     const memberSnapshot = mission.members ? JSON.parse(JSON.stringify(mission.members)) : {};
+    // snapshot locations ก่อน remove — ใช้แสดงในแผนที่ PDF
+    const locationSnapshot = mission.locations ? JSON.parse(JSON.stringify(mission.locations)) : {};
 
     // ตรวจสิทธิ์: เฉพาะผู้สร้าง หรือ admin
     const isCreator = mission.createdBy === S.user?.id;
@@ -6947,12 +6969,13 @@ window.smEndMission = async function() {
         closedByName: S.user?.name || S.user?.id || 'ไม่ระบุ',
         summary,
         memberSnapshot,
+        ...(Object.keys(locationSnapshot).length > 0 && { locationSnapshot }),
         ...(photos.length > 0 && { photos })
       }),
       15000, 'บันทึกข้อมูล'
     );
 
-    // 4. ลบ locations ทุกคนออก (หยุด GPS ทุกอุปกรณ์) — members เก็บไว้ใน memberSnapshot แล้ว
+    // 4. ลบ locations ทุกคนออก (หยุด GPS ทุกอุปกรณ์) — เก็บไว้ใน locationSnapshot แล้ว
     await withTimeout(
       remove(ref(db, `search_missions/${_smActiveMissionId}/locations`)),
       10000, 'ลบ locations'
