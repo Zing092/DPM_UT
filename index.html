@@ -2652,6 +2652,7 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, get, push, update, remove, onValue, query, orderByChild } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, deleteUser as deleteAuthUser, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD4i4tIdswvYaRLP3EpEHHg_miOJIu-k7o",
@@ -2667,6 +2668,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const storage = getStorage(app);
+const auth = getAuth(app);
+
+// helper: แปลงรหัสพนักงาน → fake email สำหรับ Firebase Auth
+function toAuthEmail(employeeId) {
+  return `${employeeId.toLowerCase()}@fire-rescue-app.local`;
+}
 
 // ===== GLOBAL STATE =====
 window._state = {
@@ -2747,22 +2754,49 @@ function startClock() {
 }
 
 function checkSession() {
-  const saved = localStorage.getItem('fire_user');
-  if(saved) {
-    S.user = JSON.parse(saved);
-    showApp();
-  }
+  // ใช้ onAuthStateChanged แทน localStorage เพื่อความปลอดภัย
+  onAuthStateChanged(auth, async (firebaseUser) => {
+    if(firebaseUser) {
+      // Firebase Auth ยืนยันว่า login อยู่ — ดึงข้อมูลพนักงานจาก DB
+      const saved = localStorage.getItem('fire_user');
+      if(saved) {
+        S.user = JSON.parse(saved);
+        showApp();
+      } else {
+        // หา employeeId จาก email (undo fake email)
+        const employeeId = firebaseUser.email.split('@')[0].toUpperCase();
+        const snap = await get(ref(db, 'users/' + employeeId));
+        if(snap.exists()) {
+          S.user = { ...snap.val(), id: employeeId };
+          localStorage.setItem('fire_user', JSON.stringify(S.user));
+          showApp();
+        } else {
+          await signOut(auth);
+        }
+      }
+    } else {
+      // ไม่ได้ login — แสดงหน้า login
+      localStorage.removeItem('fire_user');
+    }
+  });
 }
 
 async function initDefaultData() {
-  // Check if admin exists, create if not
-  const adminRef = ref(db,'users/ADMIN001');
+  // สร้าง admin เริ่มต้นถ้ายังไม่มี
+  const adminRef = ref(db, 'users/ADMIN001');
   const snap = await get(adminRef);
   if(!snap.exists()) {
-    await set(adminRef, {
-      id:'ADMIN001', name:'หัวหน้ากองป้องกันฯ', position:'หัวหน้ากองป้องกันและบรรเทาสาธารณภัย',
-      role:'admin', password:'admin1234'
-    });
+    try {
+      const fakeEmail = toAuthEmail('ADMIN001');
+      await createUserWithEmailAndPassword(auth, fakeEmail, 'admin1234');
+      await set(adminRef, {
+        id: 'ADMIN001', name: 'หัวหน้ากองป้องกันฯ',
+        position: 'หัวหน้ากองป้องกันและบรรเทาสาธารณภัย', role: 'admin'
+      });
+    } catch(e) {
+      // Admin อาจมีอยู่ใน Auth แล้ว ข้ามได้เลย
+      if(e.code !== 'auth/email-already-in-use') console.warn('initDefaultData:', e.message);
+    }
   }
 }
 
@@ -2773,22 +2807,30 @@ window.doLogin = async function() {
   if(!id || !pass) { showLoginError('กรุณากรอกรหัสพนักงานและรหัสผ่าน'); return; }
   showLoading(true);
   try {
-    const snap = await get(ref(db,'users/'+id));
-    if(snap.exists()) {
-      const u = snap.val();
-      if(u.password === pass) {
-        S.user = {...u, id};
-        localStorage.setItem('fire_user', JSON.stringify(S.user));
-        showApp();
-        showLoading(false);
-        return;
-      }
+    // แปลงรหัสพนักงานเป็น fake email แล้วล็อคอินกับ Firebase Auth
+    const fakeEmail = toAuthEmail(id);
+    const userCredential = await signInWithEmailAndPassword(auth, fakeEmail, pass);
+
+    // ดึงข้อมูลพนักงานจาก Database
+    const snap = await get(ref(db, 'users/' + id));
+    if(!snap.exists()) {
+      await signOut(auth);
+      showLoading(false);
+      showLoginError('ไม่พบข้อมูลพนักงาน กรุณาติดต่อผู้ดูแลระบบ');
+      return;
     }
+    const u = snap.val();
+    S.user = { ...u, id };
+    localStorage.setItem('fire_user', JSON.stringify(S.user));
+    showApp();
     showLoading(false);
-    showLoginError('รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง');
   } catch(e) {
     showLoading(false);
-    showLoginError('เกิดข้อผิดพลาด กรุณาลองใหม่');
+    if(e.code === 'auth/invalid-credential' || e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password') {
+      showLoginError('รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง');
+    } else {
+      showLoginError('เกิดข้อผิดพลาด: ' + e.message);
+    }
   }
 };
 
@@ -2801,7 +2843,8 @@ function showLoginError(msg) {
   setTimeout(()=>el.style.display='none',3000);
 }
 
-window.doLogout = function() {
+window.doLogout = async function() {
+  try { await signOut(auth); } catch(e) {}
   localStorage.removeItem('fire_user');
   S.user = null;
   document.getElementById('app').style.display='none';
@@ -4168,17 +4211,55 @@ window.saveUser = async function() {
   const name = document.getElementById('au-name').value.trim();
   const position = document.getElementById('au-position').value.trim();
   const role = document.getElementById('au-role').value;
-  if(!id||!pass||!name){ showToast('กรุณากรอกข้อมูลที่จำเป็น','error'); return; }
-  await set(ref(db,'users/'+id), {id,password:pass,name,position,role});
-  closeModal('modal-add-user');
-  showToast('บันทึกข้อมูลสำเร็จ','success');
-  // Update local user if editing self
-  if(id===S.user.id) { S.user={...S.user,name,position,role}; localStorage.setItem('fire_user',JSON.stringify(S.user)); showApp(); }
+  if(!id || !name) { showToast('กรุณากรอกข้อมูลที่จำเป็น', 'error'); return; }
+
+  const fakeEmail = toAuthEmail(id);
+
+  try {
+    if(!editId) {
+      // === สร้างพนักงานใหม่ ===
+      if(!pass) { showToast('กรุณากรอกรหัสผ่าน', 'error'); return; }
+      // สร้าง Firebase Auth user ก่อน
+      await createUserWithEmailAndPassword(auth, fakeEmail, pass);
+      // บันทึกข้อมูลลง Database (ไม่เก็บ password แล้ว)
+      await set(ref(db, 'users/' + id), { id, name, position, role });
+      showToast('เพิ่มพนักงานสำเร็จ', 'success');
+    } else {
+      // === แก้ไขพนักงานที่มีอยู่ ===
+      // อัปเดตข้อมูลใน Database
+      const updateData = { id, name, position, role };
+      await set(ref(db, 'users/' + id), updateData);
+      // ถ้ามีการเปลี่ยน password ด้วย
+      if(pass) {
+        showToast('บันทึกข้อมูลสำเร็จ (หากต้องการเปลี่ยนรหัสผ่าน ให้ใช้ Firebase Console)', 'info');
+      } else {
+        showToast('บันทึกข้อมูลสำเร็จ', 'success');
+      }
+    }
+    closeModal('modal-add-user');
+    // อัปเดต local user ถ้าแก้ตัวเอง
+    if(id === S.user.id) {
+      S.user = { ...S.user, name, position, role };
+      localStorage.setItem('fire_user', JSON.stringify(S.user));
+      showApp();
+    }
+  } catch(e) {
+    if(e.code === 'auth/email-already-in-use') {
+      showToast('รหัสพนักงานนี้มีอยู่ในระบบแล้ว', 'error');
+    } else {
+      showToast('เกิดข้อผิดพลาด: ' + e.message, 'error');
+    }
+  }
 };
 window.deleteUser = async function(id) {
-  if(!confirm('ยืนยันลบพนักงาน '+id+'?')) return;
-  await remove(ref(db,'users/'+id));
-  showToast('ลบพนักงานแล้ว','info');
+  if(!confirm('ยืนยันลบพนักงาน ' + id + '?')) return;
+  try {
+    // ลบข้อมูลจาก Database
+    await remove(ref(db, 'users/' + id));
+    showToast('ลบพนักงานแล้ว (กรุณาลบ Auth user ใน Firebase Console ด้วย)', 'info');
+  } catch(e) {
+    showToast('เกิดข้อผิดพลาด: ' + e.message, 'error');
+  }
 };
 
 // Vehicle CRUD
