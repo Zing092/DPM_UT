@@ -2755,19 +2755,14 @@ function checkSession() {
 }
 
 async function initDefaultData() {
-  try {
-    const adminRef = ref(db,'users/ADMIN001');
-    const snap = await get(adminRef);
-    if(!snap.exists()) {
-      await set(adminRef, {
-        id:'ADMIN001', name:'หัวหน้ากองป้องกันฯ', position:'หัวหน้ากองป้องกันและบรรเทาสาธารณภัย',
-        role:'admin', password:'admin1234'
-      });
-      console.log('✅ Created default ADMIN001 account');
-    }
-  } catch(e) {
-    // PERMISSION_DENIED = Rules ปิดอยู่, ข้าม
-    console.warn('initDefaultData:', e.message);
+  // Check if admin exists, create if not
+  const adminRef = ref(db,'users/ADMIN001');
+  const snap = await get(adminRef);
+  if(!snap.exists()) {
+    await set(adminRef, {
+      id:'ADMIN001', name:'หัวหน้ากองป้องกันฯ', position:'หัวหน้ากองป้องกันและบรรเทาสาธารณภัย',
+      role:'admin', password:'admin1234'
+    });
   }
 }
 
@@ -2777,31 +2772,8 @@ window.doLogin = async function() {
   const pass = document.getElementById('login-pass').value;
   if(!id || !pass) { showLoginError('กรุณากรอกรหัสพนักงานและรหัสผ่าน'); return; }
   showLoading(true);
-
-  // ── ตรวจสอบการเชื่อมต่อ Firebase ──
-  const connRef = ref(db, '.info/connected');
-  let isConnected = false;
   try {
-    const connSnap = await Promise.race([
-      get(connRef),
-      new Promise((_,rej) => setTimeout(()=>rej(new Error('timeout')),8000))
-    ]);
-    isConnected = connSnap.val() === true;
-  } catch(e) {
-    // offline or timeout — try anyway
-  }
-
-  try {
-    // ── ลองสร้าง admin ถ้ายังไม่มี (กรณีฐานข้อมูลใหม่) ──
-    if(id === 'ADMIN001') {
-      await initDefaultData().catch(()=>{});
-    }
-
-    const snap = await Promise.race([
-      get(ref(db,'users/'+id)),
-      new Promise((_,rej) => setTimeout(()=>rej(new Error('timeout')),10000))
-    ]);
-
+    const snap = await get(ref(db,'users/'+id));
     if(snap.exists()) {
       const u = snap.val();
       if(u.password === pass) {
@@ -2810,25 +2782,13 @@ window.doLogin = async function() {
         showApp();
         showLoading(false);
         return;
-      } else {
-        showLoading(false);
-        showLoginError('รหัสผ่านไม่ถูกต้อง');
-        return;
       }
-    } else {
-      showLoading(false);
-      showLoginError('ไม่พบรหัสพนักงาน "' + id + '" ในระบบ');
-      return;
     }
+    showLoading(false);
+    showLoginError('รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง');
   } catch(e) {
     showLoading(false);
-    if(e.message === 'timeout') {
-      showLoginError('หมดเวลาเชื่อมต่อ — กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
-    } else if(e.code === 'PERMISSION_DENIED' || e.message?.includes('Permission denied')) {
-      showLoginError('ไม่มีสิทธิ์เข้าถึงฐานข้อมูล — กรุณาตรวจสอบ Firebase Rules');
-    } else {
-      showLoginError('เกิดข้อผิดพลาด: ' + (e.message||'กรุณาลองใหม่'));
-    }
+    showLoginError('เกิดข้อผิดพลาด กรุณาลองใหม่');
   }
 };
 

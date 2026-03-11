@@ -139,6 +139,36 @@ body{font-family:'Sarabun',sans-serif;background:#0f1a2e;color:var(--text-primar
 .mactions{display:flex;gap:4px;}
 .mbtn{padding:4px 8px;background:var(--surface-2);border:1px solid var(--border-light);border-radius:6px;font-size:10px;cursor:pointer;color:var(--primary-light);font-family:'Sarabun',sans-serif;font-weight:600;}
 
+/* ── MEMBER DETAIL SHEET ── */
+.mrow-clickable{cursor:pointer;transition:background 0.15s;}
+.mrow-clickable:hover{background:#f8faff;}
+.mrow-clickable:active{background:#eff6ff;}
+#mem-detail-sheet{position:fixed;inset:0;z-index:2000;display:flex;flex-direction:column;justify-content:flex-end;background:rgba(0,0,0,0);pointer-events:none;transition:background 0.3s;}
+#mem-detail-sheet.open{background:rgba(0,0,0,0.45);pointer-events:all;}
+#mem-detail-card{background:#fff;border-radius:20px 20px 0 0;padding:0 0 env(safe-area-inset-bottom,0px);transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.16,1,0.3,1);box-shadow:0 -8px 40px rgba(0,0,0,0.18);}
+#mem-detail-sheet.open #mem-detail-card{transform:translateY(0);}
+.mdc-handle{width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:10px auto 6px;}
+.mdc-header{display:flex;align-items:center;gap:12px;padding:12px 18px 10px;}
+.mdc-avatar{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;}
+.mdc-name{font-family:'Kanit',sans-serif;font-size:16px;font-weight:800;color:#0a2463;}
+.mdc-pos{font-size:12px;color:#94a3b8;margin-top:2px;}
+.mdc-status-row{display:flex;align-items:center;gap:6px;margin-top:3px;}
+.mdc-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 18px 12px;}
+.mdc-stat{background:#f8faff;border-radius:12px;padding:10px 12px;text-align:center;border:1px solid #e8eeff;}
+.mdc-stat .sv{font-family:'Kanit',sans-serif;font-size:16px;font-weight:800;color:#0a2463;}
+.mdc-stat .sk{font-size:10px;color:#94a3b8;margin-top:2px;}
+.mdc-actions{display:flex;gap:8px;padding:0 18px 16px;}
+.mda-btn{flex:1;padding:12px 8px;border-radius:13px;border:none;font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;transition:all 0.15s;}
+.mda-btn i{font-size:18px;}
+.mda-btn:active{transform:scale(0.96);}
+.mda-btn.map-btn{background:linear-gradient(135deg,#0a2463,#1b3d8f);color:#fff;}
+.mda-btn.gmaps-btn{background:#fff;color:#4285f4;border:2px solid #4285f4;}
+.mda-btn.waze-btn{background:#fff;color:#00b5e6;border:2px solid #33ccff;}
+.mdc-coord{display:flex;align-items:center;justify-content:space-between;margin:0 18px 12px;background:#f0f4ff;border-radius:10px;padding:9px 12px;}
+.mdc-coord-val{font-family:'Kanit',sans-serif;font-size:11px;color:#0a2463;font-weight:700;}
+.mdc-coord-copy{padding:5px 10px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;font-size:11px;cursor:pointer;color:#64748b;font-family:'Sarabun',sans-serif;font-weight:600;transition:all 0.2s;}
+.mdc-nopos{text-align:center;padding:18px;color:#94a3b8;font-size:13px;}
+
 /* ── MAP WRAP ── */
 #map-wrap{flex:1;position:relative;overflow:hidden;}
 #track-map{width:100%;height:100%;}
@@ -1474,7 +1504,11 @@ function toggleTrail(){
 }
 
 // ─── Member panel ─────────────────────────────────────────
+let _lastMems = {}, _lastLocs = {};
+
 function renderMemPanel(locs,mems){
+  // cache for detail sheet
+  _lastMems = mems; _lastLocs = locs;
   // cache member names for trail legend
   Object.entries(mems).forEach(([uid,me])=>{if(me.name)_memberNames[uid]=me.name;});
   const listEl=document.getElementById('member-list'), cntEl=document.getElementById('online-count'), hdrEl=document.getElementById('mem-hdr');
@@ -1486,16 +1520,18 @@ function renderMemPanel(locs,mems){
     const self=uid===user.id,ls=lo?.ts?ago(lo.ts):'ออฟไลน์',spd=lo?.speed!=null?` · ${lo.speed}กม./ชม.`:'';
     let dist='';
     if(!self&&myL&&lo?.lat){const d=calcD(myL.lat,myL.lng,lo.lat,lo.lng);const dc=d<100?'#10b981':d<500?'#f59e0b':'#ef4444';dist=`<span style="font-size:9px;font-weight:700;color:${dc};background:${dc}18;border-radius:4px;padding:1px 5px;margin-left:2px">${fmtD(d)}</span>`;}
-    return `<div class="member-row${st==='sos'?' sos-alert':''}">
-      <div class="mdot ${st}"></div>
+    const safeName = (me.name||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div class="member-row mrow-clickable${st==='sos'?' sos-alert':''}" onclick="window.openMemberDetail('${uid}')">
+      <div class="mdot ${st}" onclick="event.stopPropagation()"></div>
       <div class="mavatar" style="background:linear-gradient(135deg,${c},${c}99)">${(me.name||'?').charAt(0)}</div>
       <div class="minfo">
         <div class="mname">${self?'👤 คุณ':''} ${me.name||uid.slice(-6)}${dist}${st==='sos'?'<span style="font-size:9px;font-weight:800;color:#dc2626;background:#fee2e2;border-radius:4px;padding:1px 5px">🆘SOS!</span>':''}</div>
         <div class="mstatus">${stLbl(st)}${spd} · ${ls}</div>
       </div>
-      <div class="mactions">
+      <div class="mactions" onclick="event.stopPropagation()">
         ${lo?`<button class="mbtn" onclick="window.flyTo(${lo.lat},${lo.lng})"><i class="fas fa-crosshairs"></i></button>`:''}
-        ${!self&&lo?.lat?`<button class="mbtn" style="color:#10b981;border-color:#10b981" onclick="window.showNav(${lo.lat},${lo.lng},'${(me.name||'').replace(/'/g,'')}')"><i class="fas fa-directions"></i></button>`:''}
+        ${!self&&lo?.lat?`<button class="mbtn" style="color:#10b981;border-color:#10b981" onclick="window.showNav(${lo.lat},${lo.lng},'${safeName}')"><i class="fas fa-directions"></i></button>`:''}
+        <div style="width:22px;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:13px"><i class="fas fa-chevron-right"></i></div>
       </div>
     </div>`;
   }).join('')||'<div style="padding:12px;text-align:center;color:var(--text-muted);font-size:11px">ยังไม่มีสมาชิก</div>';
@@ -2263,84 +2299,11 @@ async function endMission(){
   try{
     const snap=await get(ref(db,`search_missions/${missionId}`)),m=snap.val()||{};
     if(m.createdBy!==user.id&&user.role!=='admin'){toast('ไม่มีสิทธิ์จบภารกิจ','error');setEndLoading(false);return;}
-
-    const closedAt = Date.now();
-
-    // ── 1) Snapshot สมาชิก + เวลาเข้า-ออก + ระยะเวลาแต่ละคน ──
-    const ms = m.members ? JSON.parse(JSON.stringify(m.members)) : {};
-    Object.keys(ms).forEach(uid => {
-      ms[uid].leftAt = closedAt;
-      if(ms[uid].joinedAt)
-        ms[uid].durationMin = Math.floor((closedAt - ms[uid].joinedAt) / 60000);
-    });
-
-    // ── 2) Snapshot เส้นทาง trails ──
-    const trailsSnap = await get(ref(db,`search_missions/${missionId}/trails`)).catch(()=>null);
-    const trailsSnapshot = trailsSnap?.val() || null;
-
-    // ── 3) Snapshot โซน + หมุด + กริด ──
-    const [zonesSnap, pinsSnap, gridsSnap] = await Promise.all([
-      get(ref(db,`search_missions/${missionId}/zones`)).catch(()=>null),
-      get(ref(db,`search_missions/${missionId}/pins`)).catch(()=>null),
-      get(ref(db,`search_missions/${missionId}/grids`)).catch(()=>null),
-    ]);
-    const zonesSnapshot = zonesSnap?.val() || null;
-    const pinsSnapshot  = pinsSnap?.val()  || null;
-    const gridsSnapshot = gridsSnap?.val() || null;
-
-    // ── 4) คำนวณสถิติ ──
-    const durationMin = m.createdAt ? Math.floor((closedAt - m.createdAt) / 60000) : 0;
-
-    // ระยะทางรวมทุกคน (Haversine)
-    let totalDistM = 0;
-    if(trailsSnapshot) {
-      Object.values(trailsSnapshot).forEach(t => {
-        const pts = Array.isArray(t) ? t : (t.points || []);
-        for(let i=1;i<pts.length;i++){
-          const a=pts[i-1], b=pts[i];
-          if(!a?.lat||!b?.lat) continue;
-          const R=6371000, dLat=(b.lat-a.lat)*Math.PI/180, dLng=(b.lng-a.lng)*Math.PI/180;
-          const s=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
-          totalDistM += R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));
-        }
-      });
-    }
-
-    // พื้นที่โซนรวม (ตร.ม.)
-    let totalAreaSqm = 0;
-    if(zonesSnapshot) {
-      Object.values(zonesSnapshot).forEach(z => {
-        if(z.areaSqm) totalAreaSqm += z.areaSqm;
-      });
-    }
-
-    const stats = {
-      durationMin,
-      memberCount: Object.keys(ms).length,
-      totalDistM:  Math.round(totalDistM),
-      totalAreaSqm: Math.round(totalAreaSqm),
-      pinCount:    pinsSnapshot  ? Object.keys(pinsSnapshot).length  : 0,
-      zoneCount:   zonesSnapshot ? Object.keys(zonesSnapshot).length : 0,
-      gridCount:   gridsSnapshot ? Object.keys(gridsSnapshot).length : 0,
-    };
-
-    // ── 5) รูปภาพ ──
-    const ph = _endPhotos.filter(p=>!p.loading&&p.url).map(p=>({data:p.url}));
-
-    // ── 6) บันทึกทั้งหมดใน 1 update ──
-    await update(ref(db,`search_missions/${missionId}`), {
-      status:'closed', closedAt, closedBy:user.id, closedByName:user.name||user.id,
-      summary:sum, memberSnapshot:ms, stats,
-      ...(ph.length            && {photos:ph}),
-      ...(trailsSnapshot       && {trailsSnapshot}),
-      ...(zonesSnapshot        && {zonesSnapshot}),
-      ...(pinsSnapshot         && {pinsSnapshot}),
-      ...(gridsSnapshot        && {gridsSnapshot}),
-    });
-
+    const ms=m.members?JSON.parse(JSON.stringify(m.members)):{};
+    const ph=_endPhotos.filter(p=>!p.loading&&p.url).map(p=>({data:p.url}));
+    await update(ref(db,`search_missions/${missionId}`),{status:'closed',closedAt:Date.now(),closedBy:user.id,closedByName:user.name||user.id,summary:sum,memberSnapshot:ms,...(ph.length&&{photos:ph})});
     await remove(ref(db,`search_missions/${missionId}/locations`)).catch(()=>{});
-    toast('บันทึกข้อมูลภารกิจสำเร็จ ✅','success');
-    stopGps(); _gps=false;
+    toast('จบภารกิจสำเร็จ ✅','success');stopGps();_gps=false;
     [_unLoc,_unMem,_unStatus,_unChat,_unPins,_unZones,_unTrails,_unGrids].forEach(f=>f&&f());
     localStorage.removeItem('sm_active_mission');
     setTimeout(()=>location.replace('index.html?tab=search-mission'),1200);
@@ -2792,6 +2755,122 @@ window.toggleGridPicker=toggleGridPicker; window.closeGridPicker=closeGridPicker
 window.addGrid=addGrid; window.clearAllGrids=clearAllGrids;
 window.startGridDraw=startGridDraw; window.startGridDrawCustom=startGridDrawCustom; window.cancelGridDraw=cancelGridDraw;
 window.toggleGridVisibility=toggleGridVisibility; window.deleteGrid=deleteGrid;
+// ─── Member Detail Sheet ──────────────────────────────────
+let _memDetailData = null;
+
+function openMemberDetail(uid) {
+  const mems = _lastMems || {};
+  const locs = _lastLocs || {};
+  const me = mems[uid];
+  const lo = locs[uid];
+  const myL = locs[user.id];
+  if (!me) return;
+
+  const isSelf = uid === user.id;
+  const c = gc(Object.keys(mems).indexOf(uid));
+  const now = Date.now();
+
+  // status
+  let st = 'offline';
+  if (lo) {
+    if (me.status === 'sos') st = 'sos';
+    else if ((now - (lo.ts || 0)) < 120000) st = lo.status || 'online';
+  }
+
+  // avatar
+  const avatarEl = document.getElementById('mdc-avatar');
+  avatarEl.textContent = (me.name || '?').charAt(0);
+  avatarEl.style.background = `linear-gradient(135deg,${c},${c}99)`;
+
+  // name
+  document.getElementById('mdc-name').textContent = (isSelf ? '👤 คุณ  ' : '') + (me.name || uid.slice(-6));
+
+  // dot & status text
+  const dotEl = document.getElementById('mdc-dot');
+  dotEl.className = 'mdot ' + st;
+  const stMap = { online:'🟢 ออนไลน์', moving:'🔵 กำลังเคลื่อนที่', sos:'🆘 SOS!', offline:'⚫ ออฟไลน์' };
+  document.getElementById('mdc-status-txt').textContent = stMap[st] || 'ออฟไลน์';
+
+  // stats
+  const statsEl = document.getElementById('mdc-stats');
+  const lastSeen = lo?.ts ? ago(lo.ts) : 'ไม่ทราบ';
+  const speed = lo?.speed != null ? lo.speed + ' กม./ชม.' : '-';
+  let distVal = '-';
+  if (!isSelf && myL && lo?.lat) {
+    const d = calcD(myL.lat, myL.lng, lo.lat, lo.lng);
+    distVal = fmtD(d);
+  }
+  statsEl.innerHTML = `
+    <div class="mdc-stat"><div class="sv">${lastSeen}</div><div class="sk">อัปเดตล่าสุด</div></div>
+    <div class="mdc-stat"><div class="sv">${speed}</div><div class="sk">ความเร็ว</div></div>
+    ${!isSelf ? `<div class="mdc-stat"><div class="sv">${distVal}</div><div class="sk">ระยะห่างจากคุณ</div></div>` : ''}
+    <div class="mdc-stat"><div class="sv" style="font-size:12px">${me.role === 'admin' ? '👑 หัวหน้า' : '👤 ทีม'}</div><div class="sk">บทบาท</div></div>
+  `;
+
+  // coord
+  const coordEl = document.getElementById('mdc-coord');
+  const coordVal = document.getElementById('mdc-coord-val');
+  if (lo?.lat) {
+    coordEl.style.display = 'flex';
+    coordVal.textContent = `${parseFloat(lo.lat).toFixed(6)}, ${parseFloat(lo.lng).toFixed(6)}`;
+    _memDetailData = { lat: lo.lat, lng: lo.lng, name: me.name || uid };
+  } else {
+    coordEl.style.display = 'none';
+    _memDetailData = null;
+  }
+
+  // action buttons
+  const actEl = document.getElementById('mdc-actions');
+  if (lo?.lat) {
+    actEl.innerHTML = `
+      <button class="mda-btn map-btn" onclick="flyToAndClose(${lo.lat},${lo.lng})">
+        <i class="fas fa-crosshairs"></i>ดูในแผนที่
+      </button>
+      ${!isSelf ? `
+      <a href="https://www.google.com/maps/dir/?api=1&destination=${parseFloat(lo.lat).toFixed(6)},${parseFloat(lo.lng).toFixed(6)}" target="_blank" class="mda-btn gmaps-btn" style="text-decoration:none">
+        <i class="fas fa-map-marked-alt"></i>Google Maps
+      </a>
+      <a href="https://waze.com/ul?ll=${parseFloat(lo.lat).toFixed(6)},${parseFloat(lo.lng).toFixed(6)}&navigate=yes" target="_blank" class="mda-btn waze-btn" style="text-decoration:none">
+        <i class="fas fa-route"></i>Waze
+      </a>` : ''}
+    `;
+  } else {
+    actEl.innerHTML = `<div class="mdc-nopos"><i class="fas fa-map-marker-alt" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.3"></i>ยังไม่มีข้อมูลตำแหน่ง</div>`;
+  }
+
+  document.getElementById('mem-detail-sheet').classList.add('open');
+}
+
+function closeMemberDetail() {
+  document.getElementById('mem-detail-sheet').classList.remove('open');
+}
+
+function flyToAndClose(lat, lng) {
+  closeMemberDetail();
+  closeMemberSheet();
+  setTimeout(() => {
+    if (_map) _map.flyTo([lat, lng], 17, { animate: true, duration: 0.8 });
+  }, 350);
+}
+
+function copyMemberCoord() {
+  if (!_memDetailData) return;
+  const txt = `${parseFloat(_memDetailData.lat).toFixed(6)}, ${parseFloat(_memDetailData.lng).toFixed(6)}`;
+  const btn = document.getElementById('mdc-coord-copy-btn');
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt).then(() => {
+      btn.innerHTML = '<i class="fas fa-check"></i> คัดลอกแล้ว!';
+      btn.style.background = '#dcfce7'; btn.style.color = '#15803d';
+      setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i> คัดลอก'; btn.style.background = ''; btn.style.color = ''; }, 1800);
+    });
+  }
+}
+
+window.openMemberDetail = openMemberDetail;
+window.closeMemberDetail = closeMemberDetail;
+window.flyToAndClose = flyToAndClose;
+window.copyMemberCoord = copyMemberCoord;
+
 window.showNav=showNav; window.delZone=delZone; window.delPin=delPin;
 window.rmEndPhoto=(i)=>{_endPhotos.splice(i,1);renderEndPrev();};
 window.showToast=toast;
@@ -2897,6 +2976,35 @@ addEventListener('resume',()=>{if(_gps){stopGps();startGps();}});
   <button class="mid-close" onclick="closeMissionInfo()">
     <i class="fas fa-times"></i> ปิด
   </button>
+</div>
+
+
+<!-- MEMBER DETAIL SHEET -->
+<div id="mem-detail-sheet" onclick="if(event.target===this)closeMemberDetail()">
+  <div id="mem-detail-card">
+    <div class="mdc-handle"></div>
+    <div class="mdc-header">
+      <div class="mdc-avatar" id="mdc-avatar">?</div>
+      <div style="flex:1;min-width:0">
+        <div class="mdc-name" id="mdc-name">-</div>
+        <div class="mdc-status-row">
+          <div class="mdot" id="mdc-dot"></div>
+          <span class="mdc-pos" id="mdc-status-txt">-</span>
+        </div>
+      </div>
+    </div>
+    <div class="mdc-stats" id="mdc-stats"></div>
+    <div class="mdc-coord" id="mdc-coord" style="display:none">
+      <div>
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:2px"><i class="fas fa-crosshairs" style="color:#2563eb;margin-right:3px"></i>พิกัด</div>
+        <div class="mdc-coord-val" id="mdc-coord-val">-</div>
+      </div>
+      <button class="mdc-coord-copy" id="mdc-coord-copy-btn" onclick="copyMemberCoord()">
+        <i class="fas fa-copy"></i> คัดลอก
+      </button>
+    </div>
+    <div class="mdc-actions" id="mdc-actions"></div>
+  </div>
 </div>
 
 </body>
