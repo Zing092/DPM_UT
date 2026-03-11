@@ -4771,6 +4771,51 @@ window.initMapPage = function() {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19
     }).addTo(_leafletMap);
+
+    // ── กดที่จุดใดก็ได้บนแผนที่ → แสดงพิกัดและปุ่มนำทาง ──
+    _leafletMap.on('click', function(e) {
+      const lat = e.latlng.lat, lng = e.latlng.lng;
+      const latF = lat.toFixed(6), lngF = lng.toFixed(6);
+      const popupId = 'map-click-popup-' + Date.now();
+      const content = `
+        <div style="min-width:220px;padding:2px;font-family:'Sarabun',sans-serif">
+          <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:#0a2463;margin-bottom:8px">
+            <i class="fas fa-map-pin" style="color:#2563eb;margin-right:5px"></i>พิกัดที่เลือก
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:7px 10px;margin-bottom:10px">
+            <span style="font-family:monospace;font-size:12px;font-weight:700;color:#0369a1">${latF}, ${lngF}</span>
+            <button id="${popupId}-copy" style="padding:3px 8px;border:1.5px solid #cbd5e1;border-radius:6px;background:#fff;font-size:11px;cursor:pointer;color:#64748b;font-family:'Sarabun',sans-serif;font-weight:600;margin-left:6px">
+              <i class="fas fa-copy"></i> คัดลอก
+            </button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank"
+              style="display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 4px;background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;font-family:'Sarabun',sans-serif">
+              <i class="fas fa-route"></i> Google Maps
+            </a>
+            <a href="https://waze.com/ul?ll=${lat},${lng}&navigate=yes" target="_blank"
+              style="display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 4px;background:linear-gradient(135deg,#00bcd4,#26c6da);color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;font-family:'Sarabun',sans-serif">
+              <i class="fas fa-car"></i> Waze
+            </a>
+          </div>
+        </div>`;
+      L.popup({ maxWidth: 280 })
+        .setLatLng(e.latlng)
+        .setContent(content)
+        .openOn(_leafletMap);
+      // bind copy button after popup opens
+      setTimeout(() => {
+        const btn = document.getElementById(popupId + '-copy');
+        if(btn) btn.addEventListener('click', () => {
+          navigator.clipboard.writeText(`${latF},${lngF}`).then(() => {
+            btn.innerHTML = '<i class="fas fa-check"></i> คัดลอกแล้ว!';
+            btn.style.background = '#dcfce7'; btn.style.color = '#15803d';
+            setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i> คัดลอก'; btn.style.background = ''; btn.style.color = ''; }, 1800);
+          }).catch(() => {});
+        });
+      }, 50);
+    });
+
   } else {
     _leafletMap.invalidateSize();
   }

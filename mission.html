@@ -994,6 +994,42 @@ function initMap(){
 
   setupDrawEvents();
 
+  // ── กดที่จุดใดก็ได้บนแผนที่ → แสดงพิกัดและปุ่มนำทาง ──
+  _map.on('click', function(e) {
+    if(_drawOn || _pendingPinType) return; // ไม่รบกวนขณะวาดโซนหรือปักหมุด
+    const lat = e.latlng.lat, lng = e.latlng.lng;
+    const latF = lat.toFixed(6), lngF = lng.toFixed(6);
+    const popupId = 'mc-popup-' + Date.now();
+    const content = `
+      <div style="min-width:210px;font-family:'Sarabun',sans-serif">
+        <div class="pp-title"><i class="fas fa-map-pin" style="color:#2563eb;margin-right:5px"></i>พิกัดที่เลือก</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:6px 9px;margin-bottom:9px">
+          <span style="font-family:monospace;font-size:11px;font-weight:700;color:#0369a1">${latF}, ${lngF}</span>
+          <button id="${popupId}-copy" style="padding:3px 7px;border:1.5px solid #cbd5e1;border-radius:6px;background:#fff;font-size:10px;cursor:pointer;color:#64748b;font-family:'Sarabun',sans-serif;font-weight:600;margin-left:5px;flex-shrink:0">
+            <i class="fas fa-copy"></i> คัดลอก
+          </button>
+        </div>
+        <button class="pp-btn pp-nav-btn" data-lat="${lat}" data-lng="${lng}" data-name="จุดที่เลือก"
+          style="background:linear-gradient(135deg,#0a2463,#2563eb);color:#fff;margin-bottom:0">
+          <i class="fas fa-navigation" style="margin-right:4px"></i>นำทางไปยังจุดนี้
+        </button>
+      </div>`;
+    L.popup({ maxWidth: 260 })
+      .setLatLng(e.latlng)
+      .setContent(content)
+      .openOn(_map);
+    setTimeout(() => {
+      const btn = document.getElementById(popupId + '-copy');
+      if(btn) btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(`${latF},${lngF}`).then(() => {
+          btn.innerHTML = '<i class="fas fa-check"></i> คัดลอกแล้ว!';
+          btn.style.background = '#dcfce7'; btn.style.color = '#15803d';
+          setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i> คัดลอก'; btn.style.background = ''; btn.style.color = ''; }, 1800);
+        }).catch(() => {});
+      });
+    }, 50);
+  });
+
   // Event delegation for popup buttons (Leaflet sanitizes inline onclick)
   document.getElementById('track-map').addEventListener('click',e=>{
     const navBtn=e.target.closest('.pp-nav-btn');
