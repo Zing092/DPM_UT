@@ -4489,22 +4489,21 @@ window.exportPDF = function() {
     const statusText = statusNames[m.status]||m.status||'-';
     const tc = typeBadgeColor[m.type]||'#6b7280';
     const ti = typeIcon[m.type]||'📋';
-    const statusClass = m.status==='done' ? 'status-done' : m.status==='ongoing' ? 'status-ongoing' : 'status-new';
-    const startDateStr = m.date ? `${toThaiDate(m.date)}<br><span style="font-size:9px;color:#64748b">${m.time||''}</span>` : '-';
-    const endDateStr   = endDate !== '-' ? `${endDate}<br><span style="font-size:9px;color:#64748b">${m.endTime?toThaiTime(m.endTime):''}</span>` : '-';
     return `<tr>
-      <td class="td-num">${idx+1}</td>
-      <td style="font-weight:700;font-size:10.5px;color:#0a2463">${m.userId||'-'}</td>
-      <td><span class="badge" style="background:${tc}15;color:${tc};border:1px solid ${tc}40"><span class="badge-icon">${ti}</span>${typeNames[m.type]||'-'}</span></td>
-      <td style="font-size:10.5px">${m.location||'-'}</td>
-      <td style="font-size:10px;color:#334155;line-height:1.5">${m.detail||'-'}</td>
+      <td style="text-align:center;font-weight:700;color:#64748b">${idx+1}</td>
+      <td style="font-weight:600">${m.userId||'-'}</td>
+      <td><span style="background:${tc}18;color:${tc};padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;white-space:nowrap">${ti} ${typeNames[m.type]||'-'}</span></td>
+      <td>${m.location||'-'}</td>
+      <td style="font-size:10px;color:#475569">${m.detail||'-'}</td>
       <td style="font-size:10px;color:#475569">${m.userName||'-'}</td>
-      <td style="font-size:10px;color:#475569">${teamStr}</td>
-      <td style="font-size:10px;text-align:center;font-family:'Kanit',sans-serif;letter-spacing:0.5px">${m.vehiclePlate||'-'}</td>
-      <td style="text-align:center"><span class="${statusClass}">${statusText}</span></td>
-      <td style="font-size:10px;text-align:center;white-space:nowrap">${startDateStr}</td>
-      <td style="font-size:10px;text-align:center;white-space:nowrap">${endDateStr}</td>
-      <td style="font-size:10px;text-align:center;font-weight:700;color:#0369a1;font-family:'Kanit',sans-serif">${duration}</td>
+      <td style="font-size:10px">${teamStr}</td>
+      <td style="font-size:10px">${m.vehiclePlate||'-'}</td>
+      <td><span style="background:${statusColor}18;color:${statusColor};padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700">${statusText}</span></td>
+      <td style="font-size:10px;white-space:nowrap">${toThaiDate(m.date)}</td>
+      <td style="font-size:10px;white-space:nowrap">${endDate}</td>
+      <td style="font-size:10px;text-align:center">${m.time||'-'}</td>
+      <td style="font-size:10px;text-align:center">${m.endTime?toThaiTime(m.endTime):'-'}</td>
+      <td style="font-size:10px;text-align:center;color:#0369a1;font-weight:600">${duration}</td>
     </tr>`;
   }).join('');
 
@@ -4512,614 +4511,111 @@ window.exportPDF = function() {
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Kanit:wght@400;500;600;700&display=swap" rel="stylesheet">
-<title>รายงานการปฏิบัติงาน — กองป้องกันและบรรเทาสาธารณภัย</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Kanit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>รายงานการปฏิบัติงาน</title>
 <style>
-  :root {
-    --navy-dark: #0a2463;
-    --navy: #1b3d8f;
-    --navy-light: #2563eb;
-    --gold: #b8860b;
-    --gold-light: #f59e0b;
-    --green: #10b981;
-    --red: #dc2626;
-    --gray: #64748b;
-    --light: #f0f4ff;
-    --border: #cbd5e1;
-    --text: #1e293b;
-    --text-mid: #475569;
-  }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body {
-    font-family: 'Sarabun', sans-serif;
-    font-size: 11.5px;
-    color: var(--text);
-    background: #fff;
-    padding: 18px 20px;
-    line-height: 1.6;
-  }
-  @page { size: A4 landscape; margin: 10mm 12mm; }
-  @media print {
-    body { padding: 0; }
-    .no-print { display: none !important; }
-    .page-break { page-break-before: always; }
-    table { page-break-inside: auto; }
-    tr { page-break-inside: avoid; }
-  }
+  body { font-family:'Sarabun',sans-serif; font-size:11px; color:#1e293b; background:#fff; padding:16px; }
+  @page { size:A4 landscape; margin:12mm 10mm; }
+  @media print { body{padding:0} .no-print{display:none} }
 
-  /* ── LETTERHEAD ── */
-  .letterhead {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 4px;
-    padding-bottom: 10px;
-    border-bottom: 4px double var(--navy-dark);
-  }
-  .letterhead-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-  .seal {
-    width: 68px; height: 68px;
-    border-radius: 50%;
-    background: linear-gradient(145deg, var(--navy-dark), var(--navy));
-    display: flex; align-items: center; justify-content: center;
-    font-size: 32px;
-    border: 3px solid var(--gold);
-    box-shadow: 0 2px 8px rgba(10,36,99,0.3);
-    flex-shrink: 0;
-  }
-  .org-info h1 {
-    font-family: 'Kanit', sans-serif;
-    font-size: 13px; font-weight: 700;
-    color: var(--navy-dark);
-    line-height: 1.3;
-  }
-  .org-info h2 {
-    font-family: 'Kanit', sans-serif;
-    font-size: 11px; font-weight: 500;
-    color: var(--navy); margin-top: 2px;
-  }
-  .org-info .sub {
-    font-size: 10px; color: var(--gray); margin-top: 3px;
-  }
-  .doc-ref {
-    text-align: right;
-    font-size: 10px;
-    color: var(--gray);
-    line-height: 1.8;
-  }
-  .doc-ref .doc-num {
-    font-family: 'Kanit', sans-serif;
-    font-size: 12px; font-weight: 700;
-    color: var(--navy-dark);
-  }
+  /* Header */
+  .report-header { text-align:center; margin-bottom:18px; border-bottom:3px solid #0a2463; padding-bottom:12px; }
+  .report-header .emblem { font-size:36px; display:block; margin-bottom:6px; }
+  .report-header h1 { font-family:'Kanit',sans-serif; font-size:16px; font-weight:700; color:#0a2463; line-height:1.4; }
+  .report-header h2 { font-family:'Kanit',sans-serif; font-size:13px; font-weight:600; color:#1b3d8f; margin-top:4px; }
+  .report-header .meta { margin-top:8px; font-size:11px; color:#64748b; display:flex; justify-content:center; gap:24px; }
+  .report-header .meta span { display:flex; align-items:center; gap:4px; }
 
-  /* ── REPORT TITLE BOX ── */
-  .report-title-box {
-    background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, #2563eb 100%);
-    color: #fff;
-    text-align: center;
-    padding: 14px 20px 12px;
-    margin: 10px 0;
-    border-radius: 6px;
-    position: relative;
-    overflow: hidden;
-  }
-  .report-title-box::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--gold), #fde68a, var(--gold));
-  }
-  .report-title-box h3 {
-    font-family: 'Kanit', sans-serif;
-    font-size: 17px; font-weight: 700;
-    letter-spacing: 0.5px;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-  }
-  .report-title-box .subtitle {
-    font-size: 11px;
-    color: rgba(255,255,255,0.85);
-    margin-top: 4px;
-  }
-  .report-title-box .meta-row {
-    display: flex;
-    justify-content: center;
-    gap: 28px;
-    margin-top: 8px;
-    font-size: 10.5px;
-    color: rgba(255,255,255,0.9);
-    flex-wrap: wrap;
-  }
-  .report-title-box .meta-row span {
-    display: flex; align-items: center; gap: 4px;
-    background: rgba(255,255,255,0.12);
-    padding: 2px 10px; border-radius: 20px;
-  }
+  /* Stat Cards */
+  .stat-section { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:16px; }
+  .stat-card { border-radius:8px; padding:8px 6px; text-align:center; border:1px solid #e2e8f0; }
+  .stat-card .num { font-family:'Kanit',sans-serif; font-size:18px; font-weight:700; }
+  .stat-card .lbl { font-size:9px; color:#64748b; margin-top:2px; }
+  .stat-card.total { background:linear-gradient(135deg,#0a2463,#2563eb); color:#fff; border:none; }
+  .stat-card.total .lbl { color:rgba(255,255,255,0.7); }
+  .stat-card.fire   { background:#fef2f2; } .stat-card.fire .num   { color:#ef4444; }
+  .stat-card.water  { background:#eff6ff; } .stat-card.water .num  { color:#3b82f6; }
+  .stat-card.acc    { background:#fffbeb; } .stat-card.acc .num    { color:#f59e0b; }
+  .stat-card.search { background:#f5f3ff; } .stat-card.search .num { color:#8b5cf6; }
+  .stat-card.other  { background:#f8fafc; } .stat-card.other .num  { color:#6b7280; }
+  .stat-card.done   { background:#ecfdf5; } .stat-card.done .num   { color:#10b981; }
 
-  /* ── SUMMARY STATS ── */
-  .stats-wrapper {
-    margin: 10px 0 12px;
-  }
-  .stats-label {
-    font-family: 'Kanit', sans-serif;
-    font-size: 10px; font-weight: 600;
-    color: var(--navy);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 6px;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .stats-label::after {
-    content: '';
-    flex: 1; height: 1px;
-    background: var(--border);
-  }
-  .stat-grid {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 6px;
-  }
-  .stat-card {
-    border-radius: 6px;
-    padding: 8px 6px 7px;
-    text-align: center;
-    border: 1px solid var(--border);
-    background: #fafbff;
-    position: relative;
-  }
-  .stat-card::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0;
-    height: 3px; border-radius: 6px 6px 0 0;
-  }
-  .stat-card .icon { font-size: 15px; margin-bottom: 2px; display: block; }
-  .stat-card .num {
-    font-family: 'Kanit', sans-serif;
-    font-size: 20px; font-weight: 700;
-    line-height: 1.1;
-  }
-  .stat-card .lbl { font-size: 9px; color: var(--gray); margin-top: 3px; line-height: 1.3; }
-  .stat-card.s-total::before { background: var(--navy-dark); }
-  .stat-card.s-total { background: linear-gradient(145deg, var(--navy-dark), #2563eb); color: #fff; border: none; }
-  .stat-card.s-total .lbl, .stat-card.s-total .num { color: #fff; }
-  .stat-card.s-fire::before { background: #ef4444; }
-  .stat-card.s-fire .num { color: #dc2626; }
-  .stat-card.s-water::before { background: #3b82f6; }
-  .stat-card.s-water .num { color: #2563eb; }
-  .stat-card.s-acc::before { background: #f59e0b; }
-  .stat-card.s-acc .num { color: #d97706; }
-  .stat-card.s-search::before { background: #8b5cf6; }
-  .stat-card.s-search .num { color: #7c3aed; }
-  .stat-card.s-other::before { background: #6b7280; }
-  .stat-card.s-other .num { color: #4b5563; }
-  .stat-card.s-done::before { background: #10b981; }
-  .stat-card.s-done .num { color: #059669; }
-  .stat-card.s-ongoing::before { background: #f59e0b; }
-  .stat-card.s-ongoing .num { color: #d97706; }
+  /* Table */
+  table { width:100%; border-collapse:collapse; font-size:10px; }
+  thead tr { background:linear-gradient(135deg,#0a2463,#1b3d8f); }
+  thead th { color:#fff; font-family:'Kanit',sans-serif; font-weight:600; font-size:9px; padding:7px 5px; text-align:left; white-space:nowrap; border:1px solid #1b3d8f; }
+  tbody tr:nth-child(even) { background:#f0f4ff; }
+  tbody tr:hover { background:#dbeafe; }
+  td { padding:6px 5px; border:1px solid #e2e8f0; vertical-align:top; line-height:1.4; }
+  tr:last-child td { border-bottom:2px solid #0a2463; }
 
-  /* ── TABLE SECTION ── */
-  .table-section-label {
-    font-family: 'Kanit', sans-serif;
-    font-size: 10px; font-weight: 600;
-    color: var(--navy);
-    margin: 12px 0 5px;
-    display: flex; align-items: center; gap: 6px;
-    letter-spacing: 0.3px;
-  }
-  .table-section-label::after {
-    content: '';
-    flex: 1; height: 1px;
-    background: var(--border);
-  }
-  .table-wrapper {
-    border: 1.5px solid var(--navy);
-    border-radius: 6px;
-    overflow: hidden;
-  }
-  table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
-  thead tr { background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 100%); }
-  thead th {
-    color: #fff;
-    font-family: 'Kanit', sans-serif;
-    font-weight: 600; font-size: 9.5px;
-    padding: 8px 5px 7px;
-    text-align: left;
-    white-space: nowrap;
-    border-right: 1px solid rgba(255,255,255,0.15);
-    line-height: 1.3;
-  }
-  thead th:last-child { border-right: none; }
-  thead .th-sub {
-    font-family: 'Sarabun', sans-serif;
-    font-weight: 400; font-size: 8px;
-    color: rgba(255,255,255,0.7);
-    display: block; margin-top: 1px;
-  }
-  .col-center { text-align: center !important; }
-
-  /* Subheader row for column groups */
-  .th-group {
-    background: #e8f0fe;
-    border-bottom: 1px solid var(--navy);
-  }
-  .th-group td {
-    font-family: 'Kanit', sans-serif;
-    font-size: 8.5px; font-weight: 600;
-    color: var(--navy);
-    padding: 3px 6px;
-    border-right: 1px solid #c7d5f5;
-    text-align: center;
-    letter-spacing: 0.3px;
-  }
-
-  tbody tr { border-bottom: 1px solid #e8edf5; }
-  tbody tr:nth-child(even) { background: #f5f8ff; }
-  tbody tr:hover { background: #dbeafe; }
-  td {
-    padding: 6px 5px;
-    border-right: 1px solid #e2e8f0;
-    vertical-align: middle;
-    line-height: 1.5;
-    color: var(--text);
-  }
-  td:last-child { border-right: none; }
-  tbody tr:last-child td { border-bottom: none; }
-
-  /* Row number */
-  .td-num {
-    text-align: center;
-    font-weight: 700;
-    color: var(--gray);
-    font-size: 10px;
-    background: #f0f4ff;
-    border-right: 2px solid #c7d5f5 !important;
-  }
-
-  /* Type badge */
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    padding: 2px 8px 2px 6px;
-    border-radius: 20px;
-    font-size: 9.5px;
-    font-weight: 700;
-    font-family: 'Kanit', sans-serif;
-    white-space: nowrap;
-  }
-  .badge-icon { font-size: 10px; }
-
-  /* Status badge */
-  .status-done {
-    display: inline-block;
-    background: #dcfce7; color: #16a34a;
-    padding: 2px 8px; border-radius: 20px;
-    font-size: 9.5px; font-weight: 700;
-    font-family: 'Kanit', sans-serif;
-  }
-  .status-ongoing {
-    display: inline-block;
-    background: #fef9c3; color: #b45309;
-    padding: 2px 8px; border-radius: 20px;
-    font-size: 9.5px; font-weight: 700;
-    font-family: 'Kanit', sans-serif;
-  }
-  .status-new {
-    display: inline-block;
-    background: #eff6ff; color: #2563eb;
-    padding: 2px 8px; border-radius: 20px;
-    font-size: 9.5px; font-weight: 700;
-    font-family: 'Kanit', sans-serif;
-  }
-
-  /* Empty state */
-  .empty-row td {
-    text-align: center;
-    color: var(--gray);
-    font-style: italic;
-    padding: 20px;
-  }
-
-  /* ── SUMMARY & NOTES ── */
-  .bottom-section {
-    margin-top: 14px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-  .notes-box {
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 10px 12px;
-    background: #fafbff;
-  }
-  .notes-box .box-title {
-    font-family: 'Kanit', sans-serif;
-    font-size: 10px; font-weight: 700;
-    color: var(--navy);
-    margin-bottom: 6px;
-    display: flex; align-items: center; gap: 5px;
-  }
-  .notes-box .note-item {
-    font-size: 10px; color: var(--text-mid);
-    padding: 3px 0; border-bottom: 1px dotted var(--border);
-    display: flex; gap: 6px;
-  }
-  .notes-box .note-item:last-child { border-bottom: none; }
-  .notes-box .note-key {
-    font-weight: 600; color: var(--navy);
-    min-width: 90px; flex-shrink: 0;
-  }
-
-  /* ── SIGNATURE SECTION ── */
-  .sign-section {
-    margin-top: 14px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    border-top: 2px solid var(--navy-dark);
-    padding-top: 12px;
-  }
-  .sign-box { text-align: center; }
-  .sign-box .sign-role {
-    font-family: 'Kanit', sans-serif;
-    font-size: 10px; font-weight: 700;
-    color: var(--navy-dark); margin-bottom: 2px;
-  }
-  .sign-box .sign-detail {
-    font-size: 9.5px; color: var(--gray);
-    margin-bottom: 30px;
-    line-height: 1.5;
-  }
-  .sign-box .sign-line-area {
-    border-top: 1px solid #94a3b8;
-    padding-top: 5px;
-    font-size: 10px; color: var(--text-mid);
-    line-height: 1.7;
-  }
-  .sign-box .sign-line-area .sign-name {
-    font-size: 10px; font-weight: 600; color: var(--text);
-    margin-top: 2px;
-  }
-
-  /* ── PAGE FOOTER ── */
-  .page-footer {
-    margin-top: 12px;
-    padding-top: 7px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 9px;
-    color: var(--gray);
-  }
-  .page-footer .footer-center { text-align: center; flex: 1; }
-
-  /* ── PRINT BUTTON ── */
-  .print-fab {
-    position: fixed;
-    bottom: 24px; right: 24px;
-    background: linear-gradient(135deg, var(--navy-dark), var(--navy-light));
-    color: #fff;
-    border: none; border-radius: 50px;
-    padding: 13px 26px;
-    font-family: 'Kanit', sans-serif;
-    font-size: 13px; font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 4px 20px rgba(10,36,99,0.35);
-    z-index: 999;
-    display: flex; align-items: center; gap: 8px;
-    transition: all 0.2s;
-  }
-  .print-fab:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(10,36,99,0.45); }
-  .print-fab:active { transform: translateY(0); }
-
-  /* ── CONFIDENTIAL STAMP ── */
-  .stamp-area {
-    display: flex; align-items: center; gap: 10px;
-  }
-  .stamp {
-    border: 2px solid var(--red);
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-family: 'Kanit', sans-serif;
-    font-size: 10px; font-weight: 700;
-    color: var(--red);
-    letter-spacing: 1px;
-    opacity: 0.75;
-  }
-  .doc-class {
-    font-size: 10px; color: var(--gray);
-  }
+  /* Footer */
+  .report-footer { margin-top:20px; display:grid; grid-template-columns:1fr 1fr; gap:80px; max-width:600px; margin-left:auto; margin-right:auto; }
+  .sign-box { text-align:center; }
+  .sign-box .sign-line { border-top:1px solid #94a3b8; margin-top:40px; padding-top:6px; font-size:10px; color:#475569; }
+  .sign-box .sign-label { font-size:11px; font-weight:600; color:#1e293b; }
+  .print-btn { position:fixed; bottom:20px; right:20px; background:#0a2463; color:#fff; border:none; border-radius:10px; padding:12px 24px; font-family:'Sarabun',sans-serif; font-size:14px; font-weight:600; cursor:pointer; box-shadow:0 4px 16px rgba(10,36,99,0.3); z-index:999; }
+  .print-btn:hover { background:#1b3d8f; }
 </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════════════════════ -->
-<!-- LETTERHEAD                                                    -->
-<!-- ══════════════════════════════════════════════════════════════ -->
-<div class="letterhead">
-  <div class="letterhead-left">
-    <div class="seal">🛡️</div>
-    <div class="org-info">
-      <h1>กองป้องกันและบรรเทาสาธารณภัย</h1>
-      <h2>ฝ่ายบริหารงานทั่วไปและบันทึกการปฏิบัติงาน</h2>
-      <div class="sub">ระบบบันทึกการปฏิบัติงาน — รายงานอย่างเป็นทางการ</div>
-    </div>
-  </div>
-  <div style="display:flex; align-items:flex-start; gap:14px;">
-    <div class="stamp-area">
-      <div class="stamp">ราชการ</div>
-    </div>
-    <div class="doc-ref">
-      <div class="doc-num">เอกสารรายงาน</div>
-      <div>วันที่จัดทำ: <strong>${printDate}</strong></div>
-      <div>ช่วงข้อมูล: <strong>${tabLabel}</strong></div>
-      <div>จำนวนรายการ: <strong>${missions.length} รายการ</strong></div>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════════════ -->
-<!-- REPORT TITLE                                                  -->
-<!-- ══════════════════════════════════════════════════════════════ -->
-<div class="report-title-box">
-  <h3>รายงานสรุปการปฏิบัติงานประจำงวด</h3>
-  <div class="subtitle">กองป้องกันและบรรเทาสาธารณภัย &nbsp;|&nbsp; รายงานอย่างเป็นทางการ</div>
-  <div class="meta-row">
+<div class="report-header">
+  <span class="emblem">🛡️</span>
+  <h1>รายงานการปฏิบัติงาน</h1>
+  <h2>กองป้องกันและบรรเทาสาธารณภัย</h2>
+  <div class="meta">
     <span>📅 ช่วงข้อมูล: <strong>${tabLabel}</strong></span>
-    <span>📋 รวมทั้งสิ้น: <strong>${missions.length} รายการ</strong></span>
-    <span>✅ เสร็จสิ้น: <strong>${doneCount} รายการ</strong></span>
-    <span>⏳ กำลังดำเนิน: <strong>${ongoingCount} รายการ</strong></span>
-    <span>🗓️ วันที่พิมพ์: <strong>${printDate}</strong></span>
+    <span>📋 จำนวน: <strong>${missions.length} รายการ</strong></span>
+    <span>🖨️ พิมพ์เมื่อ: <strong>${printDate}</strong></span>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════ -->
-<!-- SUMMARY STATISTICS                                            -->
-<!-- ══════════════════════════════════════════════════════════════ -->
-<div class="stats-wrapper">
-  <div class="stats-label">สรุปสถิติการปฏิบัติงาน</div>
-  <div class="stat-grid">
-    <div class="stat-card s-total">
-      <span class="icon">📊</span>
-      <div class="num">${missions.length}</div>
-      <div class="lbl">รวมทั้งหมด</div>
-    </div>
-    <div class="stat-card s-fire">
-      <span class="icon">🔥</span>
-      <div class="num">${typeCount.fire}</div>
-      <div class="lbl">อัคคีภัย</div>
-    </div>
-    <div class="stat-card s-water">
-      <span class="icon">🌊</span>
-      <div class="num">${typeCount.water}</div>
-      <div class="lbl">กู้ภัยทางน้ำ</div>
-    </div>
-    <div class="stat-card s-acc">
-      <span class="icon">🚨</span>
-      <div class="num">${typeCount.accident}</div>
-      <div class="lbl">อุบัติเหตุ</div>
-    </div>
-    <div class="stat-card s-search">
-      <span class="icon">🔍</span>
-      <div class="num">${typeCount.search}</div>
-      <div class="lbl">ค้นหาผู้สูญหาย</div>
-    </div>
-    <div class="stat-card s-other">
-      <span class="icon">📋</span>
-      <div class="num">${typeCount.other}</div>
-      <div class="lbl">อื่นๆ</div>
-    </div>
-    <div class="stat-card s-done">
-      <span class="icon">✅</span>
-      <div class="num">${doneCount}</div>
-      <div class="lbl">เสร็จสิ้น</div>
-    </div>
-    <div class="stat-card s-ongoing">
-      <span class="icon">⏳</span>
-      <div class="num">${ongoingCount}</div>
-      <div class="lbl">กำลังดำเนิน</div>
-    </div>
-  </div>
+<div class="stat-section">
+  <div class="stat-card total"><div class="num">${missions.length}</div><div class="lbl">ทั้งหมด</div></div>
+  <div class="stat-card fire"><div class="num">${typeCount.fire}</div><div class="lbl">🔥 อัคคีภัย</div></div>
+  <div class="stat-card water"><div class="num">${typeCount.water}</div><div class="lbl">🌊 กู้ภัยทางน้ำ</div></div>
+  <div class="stat-card acc"><div class="num">${typeCount.accident}</div><div class="lbl">🚨 อุบัติเหตุ</div></div>
+  <div class="stat-card search"><div class="num">${typeCount.search}</div><div class="lbl">🔍 ค้นหาผู้สูญหาย</div></div>
+  <div class="stat-card other"><div class="num">${typeCount.other}</div><div class="lbl">📋 อื่นๆ</div></div>
+  <div class="stat-card done"><div class="num">${doneCount}</div><div class="lbl">✅ เสร็จสิ้น</div></div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════ -->
-<!-- DATA TABLE                                                    -->
-<!-- ══════════════════════════════════════════════════════════════ -->
-<div class="table-section-label">รายการบันทึกการปฏิบัติงานทั้งหมด</div>
-<div class="table-wrapper">
 <table>
   <thead>
     <tr>
-      <th class="col-center" style="width:26px">#</th>
-      <th style="width:54px">รหัสพนักงาน<span class="th-sub">ผู้รับผิดชอบ</span></th>
-      <th style="width:76px">ประเภทภารกิจ<span class="th-sub">หมวดหมู่งาน</span></th>
-      <th style="width:85px">สถานที่เกิดเหตุ<span class="th-sub">ที่อยู่/พิกัด</span></th>
-      <th>รายละเอียดเหตุการณ์<span class="th-sub">ข้อมูลการปฏิบัติงาน</span></th>
-      <th style="width:62px">ผู้รายงาน<span class="th-sub">ชื่อ-สกุล</span></th>
-      <th style="width:72px">ทีมปฏิบัติงาน<span class="th-sub">รายชื่อสมาชิก</span></th>
-      <th style="width:54px">ทะเบียนรถ<span class="th-sub">ยานพาหนะ</span></th>
-      <th class="col-center" style="width:62px">สถานะ<span class="th-sub">ผลการดำเนิน</span></th>
-      <th class="col-center" style="width:74px">วันที่เริ่มต้น<span class="th-sub">เวลาเริ่ม</span></th>
-      <th class="col-center" style="width:74px">วันที่สิ้นสุด<span class="th-sub">เวลาจบ</span></th>
-      <th class="col-center" style="width:58px">ระยะเวลา<span class="th-sub">รวม</span></th>
+      <th style="width:28px">#</th>
+      <th style="width:50px">รหัสพนักงาน</th>
+      <th style="width:72px">ประเภท</th>
+      <th style="width:80px">สถานที่</th>
+      <th>รายละเอียด</th>
+      <th style="width:60px">ผู้รายงาน</th>
+      <th style="width:70px">ทีม</th>
+      <th style="width:52px">ทะเบียน</th>
+      <th style="width:60px">สถานะ</th>
+      <th style="width:72px">วันที่เริ่ม</th>
+      <th style="width:72px">วันที่จบ</th>
+      <th style="width:40px">เริ่ม</th>
+      <th style="width:40px">จบ</th>
+      <th style="width:55px">ระยะเวลา</th>
     </tr>
   </thead>
-  <tbody>
-    ${missions.length === 0 ? `<tr class="empty-row"><td colspan="12">ไม่พบข้อมูลในช่วงเวลาที่เลือก</td></tr>` : rowsHtml}
-  </tbody>
+  <tbody>${rowsHtml}</tbody>
 </table>
-</div>
 
-<!-- ══════════════════════════════════════════════════════════════ -->
-<!-- BOTTOM SECTION: NOTES + SIGNATURE                            -->
-<!-- ══════════════════════════════════════════════════════════════ -->
-<div class="bottom-section">
-  <div class="notes-box">
-    <div class="box-title">📌 หมายเหตุและข้อมูลอ้างอิง</div>
-    <div class="note-item"><span class="note-key">ประเภทอัคคีภัย:</span><span>เหตุเพลิงไหม้ ก๊าซรั่ว วัตถุอันตราย</span></div>
-    <div class="note-item"><span class="note-key">กู้ภัยทางน้ำ:</span><span>อุทกภัย ช่วยชีวิตทางน้ำ น้ำท่วม</span></div>
-    <div class="note-item"><span class="note-key">อุบัติเหตุ:</span><span>อุบัติเหตุทางถนน สาธารณภัยทั่วไป</span></div>
-    <div class="note-item"><span class="note-key">ค้นหาผู้สูญหาย:</span><span>บุคคลสูญหาย ค้นหาในพื้นที่ห่างไกล</span></div>
-    <div class="note-item"><span class="note-key">อัตราเสร็จสิ้น:</span><span>${missions.length > 0 ? Math.round(doneCount/missions.length*100) : 0}% (${doneCount} / ${missions.length} รายการ)</span></div>
-    <div class="note-item"><span class="note-key">จัดทำโดยระบบ:</span><span>ระบบบันทึกการปฏิบัติงาน — ${printDate}</span></div>
+<div class="report-footer" style="margin-top:28px">
+  <div class="sign-box">
+    <div class="sign-label">ผู้จัดทำรายงาน</div>
+    <div class="sign-line">(...................................)<br>วันที่ ........../........../............</div>
   </div>
-
-  <div>
-    <div class="sign-section">
-      <div class="sign-box">
-        <div class="sign-role">ผู้จัดทำรายงาน</div>
-        <div class="sign-detail">เจ้าหน้าที่บันทึกข้อมูล<br>กองป้องกันและบรรเทาสาธารณภัย</div>
-        <div class="sign-line-area">
-          (...............................................)
-          <div class="sign-name">ชื่อ-สกุล / ตำแหน่ง</div>
-          วันที่ ............./............../...............
-        </div>
-      </div>
-      <div class="sign-box">
-        <div class="sign-role">ผู้ตรวจสอบ</div>
-        <div class="sign-detail">หัวหน้ากลุ่มงาน / ผู้ควบคุม<br>กองป้องกันและบรรเทาสาธารณภัย</div>
-        <div class="sign-line-area">
-          (...............................................)
-          <div class="sign-name">ชื่อ-สกุล / ตำแหน่ง</div>
-          วันที่ ............./............../...............
-        </div>
-      </div>
-      <div class="sign-box">
-        <div class="sign-role">ผู้บังคับบัญชา</div>
-        <div class="sign-detail">ผู้อำนวยการกองป้องกัน<br>และบรรเทาสาธารณภัย</div>
-        <div class="sign-line-area">
-          (...............................................)
-          <div class="sign-name">ชื่อ-สกุล / ตำแหน่ง</div>
-          วันที่ ............./............../...............
-        </div>
-      </div>
-    </div>
+  <div class="sign-box">
+    <div class="sign-label">ผู้บังคับบัญชา</div>
+    <div class="sign-line">(...................................)<br>วันที่ ........../........../............</div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════ -->
-<!-- PAGE FOOTER                                                   -->
-<!-- ══════════════════════════════════════════════════════════════ -->
-<div class="page-footer">
-  <div>เอกสารนี้จัดทำโดยระบบบันทึกการปฏิบัติงาน กองป้องกันและบรรเทาสาธารณภัย</div>
-  <div class="footer-center">— เอกสารราชการ ห้ามเผยแพร่โดยไม่ได้รับอนุญาต —</div>
-  <div>วันที่พิมพ์: ${printDate}</div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════════════ -->
-<!-- PRINT BUTTON (ซ่อนตอนพิมพ์)                                 -->
-<!-- ══════════════════════════════════════════════════════════════ -->
-<button class="print-fab no-print" onclick="window.print()">
-  🖨️ พิมพ์ / บันทึก PDF
-</button>
-
+<button class="print-btn no-print" onclick="window.print()">🖨️ พิมพ์ / บันทึก PDF</button>
 </body>
 </html>`;
 
@@ -6877,17 +6373,6 @@ window.smGeneratePdf = async function() {
     doc.text(`${S.user?.name || S.user?.id || '-'}  (${S.user?.position || 'ผู้ดูแลระบบ'})`, MARGIN, sy+10);
     doc.text(`รหัสพนักงาน: ${S.user?.id || '-'}`, MARGIN, sy+18);
 
-    // Document number / classification box
-    fillRect(PAGE_W-MARGIN-70, sy-8, 70, 32, [239,246,255]);
-    doc.setDrawColor(...C.navyLight);
-    doc.setLineWidth(0.5);
-    doc.rect(PAGE_W-MARGIN-70, sy-8, 70, 32, 'D');
-    setFont(7, 'bold', C.navyLight);
-    doc.text('เอกสารราชการ', PAGE_W-MARGIN-35, sy, {align:'center'});
-    setFont(7, 'normal', C.gray);
-    doc.text(`ผู้จัดทำ: ${S.user?.name || '-'}`, PAGE_W-MARGIN-35, sy+8, {align:'center'});
-    doc.text(`วันที่: ${pdfThaiDateShort(Date.now())}`, PAGE_W-MARGIN-35, sy+16, {align:'center'});
-
     // TOC
     sy = 195;
     setFont(11, 'bold', C.navyDark);
@@ -6910,7 +6395,7 @@ window.smGeneratePdf = async function() {
 
     // Footer
     setFont(8, 'normal', C.gray);
-    doc.text('เอกสารนี้จัดทำโดยระบบบันทึกการปฏิบัติงาน กองป้องกันและบรรเทาสาธารณภัย', PAGE_W/2, PAGE_H-12, {align:'center'});
+    doc.text('เอกสารนี้จัดทำโดย กองป้องกันและบรรเทาสาธารณภัย', PAGE_W/2, PAGE_H-12, {align:'center'});
     drawLine(MARGIN, PAGE_H-16, PAGE_W-MARGIN, PAGE_H-16, C.navyLight, 0.3);
 
     // ─── MISSION DETAIL PAGES ─────────────────────────────────
