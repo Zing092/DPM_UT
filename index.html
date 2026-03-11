@@ -2133,12 +2133,7 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
   <div class="modal" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title"><i class="fas fa-clipboard-list" style="color:var(--primary);margin-right:6px"></i>รายละเอียดภารกิจ</div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button id="btn-export-pdf" onclick="smExportPDF()" style="padding:6px 13px;background:linear-gradient(135deg,#0a2463,#1b3d8f);color:#fff;border:none;border-radius:8px;font-size:11px;font-family:'Kanit',sans-serif;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all 0.2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-          <i class="fas fa-file-pdf"></i> Export PDF
-        </button>
-        <button class="btn-close" onclick="closeModal('modal-sm-detail')"><i class="fas fa-times"></i></button>
-      </div>
+      <button class="btn-close" onclick="closeModal('modal-sm-detail')"><i class="fas fa-times"></i></button>
     </div>
     <div id="sm-detail-content"></div>
   </div>
@@ -2760,14 +2755,19 @@ function checkSession() {
 }
 
 async function initDefaultData() {
-  // Check if admin exists, create if not
-  const adminRef = ref(db,'users/ADMIN001');
-  const snap = await get(adminRef);
-  if(!snap.exists()) {
-    await set(adminRef, {
-      id:'ADMIN001', name:'หัวหน้ากองป้องกันฯ', position:'หัวหน้ากองป้องกันและบรรเทาสาธารณภัย',
-      role:'admin', password:'admin1234'
-    });
+  try {
+    const adminRef = ref(db,'users/ADMIN001');
+    const snap = await get(adminRef);
+    if(!snap.exists()) {
+      await set(adminRef, {
+        id:'ADMIN001', name:'หัวหน้ากองป้องกันฯ', position:'หัวหน้ากองป้องกันและบรรเทาสาธารณภัย',
+        role:'admin', password:'admin1234'
+      });
+      console.log('✅ Created default ADMIN001 account');
+    }
+  } catch(e) {
+    // PERMISSION_DENIED = Rules ปิดอยู่, ข้าม
+    console.warn('initDefaultData:', e.message);
   }
 }
 
@@ -2777,8 +2777,31 @@ window.doLogin = async function() {
   const pass = document.getElementById('login-pass').value;
   if(!id || !pass) { showLoginError('กรุณากรอกรหัสพนักงานและรหัสผ่าน'); return; }
   showLoading(true);
+
+  // ── ตรวจสอบการเชื่อมต่อ Firebase ──
+  const connRef = ref(db, '.info/connected');
+  let isConnected = false;
   try {
-    const snap = await get(ref(db,'users/'+id));
+    const connSnap = await Promise.race([
+      get(connRef),
+      new Promise((_,rej) => setTimeout(()=>rej(new Error('timeout')),8000))
+    ]);
+    isConnected = connSnap.val() === true;
+  } catch(e) {
+    // offline or timeout — try anyway
+  }
+
+  try {
+    // ── ลองสร้าง admin ถ้ายังไม่มี (กรณีฐานข้อมูลใหม่) ──
+    if(id === 'ADMIN001') {
+      await initDefaultData().catch(()=>{});
+    }
+
+    const snap = await Promise.race([
+      get(ref(db,'users/'+id)),
+      new Promise((_,rej) => setTimeout(()=>rej(new Error('timeout')),10000))
+    ]);
+
     if(snap.exists()) {
       const u = snap.val();
       if(u.password === pass) {
@@ -2787,13 +2810,25 @@ window.doLogin = async function() {
         showApp();
         showLoading(false);
         return;
+      } else {
+        showLoading(false);
+        showLoginError('รหัสผ่านไม่ถูกต้อง');
+        return;
       }
+    } else {
+      showLoading(false);
+      showLoginError('ไม่พบรหัสพนักงาน "' + id + '" ในระบบ');
+      return;
     }
-    showLoading(false);
-    showLoginError('รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง');
   } catch(e) {
     showLoading(false);
-    showLoginError('เกิดข้อผิดพลาด กรุณาลองใหม่');
+    if(e.message === 'timeout') {
+      showLoginError('หมดเวลาเชื่อมต่อ — กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+    } else if(e.code === 'PERMISSION_DENIED' || e.message?.includes('Permission denied')) {
+      showLoginError('ไม่มีสิทธิ์เข้าถึงฐานข้อมูล — กรุณาตรวจสอบ Firebase Rules');
+    } else {
+      showLoginError('เกิดข้อผิดพลาด: ' + (e.message||'กรุณาลองใหม่'));
+    }
   }
 };
 
@@ -6869,48 +6904,24 @@ function smRenderHistoryList(closedMissions) {
   histEl.innerHTML = closedMissions.map(([id, m]) => {
     const memberCount = m.memberSnapshot ? Object.keys(m.memberSnapshot).length
                       : m.members ? Object.keys(m.members).length : 0;
-    const st = m.stats || {};
-    const durMin = st.durationMin ?? (m.createdAt && m.closedAt ? Math.floor((m.closedAt - m.createdAt)/60000) : null);
-    const durStr = durMin != null ? (durMin >= 60 ? `${Math.floor(durMin/60)}ชม. ${durMin%60}น.` : `${durMin} น.`) : '';
-    const distStr = st.totalDistM != null ? (st.totalDistM >= 1000 ? (st.totalDistM/1000).toFixed(1)+' กม.' : st.totalDistM+' ม.') : '';
-    const hasMap = !!(m.trailsSnapshot || m.pinsSnapshot || m.zonesSnapshot);
+    const duration = smCalcDuration(m.createdAt, m.closedAt);
     return `
       <div class="sm-hist-card" onclick="smShowDetail('${id}')">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-          <div style="width:44px;height:44px;border-radius:13px;background:linear-gradient(135deg,#0a2463,#1b3d8f);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🔍</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+          <div style="width:40px;height:40px;border-radius:12px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📋</div>
           <div style="flex:1;min-width:0">
             <div style="font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.title || 'ภารกิจค้นหา'}</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:2px"><i class="fas fa-map-marker-alt" style="color:#ef4444;margin-right:3px"></i>${m.area || 'ไม่ระบุพื้นที่'}</div>
+            <div style="font-size:12px;color:var(--text-muted)">${m.area || 'ไม่ระบุพื้นที่'}</div>
           </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div style="background:#dcfce7;color:#166534;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;margin-bottom:3px">✅ จบแล้ว</div>
-            <div style="font-size:10px;color:var(--text-muted)">${smFormatDate(m.closedAt||m.createdAt)}</div>
-          </div>
+          <span class="sm-hist-status-closed">จบแล้ว</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
-          <div style="background:#eff6ff;border-radius:9px;padding:7px 4px;text-align:center">
-            <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:800;color:#1d4ed8">${memberCount}</div>
-            <div style="font-size:9px;color:#3b82f6;margin-top:1px">สมาชิก</div>
-          </div>
-          <div style="background:#f0fdf4;border-radius:9px;padding:7px 4px;text-align:center">
-            <div style="font-family:'Kanit',sans-serif;font-size:11px;font-weight:800;color:#16a34a">${durStr||'-'}</div>
-            <div style="font-size:9px;color:#22c55e;margin-top:1px">เวลา</div>
-          </div>
-          <div style="background:#faf5ff;border-radius:9px;padding:7px 4px;text-align:center">
-            <div style="font-family:'Kanit',sans-serif;font-size:11px;font-weight:800;color:#7c3aed">${distStr||'-'}</div>
-            <div style="font-size:9px;color:#8b5cf6;margin-top:1px">ระยะทาง</div>
-          </div>
-          <div style="background:#fff7ed;border-radius:9px;padding:7px 4px;text-align:center">
-            <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:800;color:#c2410c">${st.pinCount||0}</div>
-            <div style="font-size:9px;color:#f97316;margin-top:1px">หมุด</div>
-          </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="sm-stat-chip"><i class="fas fa-users"></i>${memberCount} คน</div>
+          <div class="sm-stat-chip"><i class="fas fa-calendar-check"></i>${smFormatDate(m.closedAt || m.createdAt)}</div>
+          ${duration ? `<div class="sm-stat-chip"><i class="fas fa-clock"></i>${duration}</div>` : ''}
         </div>
-        ${m.summary ? `<div style="font-size:12px;color:var(--text-secondary);background:#f8fafc;border-radius:8px;padding:8px 10px;border-left:3px solid #22c55e;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-bottom:8px">${m.summary}</div>` : ''}
-        <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">
-          ${hasMap ? '<span style="font-size:10px;color:#3b82f6;background:#eff6ff;padding:2px 8px;border-radius:20px"><i class="fas fa-map"></i> มีแผนที่</span>' : ''}
-          ${m.photos?.length ? `<span style="font-size:10px;color:#0891b2;background:#f0f9ff;padding:2px 8px;border-radius:20px"><i class="fas fa-images"></i> ${m.photos.length} รูป</span>` : ''}
-          <span style="font-size:11px;color:var(--text-muted)"><i class="fas fa-chevron-right"></i> ดูรายละเอียด</span>
-        </div>
+        ${m.summary ? `<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);background:#f8fafc;border-radius:8px;padding:8px 10px;border-left:3px solid #22c55e;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${m.summary}</div>` : ''}
+        <div style="text-align:right;margin-top:6px;font-size:11px;color:var(--text-muted)"><i class="fas fa-chevron-right"></i> ดูรายละเอียด</div>
       </div>`;
   }).join('');
 }
@@ -6922,6 +6933,74 @@ function smCalcDuration(start, end) {
   return `${Math.floor(diff/60)} ชม. ${diff%60} นาที`;
 }
 
+// ── Show Mission Detail Modal ──────────────────────────────
+window.smShowDetail = async function(missionId) {
+  const snap = await get(ref(db, `search_missions/${missionId}`));
+  const m = snap.val();
+  if(!m) { showToast('ไม่พบข้อมูล', 'error'); return; }
+
+  const members = m.memberSnapshot || m.members || {};
+  const memberNames = Object.values(members).map(mem =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border-light)">
+      <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#3b82f6,#06b6d4);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">${(mem.name||'?').charAt(0)}</div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary)">${mem.name || mem.empId || mem.userId || '-'}</div>
+        <div style="font-size:11px;color:var(--text-muted)">รหัส: ${mem.empId || mem.userId || '-'}</div>
+      </div>
+    </div>`
+  ).join('') || '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">ไม่มีข้อมูลสมาชิก</div>';
+
+  const duration = smCalcDuration(m.createdAt, m.closedAt);
+
+  document.getElementById('sm-detail-content').innerHTML = `
+    <div class="sm-detail-block">
+      <div class="sm-detail-label"><i class="fas fa-search-location" style="margin-right:4px;color:var(--primary-light)"></i>ชื่อภารกิจ</div>
+      <div class="sm-detail-value">${m.title || '-'}</div>
+    </div>
+    <div class="sm-detail-block">
+      <div class="sm-detail-label"><i class="fas fa-map-marker-alt" style="margin-right:4px;color:var(--accent-red)"></i>พื้นที่ปฏิบัติการ</div>
+      <div class="sm-detail-value">${m.area || 'ไม่ระบุ'}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="sm-detail-block" style="margin-bottom:0">
+        <div class="sm-detail-label"><i class="fas fa-calendar-plus" style="margin-right:4px"></i>เริ่มต้น</div>
+        <div class="sm-detail-value" style="font-size:13px">${smFormatDateTime(m.createdAt)}</div>
+      </div>
+      <div class="sm-detail-block" style="margin-bottom:0">
+        <div class="sm-detail-label"><i class="fas fa-calendar-check" style="margin-right:4px"></i>จบภารกิจ</div>
+        <div class="sm-detail-value" style="font-size:13px">${smFormatDateTime(m.closedAt)}</div>
+      </div>
+    </div>
+    ${duration ? `<div class="sm-detail-block"><div class="sm-detail-label"><i class="fas fa-clock" style="margin-right:4px;color:#f59e0b"></i>ระยะเวลาปฏิบัติการ</div><div class="sm-detail-value" style="color:#d97706">${duration}</div></div>` : ''}
+    <div class="sm-detail-block">
+      <div class="sm-detail-label"><i class="fas fa-user-shield" style="margin-right:4px;color:#7c3aed"></i>ผู้สร้างภารกิจ</div>
+      <div class="sm-detail-value">${m.createdByName || m.createdBy || '-'}</div>
+    </div>
+    ${m.summary ? `
+    <div class="sm-summary-box">
+      <div class="label"><i class="fas fa-clipboard-check"></i>สรุปผลภารกิจ</div>
+      <div class="value">${m.summary}</div>
+    </div>` : ''}
+    ${m.photos && m.photos.length > 0 ? `
+    <div class="sm-detail-block">
+      <div class="sm-detail-label" style="margin-bottom:8px"><i class="fas fa-images" style="margin-right:4px;color:#0ea5e9"></i>รูปภาพประกอบ (${m.photos.length} รูป)</div>
+      <div class="sm-photos-grid">
+        ${m.photos.map((photo, idx) => {
+          const src = typeof photo === 'string' ? photo : photo.data;
+          return `<div class="sm-photo-thumb" onclick="smOpenLightbox('${src}')">
+            <img src="${src}" alt="photo ${idx+1}" loading="lazy">
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : ''}
+    <div class="sm-detail-block">
+      <div class="sm-detail-label" style="margin-bottom:10px"><i class="fas fa-users" style="margin-right:4px;color:var(--primary-light)"></i>สมาชิกร่วมภารกิจ (${Object.keys(members).length} คน)</div>
+      ${memberNames}
+    </div>
+  `;
+  openModal('modal-sm-detail');
+};
+
 function smFormatDateTime(ts) {
   if(!ts) return '-';
   const d = new Date(ts);
@@ -6931,620 +7010,6 @@ function smFormatDateTime(ts) {
   const hh = String(d.getHours()).padStart(2,'0');
   const min= String(d.getMinutes()).padStart(2,'0');
   return `${dd}/${mm}/${yy} ${hh}:${min}`;
-}
-
-function smFormatTime(ts) {
-  if(!ts) return '-';
-  return new Date(ts).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
-}
-
-// ── Show Mission Detail Modal ──────────────────────────────
-window.smShowDetail = async function(missionId) {
-  // Show loading state
-  document.getElementById('sm-detail-content').innerHTML =
-    '<div style="text-align:center;padding:32px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin fa-2x"></i><div style="margin-top:10px;font-size:13px">กำลังโหลดข้อมูล...</div></div>';
-  openModal('modal-sm-detail');
-
-  const snap = await get(ref(db, `search_missions/${missionId}`));
-  const m = snap.val();
-  if(!m) { showToast('ไม่พบข้อมูล', 'error'); return; }
-
-  const members = m.memberSnapshot || m.members || {};
-  const stats   = m.stats || {};
-  const COLORS  = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
-
-  // ── สถิติการ์ด ──
-  const durMin = stats.durationMin ?? (m.createdAt && m.closedAt ? Math.floor((m.closedAt-m.createdAt)/60000) : null);
-  const durStr = durMin != null ? (durMin >= 60 ? `${Math.floor(durMin/60)} ชม. ${durMin%60} น.` : `${durMin} นาที`) : '-';
-  const distStr = stats.totalDistM != null
-    ? (stats.totalDistM >= 1000 ? (stats.totalDistM/1000).toFixed(2)+' กม.' : stats.totalDistM+' ม.')
-    : '-';
-  const areaStr = stats.totalAreaSqm > 0
-    ? (stats.totalAreaSqm >= 10000 ? (stats.totalAreaSqm/10000).toFixed(2)+' ไร่' : stats.totalAreaSqm.toLocaleString()+' ตร.ม.')
-    : '-';
-
-  const statsHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
-      <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:13px;padding:13px;text-align:center;border:1px solid #bfdbfe">
-        <div style="font-family:'Kanit',sans-serif;font-size:20px;font-weight:800;color:#1d4ed8">${durStr}</div>
-        <div style="font-size:10px;color:#3b82f6;margin-top:3px"><i class="fas fa-clock"></i> ระยะเวลารวม</div>
-      </div>
-      <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:13px;padding:13px;text-align:center;border:1px solid #86efac">
-        <div style="font-family:'Kanit',sans-serif;font-size:20px;font-weight:800;color:#16a34a">${stats.memberCount||Object.keys(members).length} คน</div>
-        <div style="font-size:10px;color:#22c55e;margin-top:3px"><i class="fas fa-users"></i> สมาชิกทั้งหมด</div>
-      </div>
-      <div style="background:linear-gradient(135deg,#faf5ff,#ede9fe);border-radius:13px;padding:13px;text-align:center;border:1px solid #c4b5fd">
-        <div style="font-family:'Kanit',sans-serif;font-size:20px;font-weight:800;color:#7c3aed">${distStr}</div>
-        <div style="font-size:10px;color:#8b5cf6;margin-top:3px"><i class="fas fa-route"></i> ระยะทางรวม</div>
-      </div>
-      <div style="background:linear-gradient(135deg,#fff7ed,#fed7aa);border-radius:13px;padding:13px;text-align:center;border:1px solid #fdba74">
-        <div style="font-family:'Kanit',sans-serif;font-size:20px;font-weight:800;color:#c2410c">${areaStr}</div>
-        <div style="font-size:10px;color:#f97316;margin-top:3px"><i class="fas fa-vector-square"></i> พื้นที่โซนรวม</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
-      ${stats.pinCount  ? `<div class="sm-stat-chip"><i class="fas fa-map-pin" style="color:#ef4444"></i>${stats.pinCount} หมุด</div>` : ''}
-      ${stats.zoneCount ? `<div class="sm-stat-chip"><i class="fas fa-draw-polygon" style="color:#8b5cf6"></i>${stats.zoneCount} โซน</div>` : ''}
-      ${stats.gridCount ? `<div class="sm-stat-chip"><i class="fas fa-th" style="color:#f59e0b"></i>${stats.gridCount} กริด</div>` : ''}
-    </div>`;
-
-  // ── ตารางสมาชิกละเอียด ──
-  const memberRows = Object.values(members).map((mem, i) => {
-    const c = COLORS[i % COLORS.length];
-    const durM = mem.durationMin;
-    const durLabel = durM != null
-      ? (durM >= 60 ? `${Math.floor(durM/60)}ชม. ${durM%60}น.` : `${durM} น.`)
-      : '-';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9">
-      <div style="width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,${c},${c}99);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;flex-shrink:0">${(mem.name||'?').charAt(0)}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700;color:var(--text-primary)">${mem.name||mem.empId||mem.userId||'-'}</div>
-        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">
-          <i class="fas fa-sign-in-alt" style="color:#22c55e"></i> ${smFormatTime(mem.joinedAt)}
-          &nbsp;–&nbsp;
-          <i class="fas fa-sign-out-alt" style="color:#ef4444"></i> ${smFormatTime(mem.leftAt)}
-        </div>
-      </div>
-      <div style="background:#f5f3ff;color:#6d28d9;font-size:11px;font-weight:700;padding:4px 9px;border-radius:20px;white-space:nowrap">${durLabel}</div>
-    </div>`;
-  }).join('') || '<div style="padding:12px 0;text-align:center;color:var(--text-muted);font-size:13px">ไม่มีข้อมูลสมาชิก</div>';
-
-  // ── รูปภาพ ──
-  const photosHTML = (m.photos && m.photos.length > 0) ? `
-    <div style="margin-bottom:16px">
-      <div class="sm-detail-label" style="margin-bottom:10px"><i class="fas fa-images" style="margin-right:4px;color:#0ea5e9"></i>รูปภาพประกอบ (${m.photos.length} รูป)</div>
-      <div class="sm-photos-grid">
-        ${m.photos.map((photo, idx) => {
-          const src = typeof photo === 'string' ? photo : photo.data;
-          return `<div class="sm-photo-thumb" onclick="smOpenLightbox('${src}')"><img src="${src}" alt="photo ${idx+1}" loading="lazy"></div>`;
-        }).join('')}
-      </div>
-    </div>` : '';
-
-  // ── mini-map placeholder (init after render) ──
-  const hasMapData = !!(m.trailsSnapshot || m.pinsSnapshot || m.zonesSnapshot);
-  const mapId = 'sm-mini-map-' + missionId;
-  const miniMapHTML = hasMapData ? `
-    <div style="margin-bottom:16px">
-      <div class="sm-detail-label" style="margin-bottom:8px"><i class="fas fa-map" style="margin-right:4px;color:#0a2463"></i>แผนที่สรุปเส้นทาง</div>
-      <div id="${mapId}" style="height:240px;border-radius:14px;overflow:hidden;border:1.5px solid #dbeafe;box-shadow:0 2px 12px rgba(0,0,0,0.08)"></div>
-    </div>` : '';
-
-  document.getElementById('sm-detail-content').innerHTML = `
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#0a2463,#1b3d8f);border-radius:16px;padding:16px;margin-bottom:16px;color:#fff">
-      <div style="font-family:'Kanit',sans-serif;font-size:17px;font-weight:800;margin-bottom:4px">${m.title||'ภารกิจค้นหา'}</div>
-      <div style="font-size:12px;opacity:0.8"><i class="fas fa-map-marker-alt" style="margin-right:4px"></i>${m.area||'ไม่ระบุพื้นที่'}</div>
-      <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;opacity:0.75">
-        <span><i class="fas fa-calendar-plus" style="margin-right:3px"></i>${smFormatDateTime(m.createdAt)}</span>
-        <span><i class="fas fa-flag-checkered" style="margin-right:3px"></i>${smFormatDateTime(m.closedAt)}</span>
-      </div>
-      <div style="margin-top:6px;font-size:11px;opacity:0.7"><i class="fas fa-user-shield" style="margin-right:3px"></i>สร้างโดย ${m.createdByName||m.createdBy||'-'}</div>
-    </div>
-
-    <!-- สถิติ -->
-    <div class="sm-detail-label" style="margin-bottom:8px"><i class="fas fa-chart-bar" style="margin-right:4px;color:#f59e0b"></i>สถิติภารกิจ</div>
-    ${statsHTML}
-
-    <!-- สรุปผล -->
-    ${m.summary ? `<div class="sm-summary-box" style="margin-bottom:16px"><div class="label"><i class="fas fa-clipboard-check"></i>สรุปผลภารกิจ</div><div class="value">${m.summary}</div></div>` : ''}
-
-    <!-- mini-map -->
-    ${miniMapHTML}
-
-    <!-- รูปภาพ -->
-    ${photosHTML}
-
-    <!-- สมาชิก -->
-    <div style="margin-bottom:8px">
-      <div class="sm-detail-label" style="margin-bottom:4px"><i class="fas fa-users" style="margin-right:4px;color:var(--primary-light)"></i>สมาชิกร่วมภารกิจ (${Object.keys(members).length} คน)</div>
-      ${memberRows}
-    </div>
-  `;
-
-  // ── Init mini-map ──
-  _smCurrentMissionData = m;
-  if(hasMapData) setTimeout(() => smInitMiniMap(mapId, m, COLORS), 200);
-};
-
-// ── Export PDF ────────────────────────────────────────────
-let _smCurrentMissionData = null;
-
-function smExportPDF() {
-  if(!_smCurrentMissionData) { showToast('ไม่พบข้อมูลภารกิจ','error'); return; }
-  const m = _smCurrentMissionData;
-  const btn = document.getElementById('btn-export-pdf');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังสร้าง...';
-
-  // Build HTML report and print-to-PDF via browser
-  const win = window.open('', '_blank', 'width=900,height=1100');
-  win.document.write(smBuildPrintHTML(m));
-  win.document.close();
-
-  // Restore button after slight delay
-  setTimeout(() => {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-file-pdf"></i> Export PDF';
-  }, 1500);
-}
-
-function smBuildPrintHTML(m) {
-  const stats = m.stats || {};
-
-  function fmtDT(ts) {
-    if(!ts) return '-';
-    const d = new Date(ts);
-    const months=['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-    return `${d.getDate()} ${months[d.getMonth()+1]} ${d.getFullYear()+543} เวลา ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} น.`;
-  }
-  function fmtTime(ts) {
-    if(!ts) return '-';
-    const d = new Date(ts);
-    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} น.`;
-  }
-  function fmtDur(min) {
-    if(min==null) return '-';
-    return min >= 60 ? `${Math.floor(min/60)} ชม. ${min%60} น.` : `${min} นาที`;
-  }
-  function fmtDist(m) {
-    if(!m) return '-';
-    return m >= 1000 ? (m/1000).toFixed(2)+' กม.' : m+' ม.';
-  }
-  function fmtArea(sqm) {
-    if(!sqm) return '-';
-    return sqm >= 1600 ? (sqm/1600).toFixed(2)+' ไร่' : sqm.toLocaleString()+' ตร.ม.';
-  }
-  function repNo(ts) {
-    if(!ts) return '-';
-    const d = new Date(ts);
-    return `SAR-${d.getFullYear()+543}-${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
-  }
-
-  const members = m.memberSnapshot || m.members || {};
-  const pins    = m.pinsSnapshot   || {};
-  const zones   = m.zonesSnapshot  || {};
-  const trails  = m.trailsSnapshot || {};
-  const grids   = m.gridsSnapshot  || {};
-  const COLORS  = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
-  const PIN_INFO = {
-    safe:   {label:'ปลอดภัย',   sym:'✓', color:'#15803d', bg:'#dcfce7'},
-    clue:   {label:'พบร่องรอย', sym:'?', color:'#0e7490', bg:'#e0f2fe'},
-    danger: {label:'อันตราย',   sym:'!', color:'#b91c1c', bg:'#fee2e2'},
-    rally:  {label:'จุดรวมพล',  sym:'⚑', color:'#b45309', bg:'#fef3c7'},
-    note:   {label:'หมายเหตุ',  sym:'=', color:'#6d28d9', bg:'#f5f3ff'},
-  };
-
-  // compute total trail distance
-  function haversine(a,b){
-    const R=6371000,dLat=(b.lat-a.lat)*Math.PI/180,dLng=(b.lng-a.lng)*Math.PI/180;
-    const s=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
-    return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));
-  }
-  const trailStats = Object.entries(trails).map(([uid,t],i)=>{
-    const pts=(Array.isArray(t)?t:(t.points||[])).filter(p=>p?.lat);
-    let dist=0; for(let j=1;j<pts.length;j++) dist+=haversine(pts[j-1],pts[j]);
-    return {name:(typeof t==='object'?t.name:null)||`สมาชิก ${i+1}`, pts:pts.length, dist:Math.round(dist)};
-  });
-  const totalDist = trailStats.reduce((s,t)=>s+t.dist,0);
-
-  const printTs = fmtDT(Date.now());
-  const reportNo = repNo(m.createdAt);
-
-  // Duration
-  const durMin = stats.durationMin ?? (m.createdAt&&m.closedAt ? Math.floor((m.closedAt-m.createdAt)/60000) : null);
-
-  const memberRows = Object.values(members).map((mem,i)=>{
-    const c=COLORS[i%COLORS.length];
-    const durM=mem.durationMin;
-    const durL=durM!=null?(durM>=60?`${Math.floor(durM/60)}ชม.${durM%60}น.`:`${durM} น.`):'-';
-    return `<tr>
-      <td style="text-align:center">${i+1}</td>
-      <td><span style="display:inline-flex;align-items:center;gap:7px">
-        <span style="width:24px;height:24px;border-radius:7px;background:${c};display:inline-flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:11px;flex-shrink:0">${(mem.name||'?').charAt(0)}</span>
-        ${mem.name||'-'}
-      </span></td>
-      <td style="text-align:center;color:#64748b">${mem.empId||mem.userId||'-'}</td>
-      <td style="text-align:center;color:#15803d;font-weight:700">${fmtTime(mem.joinedAt)}</td>
-      <td style="text-align:center;color:#b91c1c;font-weight:700">${fmtTime(mem.leftAt)}</td>
-      <td style="text-align:center;color:#6d28d9;font-weight:700">${durL}</td>
-    </tr>`;
-  }).join('');
-
-  const pinRows = Object.values(pins).map((p,i)=>{
-    const info=PIN_INFO[p.type]||{label:'ไม่ระบุ',sym:'•',color:'#64748b',bg:'#f1f5f9'};
-    const coord=p.lat?`${parseFloat(p.lat).toFixed(5)}, ${parseFloat(p.lng).toFixed(5)}`:'-';
-    return `<tr>
-      <td style="text-align:center">${i+1}</td>
-      <td><span style="background:${info.bg};color:${info.color};font-weight:700;padding:2px 9px;border-radius:20px;font-size:11px">${info.sym} ${info.label}</span></td>
-      <td>${p.note||'-'}</td>
-      <td style="text-align:center;font-family:monospace;font-size:11px;color:#0e7490">${coord}</td>
-      <td style="text-align:center;color:#334155">${p.createdByName||'-'}</td>
-    </tr>`;
-  }).join('');
-
-  const zoneRows = Object.values(zones).map((z,i)=>{
-    const shapes={polygon:'รูปหลายเหลี่ยม',circle:'วงกลม',rect:'สี่เหลี่ยม'};
-    const st=(z.shape||{}).type||'';
-    return `<tr>
-      <td style="text-align:center">${i+1}</td>
-      <td style="font-weight:700">${z.name||`โซน ${i+1}`}</td>
-      <td style="text-align:center;color:#6d28d9">${shapes[st]||'-'}</td>
-      <td style="text-align:center;font-weight:700;color:#0e7490">${fmtArea(z.areaSqm)}</td>
-      <td style="text-align:center">${z.createdByName||'-'}</td>
-    </tr>`;
-  }).join('');
-
-  const trailRows = trailStats.map((t,i)=>`<tr>
-    <td style="font-weight:700"><span style="display:inline-flex;align-items:center;gap:6px">
-      <span style="width:10px;height:10px;border-radius:50%;background:${COLORS[i%COLORS.length]};display:inline-block"></span>${t.name}
-    </span></td>
-    <td style="text-align:center;color:#0e7490">${t.pts} จุด</td>
-    <td style="text-align:center;font-weight:700;color:#6d28d9">${fmtDist(t.dist)}</td>
-  </tr>`).join('');
-
-  const gridRows = Object.values(grids).map((g,i)=>{
-    const stC={done:'#15803d',partial:'#b45309'}[g.status]||'#64748b';
-    const stL={done:'ค้นหาแล้ว',partial:'ค้นหาบางส่วน'}[g.status]||'ยังไม่ค้นหา';
-    const stBg={done:'#dcfce7',partial:'#fef3c7'}[g.status]||'#f1f5f9';
-    return `<tr>
-      <td style="text-align:center">${i+1}</td>
-      <td style="font-weight:700">${g.name||`กริด ${i+1}`}</td>
-      <td style="text-align:center;color:#0e7490">${fmtArea(g.areaSqm)}</td>
-      <td style="text-align:center">${g.createdByName||'-'}</td>
-      <td style="text-align:center"><span style="background:${stBg};color:${stC};font-weight:700;padding:2px 9px;border-radius:20px;font-size:11px">${stL}</span></td>
-    </tr>`;
-  }).join('');
-
-  return `<!DOCTYPE html><html lang="th"><head>
-  <meta charset="UTF-8">
-  <title>รายงานสรุปผลภารกิจ — ${m.title||''}</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&family=Kanit:wght@700;800&display=swap');
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Sarabun',sans-serif;font-size:12px;color:#0f172a;background:#fff;line-height:1.6}
-    @page{size:A4;margin:12mm 14mm 14mm 14mm}
-    @media print{
-      body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-      .no-print{display:none}
-      .page-break{page-break-before:always}
-    }
-
-    /* ── Print button ── */
-    .print-btn{position:fixed;top:14px;right:14px;z-index:9999;background:#0a2463;color:#fff;border:none;
-      padding:10px 20px;border-radius:9px;font-family:'Kanit',sans-serif;font-size:13px;cursor:pointer;
-      display:flex;align-items:center;gap:7px;box-shadow:0 4px 15px rgba(0,0,0,0.3)}
-    .print-btn:hover{background:#1b3d8f}
-
-    /* ── Page header/footer ── */
-    .page-header{background:#0a2463;color:#fff;padding:6px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:0}
-    .page-header .org{font-family:'Kanit',sans-serif;font-size:11px;color:#c8960c;font-weight:700}
-    .page-header .secret{font-size:10px;color:#8899cc}
-
-    /* ── Cover ── */
-    .cover{background:linear-gradient(135deg,#0a2463 0%,#1b3d8f 60%,#0e4d8f 100%);
-      color:#fff;padding:22px 20px 18px;margin-bottom:0;position:relative;overflow:hidden}
-    .cover::before{content:'';position:absolute;top:-30px;right:-30px;width:180px;height:180px;
-      border-radius:50%;background:rgba(200,150,12,0.12)}
-    .cover::after{content:'';position:absolute;bottom:-20px;left:-20px;width:120px;height:120px;
-      border-radius:50%;background:rgba(255,255,255,0.04)}
-    .cover-badge{background:rgba(200,150,12,0.2);border:1px solid rgba(200,150,12,0.5);
-      color:#ffd863;font-size:10px;padding:3px 12px;border-radius:20px;display:inline-block;margin-bottom:8px;
-      font-family:'Sarabun',sans-serif;font-weight:700}
-    .cover-title{font-family:'Kanit',sans-serif;font-size:22px;font-weight:800;line-height:1.3;margin-bottom:4px}
-    .cover-sub{font-size:12px;color:#b8ccff;font-weight:600;margin-bottom:14px}
-    .cover-mission{background:rgba(255,255,255,0.12);border-left:4px solid #c8960c;
-      padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:14px}
-    .cover-mission-title{font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;margin-bottom:4px}
-    .cover-mission-area{font-size:11px;color:#b8ccff}
-
-    .gold-bar{height:3px;background:linear-gradient(90deg,#c8960c,#ffd863,#c8960c);margin-bottom:12px}
-
-    /* ── Info grid ── */
-    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #cbd5e1;margin-bottom:12px}
-    .info-cell{padding:7px 10px;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0}
-    .info-cell:nth-child(even){border-right:none;background:#f8faff}
-    .info-cell:nth-child(odd){background:#f1f5f9}
-    .info-cell:nth-last-child(-n+2){border-bottom:none}
-    .info-label{font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px}
-    .info-value{font-family:'Kanit',sans-serif;font-size:11.5px;font-weight:700;color:#0f172a}
-
-    /* ── Section header ── */
-    .section-header{background:#eef3ff;border-left:5px solid #0a2463;padding:8px 12px;
-      border-radius:0 6px 6px 0;margin:14px 0 8px;display:flex;align-items:center;gap:8px}
-    .section-header.green{background:#f0fdf4;border-color:#15803d}
-    .section-header.red{background:#fff1f2;border-color:#b91c1c}
-    .section-header.purple{background:#f5f3ff;border-color:#6d28d9}
-    .section-header.teal{background:#f0f9ff;border-color:#0e7490}
-    .section-header.gold{background:#fefce8;border-color:#b45309}
-    .section-title{font-family:'Kanit',sans-serif;font-size:12px;font-weight:800;color:#0a2463}
-    .section-header.green .section-title{color:#15803d}
-    .section-header.red .section-title{color:#b91c1c}
-    .section-header.purple .section-title{color:#6d28d9}
-    .section-header.teal .section-title{color:#0e7490}
-    .section-header.gold .section-title{color:#b45309}
-
-    /* ── Stat cards ── */
-    .stat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:12px}
-    .stat-card{padding:10px 6px;border-radius:9px;text-align:center;border:1px solid rgba(0,0,0,0.07)}
-    .stat-card.blue{background:#eff6ff}.stat-card.green{background:#f0fdf4}
-    .stat-card.purple{background:#f5f3ff}.stat-card.orange{background:#fff7ed}
-    .stat-card.red{background:#fff1f2}.stat-card.teal{background:#f0f9ff}
-    .stat-val{font-family:'Kanit',sans-serif;font-size:15px;font-weight:800}
-    .stat-card.blue .stat-val{color:#1d4ed8}.stat-card.green .stat-val{color:#15803d}
-    .stat-card.purple .stat-val{color:#6d28d9}.stat-card.orange .stat-val{color:#c2410c}
-    .stat-card.red .stat-val{color:#b91c1c}.stat-card.teal .stat-val{color:#0e7490}
-    .stat-lbl{font-size:8.5px;color:#64748b;margin-top:3px;font-weight:600}
-
-    /* ── Summary box ── */
-    .summary-box{background:#f0fdf4;border-left:4px solid #15803d;padding:12px 14px;
-      border-radius:0 8px 8px 0;margin-bottom:12px;font-size:12px;line-height:1.8;
-      color:#1e3a2e;border:1px solid #86efac;border-left-width:4px}
-
-    /* ── Tables ── */
-    table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:2px}
-    th{background:#0a2463;color:#fff;padding:8px 6px;font-family:'Kanit',sans-serif;font-size:10px;font-weight:700;text-align:center}
-    th.left{text-align:left}
-    td{padding:7px 6px;border-bottom:1px solid #e2e8f0;vertical-align:middle}
-    tr:nth-child(even) td{background:#f8faff}
-    tr:last-child td{border-bottom:none}
-    .gold-line{height:2px;background:linear-gradient(90deg,#c8960c,#ffd863,#c8960c)}
-    tfoot td{background:#eef3ff!important;font-family:'Kanit',sans-serif;font-weight:800;border-top:2px solid #0a2463}
-
-    /* ── Signature ── */
-    .sig-section{margin-top:16px;padding-top:14px;border-top:2px solid #0a2463}
-    .sig-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center}
-    .sig-label{font-size:10px;color:#64748b;font-weight:700;margin-bottom:20px}
-    .sig-line{border-bottom:1px solid #334155;margin:0 10px 6px}
-    .sig-name{font-family:'Kanit',sans-serif;font-size:11px;font-weight:700}
-    .sig-date{font-size:10px;color:#64748b;margin-top:3px}
-
-    /* ── Disclaimer ── */
-    .disclaimer{background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;
-      padding:7px 12px;text-align:center;font-size:9.5px;color:#64748b;margin-top:12px}
-  </style>
-  </head>
-  <body>
-
-  <button class="print-btn no-print" onclick="window.print()">
-    🖨️ พิมพ์ / บันทึก PDF
-  </button>
-
-  <!-- Top header bar -->
-  <div class="page-header">
-    <span class="org">กองป้องกันและบรรเทาสาธารณภัย</span>
-    <span class="secret">เอกสารสำหรับใช้ภายใน — ห้ามเผยแพร่</span>
-  </div>
-
-  <!-- COVER -->
-  <div class="cover">
-    <div class="cover-badge">Search and Rescue Mission Report</div>
-    <div class="cover-title">รายงานสรุปผล<br>ภารกิจค้นหาและกู้ภัย</div>
-    <div class="cover-sub">กองป้องกันและบรรเทาสาธารณภัย</div>
-    <div class="cover-mission">
-      <div class="cover-mission-title">${m.title||'ภารกิจค้นหา'}</div>
-      <div class="cover-mission-area">📍 ${m.area||'ไม่ระบุพื้นที่'}</div>
-    </div>
-    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#b8ccff">
-      <span>📅 เริ่ม: ${fmtDT(m.createdAt)}</span>
-      <span>🏁 จบ: ${fmtDT(m.closedAt)}</span>
-    </div>
-    <div style="margin-top:8px;font-size:11px;color:#8899cc">เลขที่รายงาน: ${reportNo}</div>
-  </div>
-  <div class="gold-bar"></div>
-
-  <!-- INFO GRID -->
-  <div class="info-grid">
-    <div class="info-cell"><div class="info-label">ผู้สั่งการ / ผู้สร้างภารกิจ</div><div class="info-value">${m.createdByName||'-'}</div></div>
-    <div class="info-cell"><div class="info-label">ผู้จบภารกิจ</div><div class="info-value">${m.closedByName||'-'}</div></div>
-    <div class="info-cell"><div class="info-label">วันที่เริ่มต้น</div><div class="info-value" style="font-size:11px">${fmtDT(m.createdAt)}</div></div>
-    <div class="info-cell"><div class="info-label">วันที่จบภารกิจ</div><div class="info-value" style="font-size:11px">${fmtDT(m.closedAt)}</div></div>
-  </div>
-
-  <!-- STATS -->
-  <div class="section-header"><span class="section-title">📊 สถิติสรุปภารกิจ</span></div>
-  <div class="stat-grid">
-    <div class="stat-card blue"><div class="stat-val">${fmtDur(durMin)}</div><div class="stat-lbl">ระยะเวลาปฏิบัติการ</div></div>
-    <div class="stat-card green"><div class="stat-val">${stats.memberCount||Object.keys(members).length} คน</div><div class="stat-lbl">สมาชิกร่วมภารกิจ</div></div>
-    <div class="stat-card purple"><div class="stat-val">${fmtDist(stats.totalDistM||totalDist)}</div><div class="stat-lbl">ระยะทางรวม</div></div>
-    <div class="stat-card orange"><div class="stat-val">${fmtArea(stats.totalAreaSqm)}</div><div class="stat-lbl">พื้นที่โซนรวม</div></div>
-    <div class="stat-card red"><div class="stat-val">${stats.pinCount||Object.keys(pins).length}</div><div class="stat-lbl">จำนวนหมุด</div></div>
-    <div class="stat-card teal"><div class="stat-val">${stats.zoneCount||Object.keys(zones).length}</div><div class="stat-lbl">โซนที่กำหนด</div></div>
-  </div>
-
-  ${m.summary?`
-  <div class="section-header green"><span class="section-title">📋 สรุปผลการปฏิบัติภารกิจ</span></div>
-  <div class="summary-box">${m.summary}</div>`:''}
-
-  <!-- MEMBERS -->
-  ${Object.keys(members).length?`
-  <div class="section-header"><span class="section-title">👥 รายชื่อสมาชิกผู้ปฏิบัติภารกิจ (${Object.keys(members).length} คน)</span></div>
-  <table><thead><tr>
-    <th style="width:30px">ลำดับ</th>
-    <th class="left">ชื่อ - สกุล</th>
-    <th>รหัส</th>
-    <th>เวลาเข้า</th>
-    <th>เวลาออก</th>
-    <th>ระยะเวลา</th>
-  </tr></thead>
-  <tbody>${memberRows}</tbody>
-  </table><div class="gold-line"></div>`:''}
-
-  <!-- PINS -->
-  ${Object.keys(pins).length?`
-  <div class="section-header red"><span class="section-title">📍 รายละเอียดหมุดที่ปัก (${Object.keys(pins).length} จุด)</span></div>
-  <table><thead><tr>
-    <th style="width:30px">ลำดับ</th><th>ประเภท</th>
-    <th class="left">หมายเหตุ / รายละเอียด</th>
-    <th>พิกัด GPS</th><th>ปักโดย</th>
-  </tr></thead>
-  <tbody>${pinRows}</tbody>
-  </table><div class="gold-line"></div>`:''}
-
-  <!-- ZONES -->
-  ${Object.keys(zones).length?`
-  <div class="section-header purple"><span class="section-title">🗺️ โซนพื้นที่ปฏิบัติการ (${Object.keys(zones).length} โซน)</span></div>
-  <table><thead><tr>
-    <th style="width:30px">ลำดับ</th><th class="left">ชื่อโซน</th>
-    <th>รูปแบบ</th><th>พื้นที่</th><th>สร้างโดย</th>
-  </tr></thead>
-  <tbody>${zoneRows}</tbody>
-  </table><div class="gold-line"></div>`:''}
-
-  <!-- TRAILS -->
-  ${trailStats.length?`
-  <div class="section-header teal"><span class="section-title">🚶 สรุปเส้นทางการปฏิบัติงานแต่ละคน</span></div>
-  <table><thead><tr>
-    <th class="left">สมาชิก</th><th>จำนวนจุดติดตาม</th><th>ระยะทาง (ประมาณ)</th>
-  </tr></thead>
-  <tbody>${trailRows}</tbody>
-  <tfoot><tr>
-    <td>รวมทั้งหมด</td><td></td>
-    <td style="text-align:center">${fmtDist(totalDist)}</td>
-  </tr></tfoot>
-  </table><div class="gold-line"></div>`:''}
-
-  <!-- GRIDS -->
-  ${Object.keys(grids).length?`
-  <div class="section-header gold"><span class="section-title">⊞ กริดพื้นที่ค้นหา (${Object.keys(grids).length} กริด)</span></div>
-  <table><thead><tr>
-    <th style="width:30px">ลำดับ</th><th class="left">ชื่อกริด</th>
-    <th>พื้นที่</th><th>สร้างโดย</th><th>สถานะ</th>
-  </tr></thead>
-  <tbody>${gridRows}</tbody>
-  </table><div class="gold-line"></div>`:''}
-
-  <!-- SIGNATURE -->
-  <div class="sig-section">
-    <div class="sig-grid">
-      <div>
-        <div class="sig-label">ลงชื่อผู้รายงาน</div>
-        <div class="sig-line"></div>
-        <div class="sig-name">( ${m.closedByName||m.createdByName||'.........................'} )</div>
-        <div class="sig-date">วันที่ ${fmtDT(m.closedAt||m.createdAt)}</div>
-      </div>
-      <div>
-        <div class="sig-label">ลงชื่อผู้ตรวจสอบ</div>
-        <div class="sig-line"></div>
-        <div class="sig-name">( ............................. )</div>
-        <div class="sig-date">วันที่ _______________</div>
-      </div>
-      <div>
-        <div class="sig-label">ลงชื่อผู้อนุมัติ</div>
-        <div class="sig-line"></div>
-        <div class="sig-name">( ............................. )</div>
-        <div class="sig-date">วันที่ _______________</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="disclaimer">
-    เอกสารนี้จัดทำโดยระบบสารสนเทศภารกิจค้นหาและกู้ภัย  กองป้องกันและบรรเทาสาธารณภัย  
-    — เลขที่รายงาน: ${reportNo}  — พิมพ์เมื่อ: ${printTs}
-  </div>
-
-  <script>window.onload=()=>{setTimeout(()=>window.print(),800)}</script>
-  </body></html>`;
-}
-
-function smInitMiniMap(containerId, m, COLORS) {
-  const el = document.getElementById(containerId);
-  if(!el || el._mapInited) return;
-  el._mapInited = true;
-
-  const map = L.map(containerId, { zoomControl: true, attributionControl: false, scrollWheelZoom: false });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-
-  const bounds = [];
-
-  // วาดเส้นทาง trails
-  if(m.trailsSnapshot) {
-    Object.entries(m.trailsSnapshot).forEach(([uid, t], i) => {
-      const pts = Array.isArray(t) ? t : (t.points || []);
-      const latlngs = pts.filter(p=>p?.lat).map(p=>[p.lat,p.lng]);
-      if(latlngs.length < 2) return;
-      const color = t.color || COLORS[i % COLORS.length];
-      const name  = t.name  || ('ผู้ค้นหา '+(i+1));
-      L.polyline(latlngs, { color, weight:3, opacity:0.9 })
-        .bindTooltip(name, {sticky:true}).addTo(map);
-      // จุดเริ่ม
-      L.circleMarker(latlngs[0], {radius:5,color:'#fff',fillColor:color,fillOpacity:1,weight:2})
-        .bindTooltip('เริ่ม: '+name).addTo(map);
-      // จุดจบ
-      L.circleMarker(latlngs[latlngs.length-1], {radius:5,color:'#fff',fillColor:'#ef4444',fillOpacity:1,weight:2})
-        .bindTooltip('จบ: '+name).addTo(map);
-      latlngs.forEach(ll => bounds.push(ll));
-    });
-  }
-
-  // วาดหมุด pins
-  if(m.pinsSnapshot) {
-    const pinColor = {safe:'#22c55e',clue:'#3b82f6',danger:'#ef4444',rally:'#f59e0b',note:'#8b5cf6'};
-    const pinEmoji = {safe:'✅',clue:'🔍',danger:'⚠️',rally:'🚩',note:'📝'};
-    Object.values(m.pinsSnapshot).forEach(p => {
-      if(!p.lat) return;
-      const c = pinColor[p.type]||'#64748b', e = pinEmoji[p.type]||'📍';
-      const icon = L.divIcon({
-        html:`<div style="width:30px;height:30px;border-radius:50%;background:${c}22;border:2.5px solid ${c};display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 6px rgba(0,0,0,0.15)">${e}</div>`,
-        className:'', iconSize:[30,30], iconAnchor:[15,15]
-      });
-      L.marker([p.lat,p.lng],{icon})
-        .bindPopup(`<b>${e} ${p.type||'หมุด'}</b>${p.note?'<br><small>'+p.note+'</small>':''}`)
-        .addTo(map);
-      bounds.push([p.lat,p.lng]);
-    });
-  }
-
-  // วาดโซน (polygon/circle/rect)
-  if(m.zonesSnapshot) {
-    Object.values(m.zonesSnapshot).forEach(z => {
-      if(!z.shape) return;
-      const col = z.color||'#3b82f6';
-      const opts = {color:col,weight:2,fillColor:col,fillOpacity:0.12};
-      try {
-        if(z.shape.type==='polygon'&&z.shape.points) {
-          const lls = z.shape.points.map(p=>[p.lat,p.lng]);
-          L.polygon(lls,opts).bindTooltip(z.name||'โซน').addTo(map);
-          lls.forEach(ll=>bounds.push(ll));
-        } else if(z.shape.type==='circle'&&z.shape.center) {
-          L.circle([z.shape.center.lat,z.shape.center.lng],{...opts,radius:z.shape.radius||100})
-            .bindTooltip(z.name||'โซน').addTo(map);
-          bounds.push([z.shape.center.lat,z.shape.center.lng]);
-        } else if(z.shape.type==='rect'&&z.shape.sw&&z.shape.ne) {
-          L.rectangle([[z.shape.sw.lat,z.shape.sw.lng],[z.shape.ne.lat,z.shape.ne.lng]],opts)
-            .bindTooltip(z.name||'โซน').addTo(map);
-          bounds.push([z.shape.sw.lat,z.shape.sw.lng],[z.shape.ne.lat,z.shape.ne.lng]);
-        }
-      } catch(e){}
-    });
-  }
-
-  // Fit bounds
-  try {
-    if(bounds.length >= 2) map.fitBounds(bounds, {padding:[22,22]});
-    else if(bounds.length === 1) map.setView(bounds[0], 15);
-    else map.setView([15.3,100.0], 9);
-  } catch(e) { map.setView([15.3,100.0], 9); }
 }
 
 // ── My mission alert banner ────────────────────────────────
