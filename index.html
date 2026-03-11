@@ -4771,6 +4771,67 @@ window.initMapPage = function() {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19
     }).addTo(_leafletMap);
+
+    // ── Click anywhere on map to show coordinates + navigation ──
+    let _clickMarker = null;
+    _leafletMap.on('click', function(e) {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+      const latF = lat.toFixed(6);
+      const lngF = lng.toFixed(6);
+
+      if(_clickMarker) _leafletMap.removeLayer(_clickMarker);
+
+      const clickIcon = L.divIcon({
+        html: `<div style="width:28px;height:28px;border-radius:50%;background:#fff;border:3px solid #0a2463;box-shadow:0 2px 10px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center">
+                 <div style="width:10px;height:10px;border-radius:50%;background:#0a2463"></div>
+               </div>`,
+        className:'', iconSize:[28,28], iconAnchor:[14,14], popupAnchor:[0,-18]
+      });
+
+      const popupContent = `
+        <div style="min-width:220px;padding:4px 2px;font-family:'Sarabun',sans-serif">
+          <div style="font-family:'Kanit',sans-serif;font-size:13px;font-weight:700;color:#0a2463;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+            <i class="fas fa-map-pin" style="color:#ef4444"></i> พิกัดที่เลือก
+          </div>
+          <div style="background:#f0f4ff;border-radius:8px;padding:8px 10px;margin-bottom:10px">
+            <div style="font-size:12px;color:#475569;margin-bottom:2px"><i class="fas fa-crosshairs" style="color:#2563eb;margin-right:4px"></i>ละติจูด: <strong style="color:#0a2463">${latF}</strong></div>
+            <div style="font-size:12px;color:#475569"><i class="fas fa-crosshairs" style="color:#2563eb;margin-right:4px"></i>ลองจิจูด: <strong style="color:#0a2463">${lngF}</strong></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:6px">
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${latF},${lngF}" target="_blank"
+              style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 0;background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none">
+              <i class="fas fa-route"></i> Google Maps
+            </a>
+            <a href="https://waze.com/ul?ll=${latF},${lngF}&navigate=yes" target="_blank"
+              style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 0;background:linear-gradient(135deg,#00bcd4,#26c6da);color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none">
+              <i class="fas fa-car"></i> Waze
+            </a>
+          </div>
+          <button onclick="navigator.clipboard&&navigator.clipboard.writeText('${latF}, ${lngF}').then(()=>{var t=this;t.innerHTML='<i class=\\'fas fa-check\\'></i> คัดลอกแล้ว!';setTimeout(()=>{t.innerHTML='<i class=\\'fas fa-copy\\'></i> คัดลอกพิกัด'},1500)})"
+            style="width:100%;padding:7px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;font-size:12px;font-family:'Sarabun',sans-serif;cursor:pointer;color:#475569;display:flex;align-items:center;justify-content:center;gap:5px">
+            <i class="fas fa-copy"></i> คัดลอกพิกัด
+          </button>
+        </div>`;
+
+      _clickMarker = L.marker([lat, lng], { icon: clickIcon })
+        .bindPopup(popupContent, { maxWidth: 270, closeButton: true })
+        .addTo(_leafletMap)
+        .openPopup();
+
+      _mapMarkers.push(_clickMarker);
+    });
+
+    // Show hint tooltip on map
+    const hintDiv = document.createElement('div');
+    hintDiv.id = 'map-click-hint';
+    hintDiv.style = 'position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:1000;background:rgba(10,36,99,0.82);color:#fff;font-size:12px;font-family:Sarabun,sans-serif;padding:6px 14px;border-radius:20px;pointer-events:none;white-space:nowrap;backdrop-filter:blur(4px);transition:opacity 0.4s';
+    hintDiv.innerHTML = '<i class="fas fa-hand-pointer"></i> แตะหรือคลิกบนแผนที่เพื่อดูพิกัด';
+    document.getElementById('map-container').style.position = 'relative';
+    document.getElementById('map-container').appendChild(hintDiv);
+    setTimeout(() => { hintDiv.style.opacity = '0'; }, 4000);
+    setTimeout(() => { hintDiv.remove(); }, 4500);
+
   } else {
     _leafletMap.invalidateSize();
   }
@@ -4824,7 +4885,7 @@ window.refreshMap = function() {
       <div class="map-popup-row"><i class="fas fa-calendar" style="color:#f59e0b;margin-right:5px"></i>${dateStr} ${m.time?m.time+' น.':''}</div>
       ${m.detail?`<div class="map-popup-row" style="margin-top:4px;color:#334155">${m.detail.substring(0,80)}${m.detail.length>80?'...':''}</div>`:''}
       <div style="margin-top:6px"><span class="status-badge ${m.status==='ongoing'?'status-ongoing':m.status==='done'?'status-done':'status-new'}">${STATUS_NAMES_TH_MAP[m.status]||m.status}</span></div>
-      <div style="font-size:10px;color:#94a3b8;margin-top:4px"><i class="fas fa-crosshairs"></i> ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}</div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:4px"><i class="fas fa-crosshairs"></i> ${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}</div>
       <div style="margin-top:10px;display:flex;gap:6px">
         <a href="https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}" target="_blank"
           style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px 0;background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;font-family:'Sarabun',sans-serif">
@@ -4835,6 +4896,10 @@ window.refreshMap = function() {
           <i class="fas fa-car"></i> Waze
         </a>
       </div>
+      <button onclick="navigator.clipboard&&navigator.clipboard.writeText('${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}').then(()=>{var t=this;t.innerHTML='<i class=\\'fas fa-check\\'></i> คัดลอกแล้ว!';setTimeout(()=>{t.innerHTML='<i class=\\'fas fa-copy\\'></i> คัดลอกพิกัด'},1500)})"
+        style="width:100%;margin-top:6px;padding:7px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;font-size:12px;font-family:'Sarabun',sans-serif;cursor:pointer;color:#475569;display:flex;align-items:center;justify-content:center;gap:5px">
+        <i class="fas fa-copy"></i> คัดลอกพิกัด
+      </button>
     </div>`;
     const marker = L.marker([coords.lat, coords.lng], { icon }).bindPopup(popup,{maxWidth:260}).addTo(_leafletMap);
     _mapMarkers.push(marker);
