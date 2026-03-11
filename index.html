@@ -662,49 +662,274 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 .filter-bar select:focus, .filter-bar input:focus { outline:none; border-color:var(--primary-light); }
 
 /* ===== MODAL ===== */
+/* ═══════════════════════════════════════════
+   MODAL OVERLAY & CONTAINER — Premium Official
+   ═══════════════════════════════════════════ */
 .modal-overlay {
-  position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000;
-  display:none; align-items:flex-end; justify-content:center; padding:16px;
-  backdrop-filter:blur(4px);
+  position:fixed; inset:0;
+  background: rgba(8,20,60,0.65);
+  z-index:2000;
+  display:none; align-items:flex-end; justify-content:center;
+  padding:0;
+  backdrop-filter: blur(6px) saturate(1.4);
+  -webkit-backdrop-filter: blur(6px) saturate(1.4);
 }
-.modal-overlay.open { display:flex; }
+.modal-overlay.open { display:flex; animation: overlay-in 0.25s ease; }
+@keyframes overlay-in {
+  from { opacity:0; }
+  to   { opacity:1; }
+}
+
 .modal {
-  background:#fff; border-radius:24px 24px 16px 16px; width:100%; max-width:600px;
-  max-height:92vh; overflow-y:auto; padding:24px;
-  animation: modal-up 0.3s cubic-bezier(0.16,1,0.3,1);
-}
-.modal-header {
-  display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;
+  background:#fff;
+  border-radius: 22px 22px 0 0;
+  width:100%; max-width:600px;
+  max-height:93vh; overflow-y:auto;
+  padding:0;
+  box-shadow: 0 -8px 40px rgba(10,36,99,0.22), 0 0 0 1px rgba(10,36,99,0.08);
+  animation: modal-up 0.38s cubic-bezier(0.16,1,0.3,1);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 @keyframes modal-up {
-  from { opacity:0; transform:translateY(40px); }
-  to   { opacity:1; transform:translateY(0); }
+  from { opacity:0; transform:translateY(60px) scale(0.98); }
+  to   { opacity:1; transform:translateY(0) scale(1); }
 }
-.modal-title { font-family:'Kanit',sans-serif; font-size:18px; font-weight:700; color:var(--primary); }
+
+/* Drag handle */
+.modal::before {
+  content:''; display:block;
+  width:40px; height:4px;
+  background:rgba(10,36,99,0.12);
+  border-radius:2px;
+  margin:12px auto 0;
+}
+
+/* ── Modal Header — premium gradient strip ── */
+.modal-header {
+  position:relative;
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 18px 22px 16px;
+  margin-bottom:0;
+  background: linear-gradient(135deg, #020c2e 0%, #0a2463 55%, #1b3d8f 100%);
+  border-radius: 0;
+  overflow: hidden;
+}
+.modal-header::after {
+  content:'';
+  position:absolute; bottom:0; left:0; right:0; height:3px;
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 40%, #ef4444 100%);
+}
+/* Gold shimmer sweep */
+.modal-header::before {
+  content:'';
+  position:absolute; inset:0;
+  background: linear-gradient(105deg, transparent 40%, rgba(245,158,11,0.08) 50%, transparent 60%);
+  animation: shimmer-hdr 4s ease-in-out infinite;
+}
+@keyframes shimmer-hdr {
+  0%,100% { transform:translateX(-100%); }
+  50%     { transform:translateX(100%); }
+}
+
+.modal-title {
+  font-family:'Kanit',sans-serif;
+  font-size:17px; font-weight:700;
+  color:#fff;
+  display:flex; align-items:center; gap:10px;
+  position:relative; z-index:1;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.3);
+}
+.modal-title i { font-size:16px; opacity:0.9; }
+.modal-title .modal-badge {
+  font-size:10px; font-weight:700; padding:2px 8px;
+  border-radius:20px; background:rgba(245,158,11,0.25);
+  color:#fbbf24; border:1px solid rgba(245,158,11,0.35);
+  letter-spacing:0.3px;
+}
+
+/* ── Form body inside modal ── */
+.modal-body {
+  padding: 20px 22px;
+}
+.modal > .form-group,
+.modal > .form-row {
+  padding: 0 22px;
+  margin-bottom:16px;
+}
+.modal > .form-group:first-of-type { padding-top:20px; }
+.modal > .btn-group {
+  padding: 14px 22px 22px;
+}
+
+/* ── Form group — refined labels ── */
+.form-group { margin-bottom:16px; }
+.form-group label {
+  display:flex; align-items:center; gap:6px;
+  font-size:12px; font-weight:700; color:#475569;
+  margin-bottom:7px;
+  text-transform:uppercase; letter-spacing:0.6px;
+}
+.form-group label .label-icon {
+  width:18px; height:18px;
+  background: linear-gradient(135deg,#eff6ff,#dbeafe);
+  border-radius:5px;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:10px; color:var(--primary-light); flex-shrink:0;
+}
+.form-group label span.req {
+  color:#ef4444; margin-left:1px; font-size:14px; line-height:1;
+}
+
+/* ── Inputs — sleek bordered ── */
+.form-control {
+  width:100%; padding:12px 14px;
+  background:#fff;
+  border: 1.5px solid #dde3f0;
+  border-radius:12px;
+  font-size:14px; font-family:'Sarabun',sans-serif; color:var(--text-primary);
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  line-height:1.5;
+}
+.form-control::placeholder { color:#b0bdd4; }
+.form-control:focus {
+  outline:none;
+  border-color:#2563eb;
+  background:#fcfdff;
+  box-shadow: 0 0 0 3.5px rgba(37,99,235,0.12), 0 1px 6px rgba(37,99,235,0.08);
+}
+textarea.form-control { resize:vertical; min-height:90px; }
+select.form-control {
+  cursor:pointer;
+  appearance:none; -webkit-appearance:none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 12px center;
+  padding-right:36px;
+}
+select.form-control:focus { border-color:#2563eb; box-shadow:0 0 0 3.5px rgba(37,99,235,0.12); }
+
+/* ── Section divider inside modal ── */
+.modal-section {
+  margin: 0 0 16px;
+}
+.modal-section-title {
+  font-family:'Kanit',sans-serif;
+  font-size:11px; font-weight:700; color:#94a3b8;
+  text-transform:uppercase; letter-spacing:1px;
+  padding: 0 0 8px;
+  border-bottom:1px solid #f1f5f9;
+  margin-bottom:14px;
+  display:flex; align-items:center; gap:7px;
+}
+.modal-section-title::before {
+  content:''; width:3px; height:14px;
+  background:linear-gradient(180deg,#2563eb,#06b6d4);
+  border-radius:2px; flex-shrink:0;
+}
+
+/* ── Buttons — elevated ── */
+.btn {
+  padding:12px 20px; border:none; border-radius:11px; font-size:14px; font-weight:700;
+  font-family:'Sarabun',sans-serif; cursor:pointer; transition:all 0.22s;
+  display:inline-flex; align-items:center; gap:8px; letter-spacing:0.1px;
+}
+.btn-primary {
+  background:linear-gradient(135deg,#1d4ed8,#2563eb);
+  color:#fff;
+  box-shadow:0 4px 14px rgba(37,99,235,0.35), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 22px rgba(37,99,235,0.45); }
+.btn-primary:active { transform:translateY(0); }
+.btn-danger { background:linear-gradient(135deg,#b91c1c,#ef4444); color:#fff; box-shadow:0 4px 12px rgba(239,68,68,0.3); }
+.btn-danger:hover { transform:translateY(-1px); }
+.btn-success {
+  background:linear-gradient(135deg,#059669,#10b981);
+  color:#fff;
+  box-shadow:0 4px 14px rgba(16,185,129,0.35), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.btn-success:hover { transform:translateY(-2px); box-shadow:0 8px 22px rgba(16,185,129,0.45); }
+.btn-secondary {
+  background:#fff; color:#475569;
+  border:1.5px solid #e2e8f0;
+  box-shadow:0 1px 4px rgba(0,0,0,0.06);
+}
+.btn-secondary:hover { background:#f8fafc; border-color:#cbd5e1; }
+.btn-warning { background:linear-gradient(135deg,#d97706,#f59e0b); color:#fff; box-shadow:0 4px 12px rgba(245,158,11,0.3); }
+.btn-sm { padding:7px 14px; font-size:12px; border-radius:8px; }
+.btn-block { width:100%; justify-content:center; }
+.btn-group { display:flex; gap:10px; }
+.btn-gps { background:linear-gradient(135deg,#0e7490,#0891b2); color:#fff; padding:10px 16px; border:none; border-radius:10px; font-size:13px; font-family:'Sarabun',sans-serif; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; }
+
+/* ── Modal footer ── */
+.modal-footer {
+  padding:14px 22px 20px;
+  border-top:1px solid #f1f5f9;
+  background:#fafbff;
+  border-radius:0;
+}
+
+/* ── Status/info alert inside modal ── */
+.modal-alert {
+  display:flex; align-items:flex-start; gap:12px;
+  padding:13px 15px;
+  border-radius:12px;
+  margin-bottom:16px;
+  font-size:13px; line-height:1.55;
+}
+.modal-alert.info {
+  background:#f0f7ff;
+  border:1px solid #bfdbfe;
+  color:#1e40af;
+}
+.modal-alert.warning {
+  background:#fffbeb;
+  border:1px solid #fde68a;
+  color:#92400e;
+}
+.modal-alert.purple {
+  background:#faf5ff;
+  border:1px solid #e9d5ff;
+  color:#6b21a8;
+}
+.modal-alert .alert-icon {
+  width:30px; height:30px; border-radius:8px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px;
+}
+.modal-alert.info .alert-icon   { background:#dbeafe; color:#2563eb; }
+.modal-alert.warning .alert-icon{ background:#fef3c7; color:#d97706; }
+.modal-alert.purple .alert-icon { background:#ede9fe; color:#7c3aed; }
+
+/* ── close button ── */
+.btn-close {
+  width:32px; height:32px; border-radius:9px;
+  background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.2);
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  color:rgba(255,255,255,0.8); font-size:15px; transition:all 0.2s;
+  flex-shrink:0; position:relative; z-index:1;
+}
+.btn-close:hover { background:rgba(239,68,68,0.3); border-color:rgba(239,68,68,0.4); color:#fff; }
 /* modal-sm-end: flex layout so footer/buttons always visible */
 #modal-sm-end .modal {
   display:flex; flex-direction:column; padding:0; overflow:hidden;
 }
 #modal-sm-end .modal-header {
-  padding:18px 20px 14px; border-bottom:1px solid var(--border-light); margin-bottom:0; flex-shrink:0;
+  padding:18px 22px 16px; margin-bottom:0; flex-shrink:0;
 }
 #modal-sm-end .modal-body {
-  flex:1; overflow-y:auto; padding:16px 20px; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  flex:1; overflow-y:auto; padding:20px 22px;
+  -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
 }
 #modal-sm-end .modal-footer {
-  flex-shrink:0; padding:10px 20px 14px; border-top:1px solid var(--border-light);
-  background:#fff; border-radius:0 0 16px 16px;
+  flex-shrink:0; padding:14px 22px 20px;
+  border-top:1px solid #f1f5f9;
+  background:#fafbff;
 }
 #modal-sm-end .modal-footer .btn-group { margin:0; }
-/* Uploading state */
 #sm-end-confirm-btn:disabled {
-  opacity:0.65; cursor:not-allowed; pointer-events:none;
+  opacity:0.55; cursor:not-allowed; pointer-events:none;
 }
-  width:32px; height:32px; border-radius:8px; background:var(--surface-2);
-  border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;
-  color:var(--text-muted); font-size:16px; transition:all 0.2s;
-}
-.btn-close:hover { background:var(--surface-3); color:var(--text-primary); }
 
 /* ===== DETAIL VIEW ===== */
 .detail-row { display:flex; gap:8px; margin-bottom:12px; }
@@ -1330,29 +1555,67 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 
 /* Detail modal rows */
 .sm-detail-block {
-  background: var(--surface-2); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
+  background: #f8faff;
+  border: 1px solid #e8eeff;
+  border-radius: 13px; padding: 12px 14px; margin-bottom: 10px;
 }
-.sm-detail-label { font-size: 12px; color: var(--text-muted); margin-bottom: 3px; }
-.sm-detail-value { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.sm-detail-label {
+  font-size: 10px; font-weight: 800; color: #94a3b8;
+  text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 4px;
+}
+.sm-detail-value { font-size: 14px; font-weight: 600; color: var(--text-primary); line-height:1.4; }
 .sm-summary-box {
-  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-  border: 1.5px solid #86efac; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  border: 1.5px solid #6ee7b7; border-radius: 14px; padding: 14px 16px; margin-bottom: 12px;
+  position: relative; overflow: hidden;
 }
-.sm-summary-box .label { font-size: 12px; color: #166534; font-weight: 600; margin-bottom: 6px; display:flex; align-items:center; gap:6px; }
-.sm-summary-box .value { font-size: 14px; color: #14532d; line-height: 1.6; }
+.sm-summary-box::before {
+  content:''; position:absolute; left:0; top:0; bottom:0; width:4px;
+  background: linear-gradient(180deg,#10b981,#059669);
+}
+.sm-summary-box .label {
+  font-size: 11px; font-weight: 800; color: #065f46; margin-bottom: 7px;
+  display:flex; align-items:center; gap:6px;
+  text-transform:uppercase; letter-spacing:0.5px;
+}
+.sm-summary-box .value { font-size: 13px; color: #064e3b; line-height: 1.6; padding-left:2px; }
 
 /* ===== PHOTO UPLOAD (END MISSION) ===== */
 .photo-upload-area {
-  border: 2px dashed var(--border); border-radius: 12px; padding: 16px;
-  text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa;
-  position: relative; margin-top: 4px;
+  position:relative; margin-top:6px;
+  border: 2px dashed #c7d8f8;
+  border-radius:14px; padding:22px 16px;
+  text-align:center; cursor:pointer;
+  transition: all 0.25s cubic-bezier(0.16,1,0.3,1);
+  background: linear-gradient(135deg,#f8fbff,#f0f6ff);
+  overflow:hidden;
 }
-.photo-upload-area:hover { border-color: var(--primary-light); background: #eff6ff; }
-.photo-upload-area.dragover { border-color: var(--primary-light); background: #eff6ff; transform: scale(1.01); }
+.photo-upload-area::before {
+  content:'';
+  position:absolute; inset:0;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(37,99,235,0.05) 0%, transparent 70%);
+  pointer-events:none;
+}
+.photo-upload-area:hover {
+  border-color: #2563eb;
+  background: linear-gradient(135deg,#eff6ff,#e0eeff);
+  transform:translateY(-1px);
+  box-shadow: 0 6px 20px rgba(37,99,235,0.12);
+}
+.photo-upload-area.dragover {
+  border-color:#2563eb; background:#eff6ff;
+  transform:scale(1.02);
+  box-shadow:0 8px 28px rgba(37,99,235,0.2);
+}
 .photo-upload-area input[type="file"] { display:none; }
-.photo-upload-icon { font-size: 28px; color: var(--text-muted); margin-bottom: 6px; }
-.photo-upload-text { font-size: 13px; color: var(--text-secondary); }
-.photo-upload-hint { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.photo-upload-icon {
+  font-size:32px; margin-bottom:8px;
+  background:linear-gradient(135deg,#2563eb,#06b6d4);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text; display:block;
+}
+.photo-upload-text { font-size:13px; font-weight:600; color:#334155; }
+.photo-upload-hint { font-size:11px; color:#94a3b8; margin-top:4px; }
 .photo-preview-grid {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px;
 }
@@ -2051,33 +2314,61 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 
 <!-- ===== MODALS ===== -->
 
-<!-- Search Mission Create Modal (Admin) -->
+<!-- Search Mission Create Modal -->
 <div class="modal-overlay" id="modal-sm-create">
   <div class="modal" style="max-width:500px">
     <div class="modal-header">
-      <div class="modal-title"><i class="fas fa-search-location" style="color:#22c55e;margin-right:6px"></i>สร้างภารกิจค้นหา</div>
+      <div class="modal-title">
+        <i class="fas fa-plus-circle"></i>
+        สร้างภารกิจค้นหา
+        <span class="modal-badge">ใหม่</span>
+      </div>
       <button class="btn-close" onclick="closeModal('modal-sm-create')"><i class="fas fa-times"></i></button>
     </div>
-    <div class="form-group">
-      <label>ชื่อภารกิจ<span class="req">*</span></label>
-      <input type="text" class="form-control" id="sm-create-title" placeholder="เช่น ค้นหาผู้สูญหายในป่า">
+
+    <div class="modal-body">
+      <div class="modal-section-title">ข้อมูลภารกิจ</div>
+
+      <div class="form-group">
+        <label>
+          <span class="label-icon"><i class="fas fa-tag"></i></span>
+          ชื่อภารกิจ<span class="req">*</span>
+        </label>
+        <input type="text" class="form-control" id="sm-create-title"
+          placeholder="เช่น ค้นหาผู้สูญหายบริเวณดอยสุเทพ">
+      </div>
+
+      <div class="form-group">
+        <label>
+          <span class="label-icon"><i class="fas fa-map-marker-alt"></i></span>
+          พื้นที่ / รายละเอียดปฏิบัติการ
+        </label>
+        <textarea class="form-control" id="sm-create-area"
+          placeholder="ระบุพื้นที่ปฏิบัติการ ลักษณะภูมิประเทศ หรือข้อมูลที่เกี่ยวข้อง..."
+          style="min-height:82px"></textarea>
+      </div>
+
+      <div class="form-group" style="margin-bottom:0">
+        <label>
+          <span class="label-icon"><i class="fas fa-traffic-light"></i></span>
+          สถานะเริ่มต้น
+        </label>
+        <select class="form-control" id="sm-create-status">
+          <option value="open">🟢 เปิดรับสมาชิก</option>
+          <option value="ongoing">🟡 กำลังดำเนินการ</option>
+        </select>
+      </div>
     </div>
-    <div class="form-group">
-      <label>พื้นที่ / รายละเอียด</label>
-      <textarea class="form-control" id="sm-create-area" placeholder="ระบุพื้นที่ปฏิบัติการ..." style="min-height:70px"></textarea>
-    </div>
-    <div class="form-group">
-      <label>สถานะ</label>
-      <select class="form-control" id="sm-create-status">
-        <option value="open">เปิดรับสมาชิก</option>
-        <option value="ongoing">กำลังดำเนินการ</option>
-      </select>
-    </div>
-    <div class="btn-group" style="margin-top:4px">
-      <button class="btn btn-success btn-block" onclick="smCreateMission()">
-        <i class="fas fa-plus-circle"></i> สร้างภารกิจ
-      </button>
-      <button class="btn btn-secondary" onclick="closeModal('modal-sm-create')" style="min-width:90px">ยกเลิก</button>
+
+    <div class="modal-footer">
+      <div class="btn-group">
+        <button class="btn btn-success btn-block" onclick="smCreateMission()">
+          <i class="fas fa-plus-circle"></i> สร้างภารกิจ
+        </button>
+        <button class="btn btn-secondary" onclick="closeModal('modal-sm-create')" style="min-width:88px">
+          ยกเลิก
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -2086,30 +2377,42 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 <div class="modal-overlay" id="modal-sm-end">
   <div class="modal" style="max-width:480px">
     <div class="modal-header">
-      <div class="modal-title"><i class="fas fa-flag-checkered" style="color:#7c3aed;margin-right:6px"></i>จบภารกิจ</div>
+      <div class="modal-title">
+        <i class="fas fa-flag-checkered"></i>
+        ปิดและสรุปภารกิจ
+      </div>
       <button class="btn-close" onclick="closeModal('modal-sm-end')"><i class="fas fa-times"></i></button>
     </div>
+
     <div class="modal-body">
-      <div style="background:#faf5ff;border:1.5px solid #d8b4fe;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#6b21a8;">
-        <i class="fas fa-info-circle" style="margin-right:6px"></i>
-        เมื่อจบภารกิจแล้ว ระบบจะหยุดติดตาม GPS ของทุกคน และบันทึกไว้ในประวัติภารกิจ
+      <div class="modal-alert purple">
+        <div class="alert-icon"><i class="fas fa-info-circle"></i></div>
+        <div>เมื่อยืนยันแล้ว ระบบจะ<strong>หยุดติดตาม GPS</strong>ของทุกคนในทีม และบันทึกผลลงประวัติภารกิจทันที</div>
       </div>
+
+      <div class="modal-section-title">รายงานผลปฏิบัติการ</div>
+
       <div class="form-group">
-        <label style="font-weight:700;font-size:14px">สรุปผลภารกิจ<span class="req">*</span></label>
+        <label>
+          <span class="label-icon"><i class="fas fa-clipboard-check"></i></span>
+          สรุปผลภารกิจ<span class="req">*</span>
+        </label>
         <textarea class="form-control" id="sm-end-summary"
-          placeholder="สรุปผลการปฏิบัติงาน เช่น พบผู้สูญหายแล้ว / ไม่พบผู้สูญหาย / ยกเลิกเนื่องจาก..."
-          style="min-height:100px;font-size:14px"></textarea>
+          placeholder="สรุปผลการปฏิบัติงาน เช่น พบผู้สูญหายแล้ว ส่งโรงพยาบาลเรียบร้อย / ยกเลิกภารกิจเนื่องจาก..."
+          style="min-height:100px"></textarea>
       </div>
+
       <div class="form-group" style="margin-bottom:0">
-        <label style="font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px">
-          <i class="fas fa-camera" style="color:var(--primary-light)"></i>รูปภาพประกอบ
-          <span style="font-weight:400;font-size:12px;color:var(--text-muted)">(ไม่บังคับ, สูงสุด 5 รูป)</span>
+        <label>
+          <span class="label-icon"><i class="fas fa-camera"></i></span>
+          รูปภาพประกอบ
+          <span style="font-size:11px;font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0">&nbsp;ไม่บังคับ · สูงสุด 5 รูป</span>
         </label>
         <div class="photo-upload-area" id="sm-photo-drop" onclick="document.getElementById('sm-photo-input').click()">
           <input type="file" id="sm-photo-input" accept="image/*" multiple onchange="smHandlePhotoSelect(event)">
           <div class="photo-upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
           <div class="photo-upload-text">แตะเพื่อเลือกรูปภาพ หรือลากมาวาง</div>
-          <div class="photo-upload-hint">รองรับ JPG, PNG, HEIC • ขนาดสูงสุด 10 MB ต่อรูป</div>
+          <div class="photo-upload-hint">รองรับ JPG, PNG, HEIC &nbsp;·&nbsp; ขนาดสูงสุด 10 MB ต่อรูป</div>
         </div>
         <div class="photo-preview-grid" id="sm-photo-preview"></div>
         <div class="photo-upload-progress" id="sm-upload-progress">
@@ -2117,9 +2420,11 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
         </div>
       </div>
     </div>
+
     <div class="modal-footer">
       <div class="btn-group" style="margin:0">
-        <button class="btn btn-block" id="sm-end-confirm-btn" onclick="smEndMission()" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;box-shadow:0 4px 14px rgba(124,58,237,0.35)">
+        <button class="btn btn-block" id="sm-end-confirm-btn" onclick="smEndMission()"
+          style="background:linear-gradient(135deg,#5b21b6,#7c3aed);color:#fff;box-shadow:0 4px 16px rgba(124,58,237,0.38);font-weight:700">
           <i class="fas fa-flag-checkered"></i> ยืนยันจบภารกิจ
         </button>
         <button class="btn btn-secondary" onclick="closeModal('modal-sm-end')" style="min-width:90px">ยกเลิก</button>
@@ -2143,35 +2448,66 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 <div class="modal-overlay" id="modal-sm-admin-edit">
   <div class="modal" style="max-width:500px">
     <div class="modal-header">
-      <div class="modal-title"><i class="fas fa-edit" style="color:var(--primary-light);margin-right:6px"></i>แก้ไขภารกิจค้นหา</div>
+      <div class="modal-title">
+        <i class="fas fa-edit"></i>
+        แก้ไขภารกิจค้นหา
+      </div>
       <button class="btn-close" onclick="closeModal('modal-sm-admin-edit')"><i class="fas fa-times"></i></button>
     </div>
     <input type="hidden" id="sm-edit-id">
-    <div class="form-group">
-      <label>ชื่อภารกิจ<span class="req">*</span></label>
-      <input type="text" class="form-control" id="sm-edit-title" placeholder="ชื่อภารกิจ">
+
+    <div class="modal-body">
+      <div class="modal-section-title">ข้อมูลภารกิจ</div>
+
+      <div class="form-group">
+        <label>
+          <span class="label-icon"><i class="fas fa-tag"></i></span>
+          ชื่อภารกิจ<span class="req">*</span>
+        </label>
+        <input type="text" class="form-control" id="sm-edit-title" placeholder="ชื่อภารกิจ">
+      </div>
+
+      <div class="form-group">
+        <label>
+          <span class="label-icon"><i class="fas fa-map-marker-alt"></i></span>
+          พื้นที่ / รายละเอียด
+        </label>
+        <textarea class="form-control" id="sm-edit-area"
+          style="min-height:76px" placeholder="ระบุพื้นที่ปฏิบัติการ..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>
+          <span class="label-icon"><i class="fas fa-traffic-light"></i></span>
+          สถานะภารกิจ
+        </label>
+        <select class="form-control" id="sm-edit-status">
+          <option value="open">🟢 เปิดรับสมาชิก</option>
+          <option value="ongoing">🟡 กำลังดำเนินการ</option>
+          <option value="closed">⚫ ปิดภารกิจ (จบแล้ว)</option>
+        </select>
+      </div>
+
+      <div class="modal-section-title" style="margin-top:4px">ผลการปฏิบัติงาน</div>
+
+      <div class="form-group" style="margin-bottom:0">
+        <label>
+          <span class="label-icon"><i class="fas fa-clipboard-check"></i></span>
+          สรุปผลภารกิจ
+          <span style="font-size:11px;font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0">&nbsp;ถ้ามี</span>
+        </label>
+        <textarea class="form-control" id="sm-edit-summary"
+          style="min-height:84px" placeholder="สรุปผลการปฏิบัติงาน..."></textarea>
+      </div>
     </div>
-    <div class="form-group">
-      <label>พื้นที่ / รายละเอียด</label>
-      <textarea class="form-control" id="sm-edit-area" style="min-height:70px" placeholder="ระบุพื้นที่ปฏิบัติการ..."></textarea>
-    </div>
-    <div class="form-group">
-      <label>สถานะ</label>
-      <select class="form-control" id="sm-edit-status">
-        <option value="open">เปิดรับสมาชิก</option>
-        <option value="ongoing">กำลังดำเนินการ</option>
-        <option value="closed">ปิดภารกิจ (จบแล้ว)</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>สรุปผลภารกิจ (ถ้ามี)</label>
-      <textarea class="form-control" id="sm-edit-summary" style="min-height:80px" placeholder="สรุปผลการปฏิบัติงาน..."></textarea>
-    </div>
-    <div class="btn-group" style="margin-top:4px">
-      <button class="btn btn-primary btn-block" onclick="smAdminSaveEdit()">
-        <i class="fas fa-save"></i> บันทึกการแก้ไข
-      </button>
-      <button class="btn btn-secondary" onclick="closeModal('modal-sm-admin-edit')" style="min-width:90px">ยกเลิก</button>
+
+    <div class="modal-footer">
+      <div class="btn-group">
+        <button class="btn btn-primary btn-block" onclick="smAdminSaveEdit()">
+          <i class="fas fa-save"></i> บันทึกการแก้ไข
+        </button>
+        <button class="btn btn-secondary" onclick="closeModal('modal-sm-admin-edit')" style="min-width:88px">ยกเลิก</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2179,88 +2515,135 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
 <!-- Export PDF Modal -->
 <div class="modal-overlay" id="modal-sm-export-pdf">
   <div class="modal" style="max-width:520px">
-    <div class="modal-header" style="background:linear-gradient(135deg,#0a2463,#1b3d8f);color:#fff;border-radius:14px 14px 0 0;padding:16px 18px;">
-      <div class="modal-title" style="color:#fff;font-family:'Kanit',sans-serif;font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px">
-        <i class="fas fa-file-pdf" style="color:#fca5a5"></i> ออกรายงาน PDF ภารกิจค้นหา
+    <div class="modal-header">
+      <div class="modal-title">
+        <i class="fas fa-file-pdf" style="color:#fca5a5"></i>
+        ออกรายงาน PDF
+        <span class="modal-badge">ภารกิจค้นหา</span>
       </div>
-      <button class="btn-close" onclick="closeModal('modal-sm-export-pdf')" style="color:#fff;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2)"><i class="fas fa-times"></i></button>
+      <button class="btn-close" onclick="closeModal('modal-sm-export-pdf')"><i class="fas fa-times"></i></button>
     </div>
-    <div class="modal-body" style="padding:18px">
+
+    <div class="modal-body">
 
       <!-- Filter type -->
-      <div style="margin-bottom:16px">
-        <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px;font-family:'Kanit',sans-serif">
-          <i class="fas fa-filter" style="color:var(--primary-light);margin-right:6px"></i>เลือกประเภทภารกิจที่ต้องการออกรายงาน
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-          <label style="cursor:pointer">
-            <input type="radio" name="pdf-filter" value="all" checked style="display:none" id="pdf-filter-all">
-            <div class="pdf-filter-card" onclick="setPdfFilter('all')" id="pdf-card-all" style="border:2px solid var(--primary-light);background:#eff6ff;color:var(--primary);padding:12px 8px;border-radius:12px;text-align:center;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s">
-              <i class="fas fa-list" style="font-size:20px;display:block;margin-bottom:4px"></i>ทั้งหมด
-            </div>
-          </label>
-          <label style="cursor:pointer">
-            <input type="radio" name="pdf-filter" value="active" style="display:none" id="pdf-filter-active">
-            <div class="pdf-filter-card" onclick="setPdfFilter('active')" id="pdf-card-active" style="border:2px solid var(--border-light);background:#fff;color:var(--text-secondary);padding:12px 8px;border-radius:12px;text-align:center;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s">
-              <i class="fas fa-satellite-dish" style="font-size:20px;display:block;margin-bottom:4px;color:#16a34a"></i>กำลังดำเนิน
-            </div>
-          </label>
-          <label style="cursor:pointer">
-            <input type="radio" name="pdf-filter" value="closed" style="display:none" id="pdf-filter-closed">
-            <div class="pdf-filter-card" onclick="setPdfFilter('closed')" id="pdf-card-closed" style="border:2px solid var(--border-light);background:#fff;color:var(--text-secondary);padding:12px 8px;border-radius:12px;text-align:center;font-family:'Kanit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s">
-              <i class="fas fa-flag-checkered" style="font-size:20px;display:block;margin-bottom:4px;color:#64748b"></i>จบแล้ว
-            </div>
-          </label>
-        </div>
+      <div class="modal-section-title">เลือกประเภทภารกิจ</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
+        <label style="cursor:pointer">
+          <input type="radio" name="pdf-filter" value="all" checked style="display:none" id="pdf-filter-all">
+          <div class="pdf-filter-card" onclick="setPdfFilter('all')" id="pdf-card-all"
+            style="border:2px solid var(--primary-light);background:linear-gradient(135deg,#eff6ff,#e0eaff);color:var(--primary);
+                   padding:14px 8px;border-radius:14px;text-align:center;font-family:'Kanit',sans-serif;
+                   font-size:12px;font-weight:700;cursor:pointer;transition:all 0.22s;box-shadow:0 2px 8px rgba(37,99,235,0.12)">
+            <i class="fas fa-layer-group" style="font-size:22px;display:block;margin-bottom:6px;color:var(--primary-light)"></i>ทั้งหมด
+          </div>
+        </label>
+        <label style="cursor:pointer">
+          <input type="radio" name="pdf-filter" value="active" style="display:none" id="pdf-filter-active">
+          <div class="pdf-filter-card" onclick="setPdfFilter('active')" id="pdf-card-active"
+            style="border:2px solid var(--border-light);background:#fff;color:var(--text-secondary);
+                   padding:14px 8px;border-radius:14px;text-align:center;font-family:'Kanit',sans-serif;
+                   font-size:12px;font-weight:700;cursor:pointer;transition:all 0.22s">
+            <i class="fas fa-satellite-dish" style="font-size:22px;display:block;margin-bottom:6px;color:#16a34a"></i>กำลังดำเนิน
+          </div>
+        </label>
+        <label style="cursor:pointer">
+          <input type="radio" name="pdf-filter" value="closed" style="display:none" id="pdf-filter-closed">
+          <div class="pdf-filter-card" onclick="setPdfFilter('closed')" id="pdf-card-closed"
+            style="border:2px solid var(--border-light);background:#fff;color:var(--text-secondary);
+                   padding:14px 8px;border-radius:14px;text-align:center;font-family:'Kanit',sans-serif;
+                   font-size:12px;font-weight:700;cursor:pointer;transition:all 0.22s">
+            <i class="fas fa-flag-checkered" style="font-size:22px;display:block;margin-bottom:6px;color:#64748b"></i>จบแล้ว
+          </div>
+        </label>
       </div>
 
       <!-- Mission checkboxes -->
-      <div style="margin-bottom:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <div style="font-size:13px;font-weight:700;color:var(--text-primary);font-family:'Kanit',sans-serif">
-            <i class="fas fa-tasks" style="color:var(--primary-light);margin-right:6px"></i>เลือกภารกิจ
-          </div>
-          <div style="display:flex;gap:8px">
-            <button onclick="smPdfSelectAll(true)" style="font-size:11px;padding:4px 10px;border:1px solid var(--primary-light);border-radius:20px;background:#fff;color:var(--primary-light);cursor:pointer;font-family:'Sarabun',sans-serif;font-weight:600">เลือกทั้งหมด</button>
-            <button onclick="smPdfSelectAll(false)" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:20px;background:#fff;color:var(--text-secondary);cursor:pointer;font-family:'Sarabun',sans-serif;font-weight:600">ยกเลิกทั้งหมด</button>
+      <div style="margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="modal-section-title" style="margin:0;padding:0;border:none">เลือกภารกิจ</div>
+          <div style="display:flex;gap:6px">
+            <button onclick="smPdfSelectAll(true)"
+              style="font-size:11px;padding:5px 12px;border:1.5px solid var(--primary-light);border-radius:20px;
+                     background:#fff;color:var(--primary-light);cursor:pointer;font-family:'Sarabun',sans-serif;
+                     font-weight:700;transition:all 0.18s"
+              onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'">
+              เลือกทั้งหมด
+            </button>
+            <button onclick="smPdfSelectAll(false)"
+              style="font-size:11px;padding:5px 12px;border:1.5px solid #e2e8f0;border-radius:20px;
+                     background:#fff;color:#64748b;cursor:pointer;font-family:'Sarabun',sans-serif;
+                     font-weight:700;transition:all 0.18s"
+              onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+              ล้าง
+            </button>
           </div>
         </div>
-        <div id="sm-pdf-mission-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border-light);border-radius:12px;background:#fafafa">
-          <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin"></i> กำลังโหลด...</div>
+        <div id="sm-pdf-mission-list"
+          style="max-height:190px;overflow-y:auto;border:1.5px solid #e8eeff;border-radius:14px;background:#fafbff;
+                 box-shadow:inset 0 1px 4px rgba(10,36,99,0.04)">
+          <div style="text-align:center;padding:22px;color:var(--text-muted);font-size:13px">
+            <i class="fas fa-spinner fa-spin" style="margin-right:6px"></i> กำลังโหลดข้อมูล...
+          </div>
         </div>
       </div>
 
       <!-- Options -->
-      <div style="background:#f0f4ff;border-radius:10px;padding:12px 14px;margin-bottom:16px;border:1px solid #c7d2fe">
-        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;font-family:'Kanit',sans-serif"><i class="fas fa-sliders-h" style="margin-right:6px"></i>ตัวเลือกรายงาน</div>
-        <div style="display:flex;flex-direction:column;gap:6px">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--text-primary)">
-            <input type="checkbox" id="pdf-opt-map" checked style="width:16px;height:16px;accent-color:var(--primary-light)">
-            <span><i class="fas fa-map" style="color:#0ea5e9;margin-right:4px"></i>รวมแผนที่ปฏิบัติการ (Static Map)</span>
+      <div style="background:linear-gradient(135deg,#f0f5ff,#eef2ff);border-radius:14px;
+                  padding:14px 16px;margin-bottom:16px;border:1.5px solid #c7d2fe">
+        <div class="modal-section-title" style="margin:0 0 12px;padding:0 0 10px;border-color:#dde6ff">
+          <i class="fas fa-sliders-h" style="font-size:11px"></i>&nbsp; ตัวเลือกเนื้อหารายงาน
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;color:var(--text-primary);font-family:'Sarabun',sans-serif">
+            <input type="checkbox" id="pdf-opt-map" checked style="width:17px;height:17px;accent-color:var(--primary-light);flex-shrink:0">
+            <span style="display:flex;align-items:center;gap:7px">
+              <span style="width:26px;height:26px;background:#e0f2fe;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">
+                <i class="fas fa-map" style="color:#0284c7;font-size:12px"></i>
+              </span>
+              รวมแผนที่ปฏิบัติการ (Static Map)
+            </span>
           </label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--text-primary)">
-            <input type="checkbox" id="pdf-opt-photos" checked style="width:16px;height:16px;accent-color:var(--primary-light)">
-            <span><i class="fas fa-images" style="color:#f59e0b;margin-right:4px"></i>รวมรูปภาพประกอบ (ถ้ามี)</span>
+          <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;color:var(--text-primary);font-family:'Sarabun',sans-serif">
+            <input type="checkbox" id="pdf-opt-photos" checked style="width:17px;height:17px;accent-color:var(--primary-light);flex-shrink:0">
+            <span style="display:flex;align-items:center;gap:7px">
+              <span style="width:26px;height:26px;background:#fef3c7;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">
+                <i class="fas fa-images" style="color:#d97706;font-size:12px"></i>
+              </span>
+              รวมรูปภาพประกอบ (ถ้ามี)
+            </span>
           </label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--text-primary)">
-            <input type="checkbox" id="pdf-opt-members" checked style="width:16px;height:16px;accent-color:var(--primary-light)">
-            <span><i class="fas fa-users" style="color:#8b5cf6;margin-right:4px"></i>รวมรายชื่อสมาชิก</span>
+          <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;color:var(--text-primary);font-family:'Sarabun',sans-serif">
+            <input type="checkbox" id="pdf-opt-members" checked style="width:17px;height:17px;accent-color:var(--primary-light);flex-shrink:0">
+            <span style="display:flex;align-items:center;gap:7px">
+              <span style="width:26px;height:26px;background:#ede9fe;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">
+                <i class="fas fa-users" style="color:#7c3aed;font-size:12px"></i>
+              </span>
+              รวมรายชื่อสมาชิก
+            </span>
           </label>
         </div>
       </div>
 
       <!-- Count info -->
-      <div id="sm-pdf-count-info" style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:10px 14px;font-size:13px;color:#065f46;font-weight:600;display:none">
-        <i class="fas fa-check-circle" style="margin-right:6px;color:#16a34a"></i>
+      <div id="sm-pdf-count-info"
+        style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);border:1.5px solid #6ee7b7;
+               border-radius:12px;padding:11px 16px;font-size:13px;color:#065f46;font-weight:700;
+               display:none;gap:8px">
+        <span style="width:24px;height:24px;background:#22c55e;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fas fa-check" style="color:#fff;font-size:11px"></i>
+        </span>
         <span id="sm-pdf-count-text">เลือก 0 ภารกิจ</span>
       </div>
     </div>
 
-    <div class="modal-footer" style="padding:14px 18px;border-top:1px solid var(--border-light);display:flex;gap:10px;justify-content:flex-end;background:#fafafa;border-radius:0 0 14px 14px">
+    <div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-secondary" onclick="closeModal('modal-sm-export-pdf')" style="min-width:90px">
         <i class="fas fa-times"></i> ยกเลิก
       </button>
-      <button class="btn btn-primary" id="sm-pdf-export-btn" onclick="smGeneratePdf()" style="min-width:140px;background:linear-gradient(135deg,#dc2626,#ef4444);border:none">
+      <button class="btn" id="sm-pdf-export-btn" onclick="smGeneratePdf()"
+        style="min-width:150px;background:linear-gradient(135deg,#b91c1c,#dc2626,#ef4444);color:#fff;
+               box-shadow:0 4px 16px rgba(220,38,38,0.35);font-weight:700">
         <i class="fas fa-file-pdf"></i> ออกรายงาน PDF
       </button>
     </div>
@@ -6151,7 +6534,7 @@ function smUpdatePdfCount() {
   const checked = document.querySelectorAll('.pdf-mission-cb:checked');
   const info = document.getElementById('sm-pdf-count-info');
   const text = document.getElementById('sm-pdf-count-text');
-  if(info) info.style.display = checked.length > 0 ? 'block' : 'none';
+  if(info) info.style.display = checked.length > 0 ? 'flex' : 'none';
   if(text) text.textContent = `เลือก ${checked.length} ภารกิจ`;
 }
 
