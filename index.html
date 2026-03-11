@@ -2133,7 +2133,12 @@ input[type="date"].thai-date-real::-webkit-calendar-picker-indicator { position:
   <div class="modal" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title"><i class="fas fa-clipboard-list" style="color:var(--primary);margin-right:6px"></i>รายละเอียดภารกิจ</div>
-      <button class="btn-close" onclick="closeModal('modal-sm-detail')"><i class="fas fa-times"></i></button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button id="btn-export-pdf" onclick="smExportPDF()" style="padding:6px 13px;background:linear-gradient(135deg,#0a2463,#1b3d8f);color:#fff;border:none;border-radius:8px;font-size:11px;font-family:'Kanit',sans-serif;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all 0.2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+          <i class="fas fa-file-pdf"></i> Export PDF
+        </button>
+        <button class="btn-close" onclick="closeModal('modal-sm-detail')"><i class="fas fa-times"></i></button>
+      </div>
     </div>
     <div id="sm-detail-content"></div>
   </div>
@@ -7058,8 +7063,409 @@ window.smShowDetail = async function(missionId) {
   `;
 
   // ── Init mini-map ──
+  _smCurrentMissionData = m;
   if(hasMapData) setTimeout(() => smInitMiniMap(mapId, m, COLORS), 200);
 };
+
+// ── Export PDF ────────────────────────────────────────────
+let _smCurrentMissionData = null;
+
+function smExportPDF() {
+  if(!_smCurrentMissionData) { showToast('ไม่พบข้อมูลภารกิจ','error'); return; }
+  const m = _smCurrentMissionData;
+  const btn = document.getElementById('btn-export-pdf');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังสร้าง...';
+
+  // Build HTML report and print-to-PDF via browser
+  const win = window.open('', '_blank', 'width=900,height=1100');
+  win.document.write(smBuildPrintHTML(m));
+  win.document.close();
+
+  // Restore button after slight delay
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-file-pdf"></i> Export PDF';
+  }, 1500);
+}
+
+function smBuildPrintHTML(m) {
+  const stats = m.stats || {};
+
+  function fmtDT(ts) {
+    if(!ts) return '-';
+    const d = new Date(ts);
+    const months=['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    return `${d.getDate()} ${months[d.getMonth()+1]} ${d.getFullYear()+543} เวลา ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} น.`;
+  }
+  function fmtTime(ts) {
+    if(!ts) return '-';
+    const d = new Date(ts);
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} น.`;
+  }
+  function fmtDur(min) {
+    if(min==null) return '-';
+    return min >= 60 ? `${Math.floor(min/60)} ชม. ${min%60} น.` : `${min} นาที`;
+  }
+  function fmtDist(m) {
+    if(!m) return '-';
+    return m >= 1000 ? (m/1000).toFixed(2)+' กม.' : m+' ม.';
+  }
+  function fmtArea(sqm) {
+    if(!sqm) return '-';
+    return sqm >= 1600 ? (sqm/1600).toFixed(2)+' ไร่' : sqm.toLocaleString()+' ตร.ม.';
+  }
+  function repNo(ts) {
+    if(!ts) return '-';
+    const d = new Date(ts);
+    return `SAR-${d.getFullYear()+543}-${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+
+  const members = m.memberSnapshot || m.members || {};
+  const pins    = m.pinsSnapshot   || {};
+  const zones   = m.zonesSnapshot  || {};
+  const trails  = m.trailsSnapshot || {};
+  const grids   = m.gridsSnapshot  || {};
+  const COLORS  = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
+  const PIN_INFO = {
+    safe:   {label:'ปลอดภัย',   sym:'✓', color:'#15803d', bg:'#dcfce7'},
+    clue:   {label:'พบร่องรอย', sym:'?', color:'#0e7490', bg:'#e0f2fe'},
+    danger: {label:'อันตราย',   sym:'!', color:'#b91c1c', bg:'#fee2e2'},
+    rally:  {label:'จุดรวมพล',  sym:'⚑', color:'#b45309', bg:'#fef3c7'},
+    note:   {label:'หมายเหตุ',  sym:'=', color:'#6d28d9', bg:'#f5f3ff'},
+  };
+
+  // compute total trail distance
+  function haversine(a,b){
+    const R=6371000,dLat=(b.lat-a.lat)*Math.PI/180,dLng=(b.lng-a.lng)*Math.PI/180;
+    const s=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+    return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));
+  }
+  const trailStats = Object.entries(trails).map(([uid,t],i)=>{
+    const pts=(Array.isArray(t)?t:(t.points||[])).filter(p=>p?.lat);
+    let dist=0; for(let j=1;j<pts.length;j++) dist+=haversine(pts[j-1],pts[j]);
+    return {name:(typeof t==='object'?t.name:null)||`สมาชิก ${i+1}`, pts:pts.length, dist:Math.round(dist)};
+  });
+  const totalDist = trailStats.reduce((s,t)=>s+t.dist,0);
+
+  const printTs = fmtDT(Date.now());
+  const reportNo = repNo(m.createdAt);
+
+  // Duration
+  const durMin = stats.durationMin ?? (m.createdAt&&m.closedAt ? Math.floor((m.closedAt-m.createdAt)/60000) : null);
+
+  const memberRows = Object.values(members).map((mem,i)=>{
+    const c=COLORS[i%COLORS.length];
+    const durM=mem.durationMin;
+    const durL=durM!=null?(durM>=60?`${Math.floor(durM/60)}ชม.${durM%60}น.`:`${durM} น.`):'-';
+    return `<tr>
+      <td style="text-align:center">${i+1}</td>
+      <td><span style="display:inline-flex;align-items:center;gap:7px">
+        <span style="width:24px;height:24px;border-radius:7px;background:${c};display:inline-flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:11px;flex-shrink:0">${(mem.name||'?').charAt(0)}</span>
+        ${mem.name||'-'}
+      </span></td>
+      <td style="text-align:center;color:#64748b">${mem.empId||mem.userId||'-'}</td>
+      <td style="text-align:center;color:#15803d;font-weight:700">${fmtTime(mem.joinedAt)}</td>
+      <td style="text-align:center;color:#b91c1c;font-weight:700">${fmtTime(mem.leftAt)}</td>
+      <td style="text-align:center;color:#6d28d9;font-weight:700">${durL}</td>
+    </tr>`;
+  }).join('');
+
+  const pinRows = Object.values(pins).map((p,i)=>{
+    const info=PIN_INFO[p.type]||{label:'ไม่ระบุ',sym:'•',color:'#64748b',bg:'#f1f5f9'};
+    const coord=p.lat?`${parseFloat(p.lat).toFixed(5)}, ${parseFloat(p.lng).toFixed(5)}`:'-';
+    return `<tr>
+      <td style="text-align:center">${i+1}</td>
+      <td><span style="background:${info.bg};color:${info.color};font-weight:700;padding:2px 9px;border-radius:20px;font-size:11px">${info.sym} ${info.label}</span></td>
+      <td>${p.note||'-'}</td>
+      <td style="text-align:center;font-family:monospace;font-size:11px;color:#0e7490">${coord}</td>
+      <td style="text-align:center;color:#334155">${p.createdByName||'-'}</td>
+    </tr>`;
+  }).join('');
+
+  const zoneRows = Object.values(zones).map((z,i)=>{
+    const shapes={polygon:'รูปหลายเหลี่ยม',circle:'วงกลม',rect:'สี่เหลี่ยม'};
+    const st=(z.shape||{}).type||'';
+    return `<tr>
+      <td style="text-align:center">${i+1}</td>
+      <td style="font-weight:700">${z.name||`โซน ${i+1}`}</td>
+      <td style="text-align:center;color:#6d28d9">${shapes[st]||'-'}</td>
+      <td style="text-align:center;font-weight:700;color:#0e7490">${fmtArea(z.areaSqm)}</td>
+      <td style="text-align:center">${z.createdByName||'-'}</td>
+    </tr>`;
+  }).join('');
+
+  const trailRows = trailStats.map((t,i)=>`<tr>
+    <td style="font-weight:700"><span style="display:inline-flex;align-items:center;gap:6px">
+      <span style="width:10px;height:10px;border-radius:50%;background:${COLORS[i%COLORS.length]};display:inline-block"></span>${t.name}
+    </span></td>
+    <td style="text-align:center;color:#0e7490">${t.pts} จุด</td>
+    <td style="text-align:center;font-weight:700;color:#6d28d9">${fmtDist(t.dist)}</td>
+  </tr>`).join('');
+
+  const gridRows = Object.values(grids).map((g,i)=>{
+    const stC={done:'#15803d',partial:'#b45309'}[g.status]||'#64748b';
+    const stL={done:'ค้นหาแล้ว',partial:'ค้นหาบางส่วน'}[g.status]||'ยังไม่ค้นหา';
+    const stBg={done:'#dcfce7',partial:'#fef3c7'}[g.status]||'#f1f5f9';
+    return `<tr>
+      <td style="text-align:center">${i+1}</td>
+      <td style="font-weight:700">${g.name||`กริด ${i+1}`}</td>
+      <td style="text-align:center;color:#0e7490">${fmtArea(g.areaSqm)}</td>
+      <td style="text-align:center">${g.createdByName||'-'}</td>
+      <td style="text-align:center"><span style="background:${stBg};color:${stC};font-weight:700;padding:2px 9px;border-radius:20px;font-size:11px">${stL}</span></td>
+    </tr>`;
+  }).join('');
+
+  return `<!DOCTYPE html><html lang="th"><head>
+  <meta charset="UTF-8">
+  <title>รายงานสรุปผลภารกิจ — ${m.title||''}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&family=Kanit:wght@700;800&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Sarabun',sans-serif;font-size:12px;color:#0f172a;background:#fff;line-height:1.6}
+    @page{size:A4;margin:12mm 14mm 14mm 14mm}
+    @media print{
+      body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .no-print{display:none}
+      .page-break{page-break-before:always}
+    }
+
+    /* ── Print button ── */
+    .print-btn{position:fixed;top:14px;right:14px;z-index:9999;background:#0a2463;color:#fff;border:none;
+      padding:10px 20px;border-radius:9px;font-family:'Kanit',sans-serif;font-size:13px;cursor:pointer;
+      display:flex;align-items:center;gap:7px;box-shadow:0 4px 15px rgba(0,0,0,0.3)}
+    .print-btn:hover{background:#1b3d8f}
+
+    /* ── Page header/footer ── */
+    .page-header{background:#0a2463;color:#fff;padding:6px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:0}
+    .page-header .org{font-family:'Kanit',sans-serif;font-size:11px;color:#c8960c;font-weight:700}
+    .page-header .secret{font-size:10px;color:#8899cc}
+
+    /* ── Cover ── */
+    .cover{background:linear-gradient(135deg,#0a2463 0%,#1b3d8f 60%,#0e4d8f 100%);
+      color:#fff;padding:22px 20px 18px;margin-bottom:0;position:relative;overflow:hidden}
+    .cover::before{content:'';position:absolute;top:-30px;right:-30px;width:180px;height:180px;
+      border-radius:50%;background:rgba(200,150,12,0.12)}
+    .cover::after{content:'';position:absolute;bottom:-20px;left:-20px;width:120px;height:120px;
+      border-radius:50%;background:rgba(255,255,255,0.04)}
+    .cover-badge{background:rgba(200,150,12,0.2);border:1px solid rgba(200,150,12,0.5);
+      color:#ffd863;font-size:10px;padding:3px 12px;border-radius:20px;display:inline-block;margin-bottom:8px;
+      font-family:'Sarabun',sans-serif;font-weight:700}
+    .cover-title{font-family:'Kanit',sans-serif;font-size:22px;font-weight:800;line-height:1.3;margin-bottom:4px}
+    .cover-sub{font-size:12px;color:#b8ccff;font-weight:600;margin-bottom:14px}
+    .cover-mission{background:rgba(255,255,255,0.12);border-left:4px solid #c8960c;
+      padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:14px}
+    .cover-mission-title{font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;margin-bottom:4px}
+    .cover-mission-area{font-size:11px;color:#b8ccff}
+
+    .gold-bar{height:3px;background:linear-gradient(90deg,#c8960c,#ffd863,#c8960c);margin-bottom:12px}
+
+    /* ── Info grid ── */
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #cbd5e1;margin-bottom:12px}
+    .info-cell{padding:7px 10px;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0}
+    .info-cell:nth-child(even){border-right:none;background:#f8faff}
+    .info-cell:nth-child(odd){background:#f1f5f9}
+    .info-cell:nth-last-child(-n+2){border-bottom:none}
+    .info-label{font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px}
+    .info-value{font-family:'Kanit',sans-serif;font-size:11.5px;font-weight:700;color:#0f172a}
+
+    /* ── Section header ── */
+    .section-header{background:#eef3ff;border-left:5px solid #0a2463;padding:8px 12px;
+      border-radius:0 6px 6px 0;margin:14px 0 8px;display:flex;align-items:center;gap:8px}
+    .section-header.green{background:#f0fdf4;border-color:#15803d}
+    .section-header.red{background:#fff1f2;border-color:#b91c1c}
+    .section-header.purple{background:#f5f3ff;border-color:#6d28d9}
+    .section-header.teal{background:#f0f9ff;border-color:#0e7490}
+    .section-header.gold{background:#fefce8;border-color:#b45309}
+    .section-title{font-family:'Kanit',sans-serif;font-size:12px;font-weight:800;color:#0a2463}
+    .section-header.green .section-title{color:#15803d}
+    .section-header.red .section-title{color:#b91c1c}
+    .section-header.purple .section-title{color:#6d28d9}
+    .section-header.teal .section-title{color:#0e7490}
+    .section-header.gold .section-title{color:#b45309}
+
+    /* ── Stat cards ── */
+    .stat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:12px}
+    .stat-card{padding:10px 6px;border-radius:9px;text-align:center;border:1px solid rgba(0,0,0,0.07)}
+    .stat-card.blue{background:#eff6ff}.stat-card.green{background:#f0fdf4}
+    .stat-card.purple{background:#f5f3ff}.stat-card.orange{background:#fff7ed}
+    .stat-card.red{background:#fff1f2}.stat-card.teal{background:#f0f9ff}
+    .stat-val{font-family:'Kanit',sans-serif;font-size:15px;font-weight:800}
+    .stat-card.blue .stat-val{color:#1d4ed8}.stat-card.green .stat-val{color:#15803d}
+    .stat-card.purple .stat-val{color:#6d28d9}.stat-card.orange .stat-val{color:#c2410c}
+    .stat-card.red .stat-val{color:#b91c1c}.stat-card.teal .stat-val{color:#0e7490}
+    .stat-lbl{font-size:8.5px;color:#64748b;margin-top:3px;font-weight:600}
+
+    /* ── Summary box ── */
+    .summary-box{background:#f0fdf4;border-left:4px solid #15803d;padding:12px 14px;
+      border-radius:0 8px 8px 0;margin-bottom:12px;font-size:12px;line-height:1.8;
+      color:#1e3a2e;border:1px solid #86efac;border-left-width:4px}
+
+    /* ── Tables ── */
+    table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:2px}
+    th{background:#0a2463;color:#fff;padding:8px 6px;font-family:'Kanit',sans-serif;font-size:10px;font-weight:700;text-align:center}
+    th.left{text-align:left}
+    td{padding:7px 6px;border-bottom:1px solid #e2e8f0;vertical-align:middle}
+    tr:nth-child(even) td{background:#f8faff}
+    tr:last-child td{border-bottom:none}
+    .gold-line{height:2px;background:linear-gradient(90deg,#c8960c,#ffd863,#c8960c)}
+    tfoot td{background:#eef3ff!important;font-family:'Kanit',sans-serif;font-weight:800;border-top:2px solid #0a2463}
+
+    /* ── Signature ── */
+    .sig-section{margin-top:16px;padding-top:14px;border-top:2px solid #0a2463}
+    .sig-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center}
+    .sig-label{font-size:10px;color:#64748b;font-weight:700;margin-bottom:20px}
+    .sig-line{border-bottom:1px solid #334155;margin:0 10px 6px}
+    .sig-name{font-family:'Kanit',sans-serif;font-size:11px;font-weight:700}
+    .sig-date{font-size:10px;color:#64748b;margin-top:3px}
+
+    /* ── Disclaimer ── */
+    .disclaimer{background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;
+      padding:7px 12px;text-align:center;font-size:9.5px;color:#64748b;margin-top:12px}
+  </style>
+  </head>
+  <body>
+
+  <button class="print-btn no-print" onclick="window.print()">
+    🖨️ พิมพ์ / บันทึก PDF
+  </button>
+
+  <!-- Top header bar -->
+  <div class="page-header">
+    <span class="org">กองป้องกันและบรรเทาสาธารณภัย</span>
+    <span class="secret">เอกสารสำหรับใช้ภายใน — ห้ามเผยแพร่</span>
+  </div>
+
+  <!-- COVER -->
+  <div class="cover">
+    <div class="cover-badge">Search and Rescue Mission Report</div>
+    <div class="cover-title">รายงานสรุปผล<br>ภารกิจค้นหาและกู้ภัย</div>
+    <div class="cover-sub">กองป้องกันและบรรเทาสาธารณภัย</div>
+    <div class="cover-mission">
+      <div class="cover-mission-title">${m.title||'ภารกิจค้นหา'}</div>
+      <div class="cover-mission-area">📍 ${m.area||'ไม่ระบุพื้นที่'}</div>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#b8ccff">
+      <span>📅 เริ่ม: ${fmtDT(m.createdAt)}</span>
+      <span>🏁 จบ: ${fmtDT(m.closedAt)}</span>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:#8899cc">เลขที่รายงาน: ${reportNo}</div>
+  </div>
+  <div class="gold-bar"></div>
+
+  <!-- INFO GRID -->
+  <div class="info-grid">
+    <div class="info-cell"><div class="info-label">ผู้สั่งการ / ผู้สร้างภารกิจ</div><div class="info-value">${m.createdByName||'-'}</div></div>
+    <div class="info-cell"><div class="info-label">ผู้จบภารกิจ</div><div class="info-value">${m.closedByName||'-'}</div></div>
+    <div class="info-cell"><div class="info-label">วันที่เริ่มต้น</div><div class="info-value" style="font-size:11px">${fmtDT(m.createdAt)}</div></div>
+    <div class="info-cell"><div class="info-label">วันที่จบภารกิจ</div><div class="info-value" style="font-size:11px">${fmtDT(m.closedAt)}</div></div>
+  </div>
+
+  <!-- STATS -->
+  <div class="section-header"><span class="section-title">📊 สถิติสรุปภารกิจ</span></div>
+  <div class="stat-grid">
+    <div class="stat-card blue"><div class="stat-val">${fmtDur(durMin)}</div><div class="stat-lbl">ระยะเวลาปฏิบัติการ</div></div>
+    <div class="stat-card green"><div class="stat-val">${stats.memberCount||Object.keys(members).length} คน</div><div class="stat-lbl">สมาชิกร่วมภารกิจ</div></div>
+    <div class="stat-card purple"><div class="stat-val">${fmtDist(stats.totalDistM||totalDist)}</div><div class="stat-lbl">ระยะทางรวม</div></div>
+    <div class="stat-card orange"><div class="stat-val">${fmtArea(stats.totalAreaSqm)}</div><div class="stat-lbl">พื้นที่โซนรวม</div></div>
+    <div class="stat-card red"><div class="stat-val">${stats.pinCount||Object.keys(pins).length}</div><div class="stat-lbl">จำนวนหมุด</div></div>
+    <div class="stat-card teal"><div class="stat-val">${stats.zoneCount||Object.keys(zones).length}</div><div class="stat-lbl">โซนที่กำหนด</div></div>
+  </div>
+
+  ${m.summary?`
+  <div class="section-header green"><span class="section-title">📋 สรุปผลการปฏิบัติภารกิจ</span></div>
+  <div class="summary-box">${m.summary}</div>`:''}
+
+  <!-- MEMBERS -->
+  ${Object.keys(members).length?`
+  <div class="section-header"><span class="section-title">👥 รายชื่อสมาชิกผู้ปฏิบัติภารกิจ (${Object.keys(members).length} คน)</span></div>
+  <table><thead><tr>
+    <th style="width:30px">ลำดับ</th>
+    <th class="left">ชื่อ - สกุล</th>
+    <th>รหัส</th>
+    <th>เวลาเข้า</th>
+    <th>เวลาออก</th>
+    <th>ระยะเวลา</th>
+  </tr></thead>
+  <tbody>${memberRows}</tbody>
+  </table><div class="gold-line"></div>`:''}
+
+  <!-- PINS -->
+  ${Object.keys(pins).length?`
+  <div class="section-header red"><span class="section-title">📍 รายละเอียดหมุดที่ปัก (${Object.keys(pins).length} จุด)</span></div>
+  <table><thead><tr>
+    <th style="width:30px">ลำดับ</th><th>ประเภท</th>
+    <th class="left">หมายเหตุ / รายละเอียด</th>
+    <th>พิกัด GPS</th><th>ปักโดย</th>
+  </tr></thead>
+  <tbody>${pinRows}</tbody>
+  </table><div class="gold-line"></div>`:''}
+
+  <!-- ZONES -->
+  ${Object.keys(zones).length?`
+  <div class="section-header purple"><span class="section-title">🗺️ โซนพื้นที่ปฏิบัติการ (${Object.keys(zones).length} โซน)</span></div>
+  <table><thead><tr>
+    <th style="width:30px">ลำดับ</th><th class="left">ชื่อโซน</th>
+    <th>รูปแบบ</th><th>พื้นที่</th><th>สร้างโดย</th>
+  </tr></thead>
+  <tbody>${zoneRows}</tbody>
+  </table><div class="gold-line"></div>`:''}
+
+  <!-- TRAILS -->
+  ${trailStats.length?`
+  <div class="section-header teal"><span class="section-title">🚶 สรุปเส้นทางการปฏิบัติงานแต่ละคน</span></div>
+  <table><thead><tr>
+    <th class="left">สมาชิก</th><th>จำนวนจุดติดตาม</th><th>ระยะทาง (ประมาณ)</th>
+  </tr></thead>
+  <tbody>${trailRows}</tbody>
+  <tfoot><tr>
+    <td>รวมทั้งหมด</td><td></td>
+    <td style="text-align:center">${fmtDist(totalDist)}</td>
+  </tr></tfoot>
+  </table><div class="gold-line"></div>`:''}
+
+  <!-- GRIDS -->
+  ${Object.keys(grids).length?`
+  <div class="section-header gold"><span class="section-title">⊞ กริดพื้นที่ค้นหา (${Object.keys(grids).length} กริด)</span></div>
+  <table><thead><tr>
+    <th style="width:30px">ลำดับ</th><th class="left">ชื่อกริด</th>
+    <th>พื้นที่</th><th>สร้างโดย</th><th>สถานะ</th>
+  </tr></thead>
+  <tbody>${gridRows}</tbody>
+  </table><div class="gold-line"></div>`:''}
+
+  <!-- SIGNATURE -->
+  <div class="sig-section">
+    <div class="sig-grid">
+      <div>
+        <div class="sig-label">ลงชื่อผู้รายงาน</div>
+        <div class="sig-line"></div>
+        <div class="sig-name">( ${m.closedByName||m.createdByName||'.........................'} )</div>
+        <div class="sig-date">วันที่ ${fmtDT(m.closedAt||m.createdAt)}</div>
+      </div>
+      <div>
+        <div class="sig-label">ลงชื่อผู้ตรวจสอบ</div>
+        <div class="sig-line"></div>
+        <div class="sig-name">( ............................. )</div>
+        <div class="sig-date">วันที่ _______________</div>
+      </div>
+      <div>
+        <div class="sig-label">ลงชื่อผู้อนุมัติ</div>
+        <div class="sig-line"></div>
+        <div class="sig-name">( ............................. )</div>
+        <div class="sig-date">วันที่ _______________</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    เอกสารนี้จัดทำโดยระบบสารสนเทศภารกิจค้นหาและกู้ภัย  กองป้องกันและบรรเทาสาธารณภัย  
+    — เลขที่รายงาน: ${reportNo}  — พิมพ์เมื่อ: ${printTs}
+  </div>
+
+  <script>window.onload=()=>{setTimeout(()=>window.print(),800)}</script>
+  </body></html>`;
+}
 
 function smInitMiniMap(containerId, m, COLORS) {
   const el = document.getElementById(containerId);
